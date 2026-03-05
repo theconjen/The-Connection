@@ -100,11 +100,13 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     }
 
     if (finalStatus !== 'granted') {
+      console.warn('[Notifications] Permission not granted:', finalStatus);
       return false;
     }
 
     return true;
   } catch (error) {
+    console.error('[Notifications] Error requesting permissions:', error);
     return false;
   }
 }
@@ -130,6 +132,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     const token = tokenData.data;
     return token;
   } catch (error) {
+    console.error('[Notifications] Error getting push token:', error);
     return null;
   }
 }
@@ -141,23 +144,33 @@ export async function getExpoPushToken(): Promise<string | null> {
  * @param {string} token - Expo push token
  * @returns {Promise<boolean>} True if registration successful
  */
-export async function registerPushToken(token: string): Promise<boolean> {
-  try {
-    const platform = Platform.OS;
+export async function registerPushToken(token: string, retries = 3): Promise<boolean> {
+  const platform = Platform.OS;
 
-    await apiClient.post('/api/push-tokens', {
-      token,
-      platform,
-    });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await apiClient.post('/api/push-tokens', {
+        token,
+        platform,
+      });
+      console.log('[Notifications] Push token registered successfully');
+      return true;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      console.error(`[Notifications] Token registration failed (attempt ${attempt}/${retries}):`, status || error.message);
 
-    return true;
-  } catch (error: any) {
-    // Log error but don't block app startup
-    if (error?.response?.status === 404) {
-    } else {
+      // Don't retry on client errors (except 5xx / network)
+      if (status && status >= 400 && status < 500) {
+        return false;
+      }
+
+      // Wait before retrying (exponential backoff: 2s, 4s, 8s)
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+      }
     }
-    return false;
   }
+  return false;
 }
 
 /**
@@ -295,6 +308,7 @@ export async function initializeNotifications(
 
     return { receivedListener, responseListener };
   } catch (error) {
+    console.error('[Notifications] Error initializing notifications:', error);
     return null;
   }
 }

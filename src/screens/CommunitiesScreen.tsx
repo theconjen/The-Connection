@@ -1014,15 +1014,15 @@ export function CommunitiesScreen({
               backgroundColor: colors.surfaceMuted,
               borderRadius: radii.full,
               paddingHorizontal: spacing.md,
-              height: 44,
+              height: 38,
               gap: spacing.sm,
             }}
           >
-            <Ionicons name="search" size={20} color={colors.textMuted} />
+            <Ionicons name="search" size={18} color={colors.textMuted} />
             <TextInput
               style={{
                 flex: 1,
-                fontSize: 16,
+                fontSize: 14,
                 color: colors.textPrimary,
               }}
               placeholder="Search communities..."

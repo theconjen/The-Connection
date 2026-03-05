@@ -399,12 +399,18 @@ export const eventsAPI = {
   update: (id: number, data: Partial<{
     title: string;
     description: string;
+    category: string;
     location?: string;
     latitude?: number;
     longitude?: number;
     eventDate: string;
     startTime: string;
     endTime: string;
+    imageUrl?: string | null;
+    imagePosition?: string | null;
+    targetGender?: string | null;
+    targetAgeGroup?: string | null;
+    isPublic?: boolean;
   }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>

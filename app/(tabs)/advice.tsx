@@ -146,7 +146,7 @@ export default function AdviceListScreen() {
     [sortedPosts, searchQuery]
   );
 
-  // Upvote mutation
+  // Upvote mutation with optimistic count update
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
       if (isCurrentlyLiked) {
@@ -156,6 +156,23 @@ export default function AdviceListScreen() {
       }
     },
     onMutate: async ({ postId, isCurrentlyLiked }) => {
+      await queryClient.cancelQueries({ queryKey: ['advice-list'] });
+      const previous = queryClient.getQueryData(['advice-list', user?.id]);
+      // Optimistically update count in cache
+      queryClient.setQueryData(['advice-list', user?.id], (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            items: page.items.map((item: any) =>
+              item.id === postId
+                ? { ...item, isLiked: !isCurrentlyLiked, likeCount: Math.max(0, (item.likeCount || 0) + (isCurrentlyLiked ? -1 : 1)) }
+                : item
+            ),
+          })),
+        };
+      });
       if (isCurrentlyLiked) {
         setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
@@ -163,9 +180,16 @@ export default function AdviceListScreen() {
         setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
       }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['advice-list', user?.id], context.previous);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['advice-list'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
     },
   });
 

@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   Switch,
   Alert,
-  Linking,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +16,10 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../src/lib/apiClient';
 import { useTheme } from '../src/contexts/ThemeContext';
+import Constants from 'expo-constants';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -40,6 +42,7 @@ export default function SettingsScreen() {
   const [showActivity, setShowActivity] = React.useState(
     user?.showActivity !== false // Default to true if not set
   );
+  const [exporting, setExporting] = React.useState(false);
 
   // Birthday state
   const [showDatePicker, setShowDatePicker] = React.useState(false);
@@ -206,6 +209,52 @@ export default function SettingsScreen() {
     } else {
       await disableBiometric();
     }
+  };
+
+  const handleDataExport = () => {
+    Alert.alert(
+      'Download My Data',
+      'We will compile all your data including profile, posts, communities, and activity. This may take a moment.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            try {
+              setExporting(true);
+              const response = await apiClient.post('/api/user/export');
+              const jsonData = JSON.stringify(response.data, null, 2);
+              const fileName = `the-connection-data-export-${Date.now()}.json`;
+              const filePath = `${FileSystem.documentDirectory}${fileName}`;
+              await FileSystem.writeAsStringAsync(filePath, jsonData, {
+                encoding: FileSystem.EncodingType.UTF8,
+              });
+              const canShare = await Sharing.isAvailableAsync();
+              if (canShare) {
+                await Sharing.shareAsync(filePath, {
+                  mimeType: 'application/json',
+                  dialogTitle: 'Save Your Data Export',
+                });
+              } else {
+                Alert.alert('Success', 'Your data has been exported successfully.');
+              }
+            } catch (error: any) {
+              const status = error?.response?.status;
+              const message = error?.response?.data?.message;
+              if (status === 401) {
+                Alert.alert('Error', 'Please log in again to export your data.');
+              } else if (message) {
+                Alert.alert('Error', message);
+              } else {
+                Alert.alert('Error', 'Failed to export data. Please check your connection and try again.');
+              }
+            } finally {
+              setExporting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const SettingsItem = ({
@@ -408,6 +457,11 @@ export default function SettingsScreen() {
             onPress={() => router.push('/blocked-users')}
           />
           <SettingsItem
+            icon="download-outline"
+            label={exporting ? "Exporting..." : "Download My Data"}
+            onPress={handleDataExport}
+          />
+          <SettingsItem
             icon="trash-outline"
             label="Delete Account"
             onPress={() => router.push('/delete-account')}
@@ -426,12 +480,12 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="document-text-outline"
             label="Terms of Service"
-            onPress={() => Linking.openURL('https://theconnection.app/terms')}
+            onPress={() => router.push('/terms')}
           />
           <SettingsItem
             icon="shield-outline"
             label="Privacy Policy"
-            onPress={() => Linking.openURL('https://theconnection.app/privacy')}
+            onPress={() => router.push('/privacy')}
           />
         </View>
 
@@ -442,7 +496,7 @@ export default function SettingsScreen() {
             icon="information-circle-outline"
             label="App Version"
             showArrow={false}
-            rightElement={<Text style={[styles.versionText, { color: colors.textSecondary }]}>1.0.0</Text>}
+            rightElement={<Text style={[styles.versionText, { color: colors.textSecondary }]}>{Constants.expoConfig?.version || '1.0.0'}</Text>}
           />
         </View>
 

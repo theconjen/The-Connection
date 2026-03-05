@@ -15,6 +15,12 @@ interface NotificationPreferences {
   notifyFeed: boolean;
 }
 
+interface EmailNotificationPreferences {
+  emailEventReminders: boolean;
+  emailPrayerUpdates: boolean;
+  emailCommunityDigest: boolean;
+}
+
 export function NotificationSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,6 +29,11 @@ export function NotificationSettingsScreen() {
     notifyCommunities: true,
     notifyForums: true,
     notifyFeed: true,
+  });
+  const [emailPreferences, setEmailPreferences] = useState<EmailNotificationPreferences>({
+    emailEventReminders: true,
+    emailPrayerUpdates: true,
+    emailCommunityDigest: true,
   });
 
   // Load user preferences on mount
@@ -42,6 +53,24 @@ export function NotificationSettingsScreen() {
         notifyForums: user.notifyForums ?? true,
         notifyFeed: user.notifyFeed ?? true,
       });
+
+      // Load email notification preferences
+      try {
+        const emailResponse = await apiClient.get('/user/notification-preferences');
+        const emailPrefs = emailResponse.data;
+        setEmailPreferences({
+          emailEventReminders: emailPrefs.emailEventReminders ?? true,
+          emailPrayerUpdates: emailPrefs.emailPrayerUpdates ?? true,
+          emailCommunityDigest: emailPrefs.emailCommunityDigest ?? true,
+        });
+      } catch {
+        // Fall back to user object if notification-preferences endpoint fails
+        setEmailPreferences({
+          emailEventReminders: user.emailEventReminders ?? true,
+          emailPrayerUpdates: user.emailPrayerUpdates ?? true,
+          emailCommunityDigest: user.emailCommunityDigest ?? true,
+        });
+      }
     } catch (error) {
     } finally {
       setLoading(false);
@@ -60,6 +89,18 @@ export function NotificationSettingsScreen() {
     } catch (error) {
       // Revert on error
       setPreferences(prev => ({ ...prev, [key]: !value }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateEmailPreference = async (key: keyof EmailNotificationPreferences, value: boolean) => {
+    try {
+      setEmailPreferences(prev => ({ ...prev, [key]: value }));
+      setSaving(true);
+      await apiClient.patch('/user/notification-preferences', { [key]: value });
+    } catch (error) {
+      setEmailPreferences(prev => ({ ...prev, [key]: !value }));
     } finally {
       setSaving(false);
     }
@@ -148,6 +189,58 @@ export function NotificationSettingsScreen() {
         </View>
       </View>
 
+      <Text style={styles.sectionHeader}>EMAIL NOTIFICATIONS</Text>
+
+      <View style={styles.section}>
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>Event Reminders</Text>
+            <Text style={styles.settingDescription}>
+              Receive email reminders for upcoming events you've RSVP'd to
+            </Text>
+          </View>
+          <Switch
+            value={emailPreferences.emailEventReminders}
+            onValueChange={(value) => updateEmailPreference('emailEventReminders', value)}
+            disabled={saving}
+            trackColor={{ false: '#ccc', true: '#818cf8' }}
+            thumbColor={emailPreferences.emailEventReminders ? '#6366f1' : '#f4f3f4'}
+          />
+        </View>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>Prayer Updates</Text>
+            <Text style={styles.settingDescription}>
+              Email updates when someone responds to your prayer requests
+            </Text>
+          </View>
+          <Switch
+            value={emailPreferences.emailPrayerUpdates}
+            onValueChange={(value) => updateEmailPreference('emailPrayerUpdates', value)}
+            disabled={saving}
+            trackColor={{ false: '#ccc', true: '#818cf8' }}
+            thumbColor={emailPreferences.emailPrayerUpdates ? '#6366f1' : '#f4f3f4'}
+          />
+        </View>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingTitle}>Community Digest</Text>
+            <Text style={styles.settingDescription}>
+              Weekly email digest of activity in your communities
+            </Text>
+          </View>
+          <Switch
+            value={emailPreferences.emailCommunityDigest}
+            onValueChange={(value) => updateEmailPreference('emailCommunityDigest', value)}
+            disabled={saving}
+            trackColor={{ false: '#ccc', true: '#818cf8' }}
+            thumbColor={emailPreferences.emailCommunityDigest ? '#6366f1' : '#f4f3f4'}
+          />
+        </View>
+      </View>
+
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           ℹ️ Even if push notifications are disabled, you'll still see notifications in your notification center.
@@ -189,6 +282,16 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+    letterSpacing: 0.5,
+    marginTop: 24,
+    marginBottom: 8,
+    marginHorizontal: 16,
+    paddingHorizontal: 4,
   },
   section: {
     marginTop: 16,

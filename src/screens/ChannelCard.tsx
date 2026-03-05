@@ -70,16 +70,16 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
       onPress={handlePress}
       style={({ pressed }) => [
         {
-          width: 96,
-          height: 96,
+          width: 80,
+          height: 80,
           backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: pressed ? colors.accent : colors.borderSubtle,
           borderRadius: radii.lg,
-          padding: spacing.sm,
+          padding: spacing.xs,
           alignItems: 'center',
           justifyContent: 'center',
-          gap: spacing.xs,
+          gap: 2,
         },
       ]}
     >
@@ -87,9 +87,9 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
       <View style={{ position: 'relative' }}>
         <View
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
+            width: 34,
+            height: 34,
+            borderRadius: 17,
             backgroundColor: channel.color || colors.secondary,
             alignItems: 'center',
             justifyContent: 'center',
@@ -98,7 +98,7 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
           <Text
             style={{
               color: channel.color ? getContrastColor(channel.color) : colors.secondaryForeground,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: '600',
             }}
           >
@@ -153,14 +153,14 @@ export const AddChannelCard = memo(function AddChannelCard({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          width: 96,
-          height: 96,
+          width: 80,
+          height: 80,
           borderWidth: 1,
           borderColor: colors.borderSubtle,
           borderRadius: radii.lg,
           alignItems: 'center',
           justifyContent: 'center',
-          gap: spacing.xs,
+          gap: 2,
           backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
         },
       ]}
@@ -168,15 +168,15 @@ export const AddChannelCard = memo(function AddChannelCard({
       <View style={{ position: 'relative' }}>
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: 30,
+            height: 30,
+            borderRadius: 15,
             backgroundColor: colors.surfaceMuted,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+          <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
         </View>
         {/* Filter count badge - subtle neutral style */}
         {activeFilterCount > 0 && (
@@ -200,7 +200,7 @@ export const AddChannelCard = memo(function AddChannelCard({
           </View>
         )}
       </View>
-      <Text variant="caption" style={{ color: colors.textSecondary, fontWeight: '500', textAlign: 'center', lineHeight: 14 }}>
+      <Text variant="caption" style={{ color: colors.textSecondary, fontWeight: '500', textAlign: 'center', lineHeight: 13 }}>
         Find{'\n'}Communities
       </Text>
     </Pressable>

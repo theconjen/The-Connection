@@ -120,6 +120,8 @@ export default function AdviceDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['advice-responses', adviceId] });
       queryClient.invalidateQueries({ queryKey: ['advice', adviceId] });
       queryClient.invalidateQueries({ queryKey: ['advice-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
       setCommentText('');
     },
   });
@@ -153,6 +155,8 @@ export default function AdviceDetailScreen() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['advice', adviceId] });
       queryClient.invalidateQueries({ queryKey: ['advice-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
     },
   });
 

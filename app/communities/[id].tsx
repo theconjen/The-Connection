@@ -29,6 +29,7 @@ import { Text } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 import socketService, { ChatMessage } from '../../src/lib/socket';
 import CommunityAnalyticsTab from '../../src/components/community/CommunityAnalyticsTab';
+import { shareCommunityInvite } from '../../src/lib/shareUrls';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Video, ResizeMode } from 'expo-av';
@@ -486,6 +487,19 @@ export default function CommunityDetailScreen() {
     }
   };
 
+  const handleShareInvite = async () => {
+    try {
+      // Generate or fetch invite code
+      const res = await apiClient.post(`/api/communities/${community?.id}/invite-code`);
+      const { inviteCode } = res.data;
+      if (inviteCode && community) {
+        await shareCommunityInvite(inviteCode, community.name);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to generate invite link');
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) {
       Alert.alert('Error', 'Post content cannot be empty');
@@ -679,6 +693,14 @@ export default function CommunityDetailScreen() {
           )}
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
+          {(community.isAdmin || community.isModerator || community.role === 'owner' || community.role === 'moderator') && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={handleShareInvite}
+            >
+              <Ionicons name="share-social-outline" size={20} color={communityColor} />
+            </TouchableOpacity>
+          )}
           {community.isAdmin && (
             <>
               <TouchableOpacity

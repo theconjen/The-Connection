@@ -76,6 +76,8 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
     dateRange: 'all',
     sortBy: 'relevance',
   });
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Load search history and saved searches on mount
   useEffect(() => {
@@ -83,13 +85,44 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
     loadSavedSearches();
   }, []);
 
+  // Debounced search suggestions
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const response = await apiClient.get('/api/search/suggestions', {
+          params: { q: searchQuery }
+        });
+        setSuggestions(response.data.suggestions || []);
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const loadSearchHistory = async () => {
     try {
-      const history = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
-      if (history) {
-        setSearchHistory(JSON.parse(history));
+      const response = await apiClient.get('/api/search/history');
+      const serverHistory = (response.data.history || []).map(
+        (item: { id: number; query: string; type: string; searchedAt: string }) => item.query
+      );
+      setSearchHistory(serverHistory);
+      await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(serverHistory));
+    } catch {
+      // Fallback to AsyncStorage if server call fails
+      try {
+        const history = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+        if (history) {
+          setSearchHistory(JSON.parse(history));
+        }
+      } catch {
       }
-    } catch (error) {
     }
   };
 
@@ -111,16 +144,33 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         ...searchHistory.filter(q => q !== query),
       ].slice(0, MAX_HISTORY);
       setSearchHistory(updatedHistory);
+      // Save to server
+      await apiClient.post('/api/search/history', { query, type: activeFilter });
+      // Also save to AsyncStorage as backup
       await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
-    } catch (error) {
+    } catch {
+      // Still save locally even if server call fails
+      try {
+        const updatedHistory = [
+          query,
+          ...searchHistory.filter(q => q !== query),
+        ].slice(0, MAX_HISTORY);
+        await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updatedHistory));
+      } catch {
+      }
     }
   };
 
   const clearSearchHistory = async () => {
     try {
       setSearchHistory([]);
+      await apiClient.delete('/api/search/history');
       await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
-    } catch (error) {
+    } catch {
+      try {
+        await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+      } catch {
+      }
     }
   };
 
@@ -168,6 +218,9 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
     queryKey: ['/api/search', searchQuery, activeFilter, advancedFilters],
     queryFn: async () => {
       if (!searchQuery || searchQuery.length < 2) return [];
+
+      // Hide suggestions when search executes
+      setShowSuggestions(false);
 
       // Add to search history when performing a search
       addToSearchHistory(searchQuery);
@@ -279,7 +332,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
             ]}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} style={{ padding: spacing.sm }}>
+            <Pressable onPress={() => { setSearchQuery(''); setShowSuggestions(false); }} style={{ padding: spacing.sm }}>
               <Ionicons name="close-circle" size={20} color={colors.textMuted} />
             </Pressable>
           )}
@@ -383,6 +436,34 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
           </View>
         </ScrollView>
       </View>
+
+      {/* Search Suggestions */}
+      {showSuggestions && suggestions.length > 0 && searchQuery.length >= 2 && !isLoading && (
+        <View style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
+          {suggestions.map((suggestion, index) => (
+            <Pressable
+              key={index}
+              onPress={() => {
+                setSearchQuery(suggestion);
+                setShowSuggestions(false);
+              }}
+              style={({ pressed }) => [{
+                backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
+                padding: spacing.md,
+                paddingHorizontal: spacing.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderBottomWidth: index < suggestions.length - 1 ? 1 : 0,
+                borderBottomColor: colors.borderSubtle,
+              }]}
+            >
+              <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+              <Text variant="body" style={{ marginLeft: spacing.md, flex: 1 }}>{suggestion}</Text>
+              <Ionicons name="arrow-up-outline" size={18} color={colors.textMuted} style={{ transform: [{ rotate: '45deg' }] }} />
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       {/* Results */}
       <ScrollView style={{ flex: 1 }}>

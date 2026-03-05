@@ -61,15 +61,39 @@ function RootLayoutNav() {
     responseListener: Notifications.Subscription | null;
   } | null>(null);
 
-  // Handle invite deep links — store community ID for onboarding
+  // Handle invite deep links — store invite code and join community
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
       try {
         const { url } = event;
-        // Match patterns like theconnection://invite/123 or https://theconnection.app/invite/123
-        const inviteMatch = url.match(/invite\/(\d+)/);
+        // Match patterns like theconnection://invite/abc123 or https://theconnection.app/invite/abc123
+        const inviteMatch = url.match(/invite\/([A-Za-z0-9_-]+)/);
         if (inviteMatch) {
-          await SecureStore.setItemAsync('invite_community_id', inviteMatch[1]);
+          const code = inviteMatch[1];
+          // Store invite code for use after auth
+          await SecureStore.setItemAsync('invite_code', code);
+
+          // If user is logged in, try to join immediately
+          if (user) {
+            try {
+              const res = await apiClient.post(`/api/community-invite/${code}/join`);
+              const data = res.data;
+              if (data.communityId) {
+                router.push(`/communities/${data.communityId}`);
+              }
+            } catch {
+              // If join fails (e.g. already member), still navigate to preview
+              try {
+                const previewRes = await apiClient.get(`/api/public/community-invite/${code}`);
+                if (previewRes.data?.id) {
+                  router.push(`/communities/${previewRes.data.id}`);
+                }
+              } catch {
+                // Silent fail — invalid code
+              }
+            }
+          }
+          // If not logged in, the code is stored and will be used after auth
         }
       } catch {
         // Silent fail
@@ -84,7 +108,30 @@ function RootLayoutNav() {
     // Listen for URLs while app is open
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
-  }, []);
+  }, [user]);
+
+  // After auth, consume stored invite code and join community
+  useEffect(() => {
+    if (!user || isLoading) return;
+
+    (async () => {
+      try {
+        const code = await SecureStore.getItemAsync('invite_code');
+        if (!code) return;
+
+        // Clear immediately to prevent re-processing
+        await SecureStore.deleteItemAsync('invite_code');
+
+        const res = await apiClient.post(`/api/community-invite/${code}/join`);
+        const data = res.data;
+        if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        }
+      } catch {
+        // Silent fail — code may be invalid or user already a member
+      }
+    })();
+  }, [user, isLoading]);
 
   // Prefetch events data when user is authenticated
   useEffect(() => {

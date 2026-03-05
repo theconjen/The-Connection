@@ -442,13 +442,13 @@ function SegmentButton({
 const segStyles = StyleSheet.create({
   btn: {
     flex: 1,
-    height: 40,
+    height: 34,
     borderRadius: 999,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { fontSize: 14, fontWeight: '600' },
+  text: { fontSize: 13, fontWeight: '600' },
 });
 
 // Chip Component
@@ -467,8 +467,8 @@ function Chip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        height: 32,
-        paddingHorizontal: 14,
+        height: 28,
+        paddingHorizontal: 12,
         borderRadius: 999,
         backgroundColor: active ? colors.primary : colors.surface,
         borderWidth: active ? 0 : 1,
@@ -483,7 +483,7 @@ function Chip({
       <Text
         style={{
           color: active ? colors.primaryForeground : colors.textMuted,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: '500',
         }}
         numberOfLines={1}
@@ -513,9 +513,9 @@ function LibraryPostCard({
         backgroundColor: colors.backgroundSoft,
         borderColor: colors.borderSubtle,
         borderWidth: 1,
-        borderRadius: 16,
-        marginBottom: 12,
-        padding: 16,
+        borderRadius: 12,
+        marginBottom: 10,
+        padding: 12,
         opacity: pressed ? 0.9 : 1,
       })}
     >
@@ -523,8 +523,8 @@ function LibraryPostCard({
       <Text
         style={{
           color: colors.textPrimary,
-          fontSize: 18,
-          lineHeight: 24,
+          fontSize: 15,
+          lineHeight: 20,
           fontWeight: '600',
         }}
         numberOfLines={3}
@@ -536,9 +536,9 @@ function LibraryPostCard({
       {(item.area || item.tag) && (
         <Text
           style={{
-            marginTop: 6,
+            marginTop: 4,
             color: colors.textMuted,
-            fontSize: 12,
+            fontSize: 11,
           }}
           numberOfLines={1}
         >
@@ -550,12 +550,12 @@ function LibraryPostCard({
       {/* TL;DR Preview */}
       {item.tldr && (
         <>
-          <View style={{ marginTop: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+          <View style={{ marginTop: 10, marginBottom: 5, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
             <Text
               style={{
                 color: colors.primary,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: '600',
                 letterSpacing: 0.3,
                 textTransform: 'uppercase',
@@ -567,8 +567,8 @@ function LibraryPostCard({
           <Text
             style={{
               color: colors.textPrimary,
-              fontSize: 15,
-              lineHeight: 21,
+              fontSize: 13,
+              lineHeight: 18,
             }}
             numberOfLines={4}
           >
@@ -578,15 +578,15 @@ function LibraryPostCard({
       )}
 
       {/* Footer */}
-      <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+      <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
+          <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '500' }}>
             Verified Sources
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '500' }}>
             {item.authorDisplayName}
           </Text>
           <Pressable
@@ -607,9 +607,9 @@ function LibraryPostCard({
 
       {/* Perspectives badge (if multiple) */}
       {item.perspectives.length > 1 && (
-        <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="people-outline" size={14} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>
             {item.perspectives.length} perspectives included
           </Text>
         </View>
@@ -634,13 +634,13 @@ function getStyles(colors: any) {
     searchWrap: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 8,
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      height: 48,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 40,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
@@ -650,14 +650,14 @@ function getStyles(colors: any) {
     searchInput: {
       flex: 1,
       color: colors.textPrimary,
-      fontSize: 15,
+      fontSize: 13,
     },
 
     toggleWrap: {
       flexDirection: "row",
-      gap: 10,
-      marginTop: 14,
-      marginBottom: 8,
+      gap: 8,
+      marginTop: 10,
+      marginBottom: 6,
     },
 
     chipsScrollView: {
@@ -677,100 +677,100 @@ function getStyles(colors: any) {
     },
 
     suggestedWrap: {
-      marginTop: 20,
-      marginBottom: 10,
+      marginTop: 14,
+      marginBottom: 8,
     },
     suggestedTitle: {
       color: colors.textSecondary,
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '600',
-      marginBottom: 12,
+      marginBottom: 8,
       letterSpacing: 0.2,
     },
     suggestedGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 10,
+      gap: 8,
     },
     suggestedButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSubtle,
-      borderRadius: 12,
+      borderRadius: 10,
     },
     suggestedText: {
       color: colors.textPrimary,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '500',
     },
 
     listContent: {
-      paddingTop: 16,
-      paddingBottom: 120,
+      paddingTop: 10,
+      paddingBottom: 100,
     },
 
     empty: {
       backgroundColor: colors.backgroundSoft,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
-      borderRadius: 16,
-      padding: 24,
-      marginTop: 20,
+      borderRadius: 12,
+      padding: 20,
+      marginTop: 14,
       alignItems: 'center',
     },
     emptyTitle: {
-      marginTop: 12,
+      marginTop: 10,
       color: colors.textPrimary,
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '600',
       textAlign: 'center',
     },
     emptyBody: {
-      marginTop: 8,
+      marginTop: 6,
       color: colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 18,
       textAlign: 'center',
     },
     primaryButton: {
-      marginTop: 16,
-      height: 44,
-      borderRadius: 12,
+      marginTop: 12,
+      height: 38,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 20,
+      gap: 6,
+      paddingHorizontal: 16,
     },
     primaryButtonText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
     },
 
     stickyCtaWrap: {
       position: "absolute",
-      left: 16,
-      right: 16,
-      bottom: 16,
+      left: 14,
+      right: 14,
+      bottom: 14,
     },
     stickyCta: {
-      height: 52,
-      borderRadius: 14,
+      height: 44,
+      borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
-      gap: 10,
-      paddingHorizontal: 14,
+      gap: 8,
+      paddingHorizontal: 12,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      elevation: 5,
     },
     stickyCtaText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '600',
     },
   });

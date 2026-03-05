@@ -508,6 +508,23 @@ export default function CommunitySettingsScreen() {
           </View>
         </View>
 
+        {/* Manage Roles */}
+        <TouchableOpacity
+          style={[styles.toggleSection, dynamicStyles.toggleSection]}
+          onPress={() => router.push(`/communities/roles/${communityId}`)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.toggleContent, { justifyContent: 'space-between' }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={[styles.toggleLabel, dynamicStyles.toggleLabel]}>Manage Roles</Text>
+              <Text style={[styles.toggleDescription, dynamicStyles.toggleDescription]}>
+                Create custom roles and manage permissions
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary || '#999'} />
+          </View>
+        </TouchableOpacity>
+
         {/* Danger Zone */}
         <View style={[styles.dangerSection, dynamicStyles.dangerSection]}>
           <Text style={styles.dangerTitle}>Danger Zone</Text>

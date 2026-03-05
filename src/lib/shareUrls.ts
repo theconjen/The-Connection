@@ -89,6 +89,48 @@ export function buildAdviceShareUrl(adviceId: number | string, utmSource?: strin
 }
 
 /**
+ * Build a share URL for a community invite link
+ */
+export function buildCommunityInviteShareUrl(inviteCode: string, utmSource?: string): string {
+  const base = `${WEB_BASE_URL}/invite/${inviteCode}`;
+  const utmParams = buildUtmParams(utmSource);
+  return utmParams ? `${base}?${utmParams}` : base;
+}
+
+/**
+ * Share a community invite link via the native share sheet
+ */
+export async function shareCommunityInvite(
+  inviteCode: string,
+  communityName: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const utmSource = Platform.OS === 'ios' ? 'ios_app' : 'android_app';
+    const url = buildCommunityInviteShareUrl(inviteCode, utmSource);
+    const message = `Join ${communityName} on The Connection!`;
+
+    const result = await Share.share(
+      {
+        title: `Join ${communityName}`,
+        message: `${message}\n\n${url}`,
+        url: Platform.OS === 'ios' ? url : undefined,
+      },
+      {
+        dialogTitle: 'Share Invite Link',
+        subject: `Join ${communityName} on The Connection`,
+      }
+    );
+
+    if (result.action === Share.sharedAction) {
+      return { success: true };
+    }
+    return { success: false, error: 'Share dismissed' };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Failed to share' };
+  }
+}
+
+/**
  * Share content types
  */
 export type ShareContentType = 'apologetics' | 'event' | 'post' | 'profile' | 'advice';

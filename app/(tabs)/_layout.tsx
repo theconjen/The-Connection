@@ -44,16 +44,16 @@ export default function TabsLayout() {
       tabBarStyle: {
         backgroundColor: colors.surface,
         borderTopColor: colors.borderSubtle,
-        paddingBottom: 34, // Safe area for iPhone home indicator (34px standard)
-        paddingTop: 8,
-        height: 90, // Increased height to accommodate elevated button
-        paddingHorizontal: 10, // Add horizontal padding for edge breathing room
+        paddingBottom: 28,
+        paddingTop: 6,
+        height: 78,
+        paddingHorizontal: 8,
       },
       tabBarItemStyle: {
         flex: 1, // Ensure each tab takes equal space
       },
       tabBarLabelStyle: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '600',
         fontFamily: 'PlayfairDisplay_600SemiBold',
       },
@@ -100,27 +100,27 @@ export default function TabsLayout() {
             <Pressable
               onPress={handleCreatePress}
               style={{
-                top: -20,
+                top: -16,
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
             >
               <View
                 style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: 30,
-                  backgroundColor: '#0B132B', // Ink navy (text-like, not blue fill)
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: '#0B132B',
                   justifyContent: 'center',
                   alignItems: 'center',
                   shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 4,
-                  elevation: 8,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3,
+                  elevation: 6,
                 }}
               >
-                <Ionicons name="add" size={32} color="#fff" />
+                <Ionicons name="add" size={26} color="#fff" />
               </View>
             </Pressable>
           ),
