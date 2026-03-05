@@ -70,14 +70,17 @@
   "packageManager": "pnpm@10.24.0",
   "pnpm": {
     "overrides": {
-      "fast-xml-parser": ">=5.3.6",
+      "fast-xml-parser": ">=5.4.2",
       "minimatch": ">=3.1.4",
+      "dompurify": ">=3.3.2",
+      "serialize-javascript": ">=7.0.3",
+      "@tootallnate/once": ">=2.0.1",
       "rollup": ">=4.59.0",
       "tar": ">=7.5.7",
       "markdown-it": ">=12.3.2",
       "undici": ">=7.0.0",
       "esbuild": ">=0.25.0",
-      "multer": ">=2.0.0",
+      "multer": ">=2.1.1",
       "lodash": ">=4.17.21"
     }
   },
@@ -126,11 +129,11 @@
     "http-errors": "^2.0.1",
     "i18next": "^25.8.0",
     "i18next-icu": "^2.4.2",
-    "isomorphic-dompurify": "^2.35.0",
+    "isomorphic-dompurify": "^2.36.0",
     "jsdom": "^27.4.0",
     "jsonwebtoken": "^9.0.3",
     "lusca": "^1.7.0",
-    "multer": "^2.0.0",
+    "multer": "^2.1.1",
     "otplib": "^13.3.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
