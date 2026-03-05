@@ -92,7 +92,7 @@ function validateToken(token: string): { valid: boolean; error?: string } {
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ token?: string; email?: string }>();
+  const params = useLocalSearchParams() as { token?: string; email?: string };
   const { colors, theme } = useTheme();
   const styles = getStyles(colors, theme);
 

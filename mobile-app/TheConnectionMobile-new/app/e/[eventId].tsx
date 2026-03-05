@@ -12,7 +12,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function EventDeepLink() {
-  const { eventId } = useLocalSearchParams<{ eventId: string }>();
+  const { eventId } = useLocalSearchParams() as { eventId: string };
   const router = useRouter();
   const { colors } = useTheme();
   const { user, isLoading: authLoading } = useAuth();

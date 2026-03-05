@@ -20,6 +20,7 @@ interface ThemeContextType extends Theme {
   // Theme preference setting
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  isDark: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -80,6 +81,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme: themePreference,
         setTheme,
         colorScheme,
+        isDark: colorScheme === 'dark',
         colors: activeColors,
         spacing,
         radii,

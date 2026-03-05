@@ -75,7 +75,7 @@ export default function CommunityMembersScreen() {
 
   // Update role mutation
   const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: number; role: string }) =>
+    mutationFn: ({ userId, role }: { userId: number; role: 'member' | 'moderator' }) =>
       communitiesAPI.updateMemberRole(communityId, userId, role),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['community-members', communityId] });
@@ -131,7 +131,7 @@ export default function CommunityMembersScreen() {
     if (!selectedMember) return;
     Alert.alert(
       'Promote to Moderator',
-      `Make ${selectedMember.displayName || selectedMember.username} a moderator? They will be able to approve/deny join requests.`,
+      `Make ${selectedMember.user?.displayName || selectedMember.user?.username} a moderator? They will be able to approve/deny join requests.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -146,7 +146,7 @@ export default function CommunityMembersScreen() {
     if (!selectedMember) return;
     Alert.alert(
       'Demote to Member',
-      `Remove moderator privileges from ${selectedMember.displayName || selectedMember.username}?`,
+      `Remove moderator privileges from ${selectedMember.user?.displayName || selectedMember.user?.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -161,7 +161,7 @@ export default function CommunityMembersScreen() {
     if (!selectedMember) return;
     Alert.alert(
       'Remove Member',
-      `Remove ${selectedMember.displayName || selectedMember.username} from this community?`,
+      `Remove ${selectedMember.user?.displayName || selectedMember.user?.username} from this community?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -313,7 +313,7 @@ export default function CommunityMembersScreen() {
           <View style={styles.actionSheet}>
             <View style={styles.actionSheetHeader}>
               <Text style={styles.actionSheetTitle}>
-                {selectedMember.displayName || selectedMember.username}
+                {selectedMember.user?.displayName || selectedMember.user?.username}
               </Text>
               <Text style={styles.actionSheetSubtitle}>
                 Current role: {selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1)}

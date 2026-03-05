@@ -63,12 +63,6 @@ export default function CommunitiesTab() {
       onSearchPress={() => {
         router.push("/search");
       }}
-      onNotificationsPress={() => {
-        router.push("/notifications");
-      }}
-      onSettingsPress={() => {
-        router.push("/settings");
-      }}
       onMessagesPress={() => {
         router.push("/(tabs)/messages");
       }}

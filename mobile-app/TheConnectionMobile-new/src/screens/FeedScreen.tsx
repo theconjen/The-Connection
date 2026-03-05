@@ -2443,7 +2443,7 @@ export default function FeedScreen({
 // STYLES
 // ============================================================================
 
-const getStyles = (colors: any, theme: 'light' | 'dark') => {
+const getStyles = (colors: any, theme: 'light' | 'dark'): Record<string, any> => {
   const isDark = theme === 'dark';
 
   return StyleSheet.create({
@@ -3045,11 +3045,11 @@ const getStyles = (colors: any, theme: 'light' | 'dark') => {
     height: 300,
   },
   doubleImage: {
-    width: 'calc(50% - 2px)',
+    width: '48%',
     height: 200,
   },
   gridImage: {
-    width: 'calc(33.33% - 3px)',
+    width: '32%',
     height: 120,
   },
   gridImageContent: {

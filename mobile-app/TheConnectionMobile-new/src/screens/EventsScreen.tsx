@@ -9,7 +9,6 @@ import {
   View,
   ScrollView,
   Pressable,
-  SafeAreaView,
   StatusBar,
   FlatList,
   TextInput,
@@ -29,6 +28,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import apiClient, { communitiesAPI } from '../lib/apiClient';
 import { queryClient } from '../../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 
@@ -448,10 +448,7 @@ export function EventsScreen({
         setUserLocation({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          address: '',
           city: '',
-          state: '',
-          zipCode: ''
         });
       }
     } catch (error) {

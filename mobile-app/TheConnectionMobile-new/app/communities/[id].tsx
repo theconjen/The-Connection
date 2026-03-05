@@ -80,10 +80,6 @@ export default function CommunityDetailScreen() {
 
   const communityId = parseInt(id || '0');
 
-  // Use community's brand color for accents, fallback to app primary
-  const communityColor = community?.iconColor || colors.primary;
-  const styles = getStyles(colors, colorScheme, communityColor);
-
   // Fetch community details
   const { data: community, isLoading: communityLoading, refetch: refetchCommunity } = useQuery<Community>({
     queryKey: ['community', communityId],
@@ -104,6 +100,10 @@ export default function CommunityDetailScreen() {
     refetchOnMount: 'always', // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when app comes to foreground
   });
+
+  // Use community's brand color for accents, fallback to app primary
+  const communityColor = community?.iconColor || colors.primary;
+  const styles = getStyles(colors, colorScheme, communityColor);
 
   // Refetch community data whenever screen comes into focus
   useFocusEffect(

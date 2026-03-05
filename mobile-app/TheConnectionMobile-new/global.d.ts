@@ -6,6 +6,7 @@ declare module 'expo-constants';
 declare module 'expo-updates';
 declare module '@connection/shared/mobile-web/colors';
 declare module 'shared-env';
+declare module 'expo-web-browser';
 
 // fallback for missing global libs in some environments
 declare const crypto: any;

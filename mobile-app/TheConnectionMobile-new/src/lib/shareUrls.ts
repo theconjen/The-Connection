@@ -277,9 +277,9 @@ export async function shareAdviceResponse(
  */
 export async function copyShareUrl(content: ShareContent): Promise<{ success: boolean; error?: string }> {
   try {
-    const { Clipboard } = await import('expo-clipboard');
+    const ExpoClipboard = await import('expo-clipboard');
     const shareData = buildShareData(content);
-    await Clipboard.setStringAsync(shareData.url);
+    await ExpoClipboard.default.setStringAsync(shareData.url);
     return { success: true };
   } catch (error: any) {
     console.error('Copy URL error:', error);

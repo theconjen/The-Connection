@@ -23,17 +23,17 @@ SplashScreen.preventAutoHideAsync();
 // Global font configuration - Apply Figtree to ALL text
 if (Platform.OS !== 'web') {
   // Override Text component default props
-  const textRender = Text.render;
-  const textInputRender = TextInput.render;
+  const textRender = (Text as any).render;
+  const textInputRender = (TextInput as any).render;
 
-  Text.render = function (props, ref) {
+  (Text as any).render = function (props: any, ref: any) {
     return textRender.call(this, {
       ...props,
       style: [{ fontFamily: 'Figtree-Regular' }, props.style],
     }, ref);
   };
 
-  TextInput.render = function (props, ref) {
+  (TextInput as any).render = function (props: any, ref: any) {
     return textInputRender.call(this, {
       ...props,
       style: [{ fontFamily: 'Figtree-Regular' }, props.style],

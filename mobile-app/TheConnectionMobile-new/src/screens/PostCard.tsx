@@ -66,6 +66,7 @@ export interface Post {
   comments: number;
   flair: string;
   isLiked?: boolean;
+  votes?: number;
   // Media fields
   imageUrls?: string[];
   videoUrl?: string;
@@ -76,13 +77,15 @@ interface PostCardProps {
   post: Post;
   onPress?: () => void;
   onLikePress?: () => void;
+  onUpvote?: () => void;
+  onDownvote?: () => void;
   onAuthorPress?: (authorId: number) => void;
   onBookmarkPress?: () => void;
   onMorePress?: () => void;
   isBookmarked?: boolean;
 }
 
-export function PostCard({ post, onPress, onLikePress, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
+export function PostCard({ post, onPress, onLikePress, onUpvote, onDownvote, onAuthorPress, onBookmarkPress, onMorePress, isBookmarked }: PostCardProps) {
   const { colors, spacing, radii } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 

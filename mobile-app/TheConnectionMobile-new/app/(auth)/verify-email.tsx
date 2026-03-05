@@ -21,6 +21,7 @@ const themes = {
     cardBorder: '#E2E8F0',
     title: '#1E293B',
     text: '#64748B',
+    textPrimary: '#1E293B',
     textMuted: '#94A3B8',
     email: '#0F172A',
     accent: '#6366F1',
@@ -33,6 +34,8 @@ const themes = {
     buttonText: '#FFFFFF',
     secondaryButtonBorder: '#E2E8F0',
     secondaryButtonText: '#64748B',
+    surface: '#FFFFFF',
+    surfaceBorder: '#E2E8F0',
   },
   dark: {
     background: '#0A0B14',
@@ -40,6 +43,7 @@ const themes = {
     cardBorder: '#1E2035',
     title: '#FFFFFF',
     text: '#A0AEC0',
+    textPrimary: '#FFFFFF',
     textMuted: '#718096',
     email: '#FFFFFF',
     accent: '#818CF8',
@@ -52,6 +56,8 @@ const themes = {
     buttonText: '#FFFFFF',
     secondaryButtonBorder: 'rgba(255, 255, 255, 0.15)',
     secondaryButtonText: '#A0AEC0',
+    surface: '#141625',
+    surfaceBorder: '#1E2035',
   },
 };
 

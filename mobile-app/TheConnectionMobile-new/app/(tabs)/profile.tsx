@@ -5,7 +5,7 @@ import { useAuth } from "../../src/contexts/AuthContext";
 export default function ProfileRoute() {
   const router = useRouter();
   const { user } = useAuth();
-  const { userId } = useLocalSearchParams<{ userId?: string }>();
+  const { userId } = useLocalSearchParams() as { userId?: string };
 
   // If userId is provided in query params, use that, otherwise use current user's ID
   const targetUserId = userId ? parseInt(userId) : user?.id;

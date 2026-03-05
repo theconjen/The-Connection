@@ -90,7 +90,7 @@ const ConfettiPiece: React.FC<ConfettiPieceProps> = ({ index, color }) => {
       { translateY: translateY.value },
       { rotate: `${rotate.value}deg` },
       { scale: scale.value },
-    ],
+    ] as any,
     opacity: opacity.value,
   }));
 
@@ -176,7 +176,7 @@ export const BirthdayCelebration: React.FC<BirthdayCelebrationProps> = ({ onDism
   useEffect(() => {
     if (visible) {
       modalScale.value = withSequence(
-        withTiming(1.1, { duration: 300, easing: Easing.out(Easing.back) }),
+        withTiming(1.1, { duration: 300, easing: Easing.out(Easing.back as any) }),
         withTiming(1, { duration: 150 })
       );
       modalOpacity.value = withTiming(1, { duration: 300 });

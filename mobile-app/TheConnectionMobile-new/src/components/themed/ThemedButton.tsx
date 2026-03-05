@@ -64,12 +64,12 @@ export function ThemedButton({
 
   return (
     <Pressable
-      style={({ pressed }) => [
+      style={({ pressed }) => StyleSheet.flatten([
         getButtonStyles(),
         isDisabled && { opacity: 0.5 },
         pressed && !isDisabled && { opacity: 0.8 },
-        style,
-      ]}
+        style as any,
+      ].filter(Boolean) as any[])}
       disabled={isDisabled}
       {...props}
     >

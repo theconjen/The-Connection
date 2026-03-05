@@ -42,7 +42,7 @@ interface AdvancedFilters {
 }
 
 interface SearchResult {
-  type: 'user' | 'community' | 'post' | 'event';
+  type: 'user' | 'community' | 'post' | 'event' | 'question';
   id: number;
   title?: string;
   name?: string;
@@ -63,7 +63,7 @@ const SAVED_SEARCHES_KEY = '@saved_searches';
 const MAX_HISTORY = 10;
 
 export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchScreenProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radii } = useTheme();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<SearchFilter>(defaultFilter);
@@ -322,7 +322,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                       activeFilter === filter.id ? colors.primary : colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
-                    borderRadius: spacing.full,
+                    borderRadius: radii.full,
                     opacity: pressed ? 0.7 : 1,
                   },
                 ]}
@@ -348,7 +348,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                   backgroundColor: colors.surfaceMuted,
                   paddingHorizontal: spacing.lg,
                   paddingVertical: spacing.sm,
-                  borderRadius: spacing.full,
+                  borderRadius: radii.full,
                   opacity: pressed ? 0.7 : 1,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -372,7 +372,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                     backgroundColor: colors.surfaceMuted,
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
-                    borderRadius: spacing.full,
+                    borderRadius: radii.full,
                     opacity: pressed ? 0.7 : 1,
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -895,7 +895,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                             advancedFilters.dateRange === range ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
-                          borderRadius: spacing.full,
+                          borderRadius: radii.full,
                         },
                       ]}
                     >
@@ -933,7 +933,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
                             advancedFilters.sortBy === sort ? colors.primary : colors.surfaceMuted,
                           paddingHorizontal: spacing.lg,
                           paddingVertical: spacing.sm,
-                          borderRadius: spacing.full,
+                          borderRadius: radii.full,
                         },
                       ]}
                     >

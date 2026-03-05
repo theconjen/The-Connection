@@ -138,7 +138,7 @@ function ScriptureLinkedText({
 
 export default function ApologeticsDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const { colors, colorScheme } = useTheme();
   const { user } = useAuth();
   const { data: leaderEntitlements } = useLeaderEntitlements();

@@ -126,6 +126,21 @@ export const lightColors = {
   sageDeep: '#5C6B5E',
   terracotta: '#B56A55',
   gold: '#C7A45B',
+
+  // Aliases for component compatibility
+  foreground: '#0B132B',
+  text: '#0B132B',
+  textTertiary: '#6B7264',
+  muted: '#ECE7E1',
+  mutedForeground: '#6B7264',
+  border: '#DDD8D0',
+  card: '#FFFFFF',
+  cardForeground: '#0B132B',
+  error: '#A03030',
+  surfaceSecondary: '#F7F5F1',
+  primaryMuted: '#D4DFCF',
+  successForeground: '#FFFFFF',
+  destructiveForeground: '#FFFFFF',
 } as const;
 
 // Semantic color tokens - Dark Mode (FIXED: Contrast hierarchy restored)
@@ -219,6 +234,21 @@ export const darkColors = {
   sageDeep: '#7C8F78',
   terracotta: '#D48878',        // Brighter terracotta
   gold: '#D4A860',
+
+  // Aliases for component compatibility
+  foreground: '#FAF8F3',
+  text: '#FAF8F3',
+  textTertiary: '#9A968E',
+  muted: '#26252B',
+  mutedForeground: '#9A968E',
+  border: '#2E2D33',
+  card: '#1E1D22',
+  cardForeground: '#FAF8F3',
+  error: '#D47070',
+  surfaceSecondary: '#16161A',
+  primaryMuted: '#3D3B44',
+  successForeground: '#0F0F12',
+  destructiveForeground: '#0F0F12',
 } as const;
 
 // Spacing scale

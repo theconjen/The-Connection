@@ -11,7 +11,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function PostDeepLink() {
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId } = useLocalSearchParams() as { postId: string };
   const router = useRouter();
   const { colors } = useTheme();
 

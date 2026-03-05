@@ -88,7 +88,7 @@ interface MessageItem {
   content: string;
   createdAt: string;
   isRead: boolean;
-  type?: 'text' | 'gif' | 'image';
+  type?: 'text' | 'gif' | 'image' | 'video';
   gifUrl?: string;
   imageUrl?: string;
   sender?: {

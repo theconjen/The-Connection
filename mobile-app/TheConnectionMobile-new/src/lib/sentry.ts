@@ -160,9 +160,9 @@ export function captureException(error: Error, context?: Record<string, any>) {
  */
 export function captureMessage(
   message: string,
-  level: Sentry.SeverityLevel = 'info'
+  level: string = 'info'
 ) {
-  Sentry.captureMessage(message, level);
+  Sentry.captureMessage(message, level as any);
 }
 
 /**

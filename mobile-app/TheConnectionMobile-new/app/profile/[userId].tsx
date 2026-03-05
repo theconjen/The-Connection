@@ -70,7 +70,7 @@ interface UserProfile {
 
 export default function UserProfileScreen() {
   const router = useRouter();
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId } = useLocalSearchParams() as { userId: string };
   const { colors, colorScheme } = useTheme();
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();

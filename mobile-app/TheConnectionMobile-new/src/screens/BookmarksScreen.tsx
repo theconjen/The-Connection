@@ -66,6 +66,7 @@ export default function BookmarksScreen() {
   const colors = {
     background: isDark ? '#000000' : '#FFFFFF',
     text: isDark ? '#FFFFFF' : '#0F1419',
+    textPrimary: isDark ? '#FFFFFF' : '#0F1419',
     textSecondary: isDark ? '#8B98A5' : '#536471',
     border: isDark ? '#2F3336' : '#EFF3F4',
     primary: '#1D9BF0',
@@ -523,6 +524,11 @@ function getStyles(colors: any, isDark: boolean) {
       paddingVertical: 4,
       backgroundColor: isDark ? '#1E3A5F' : '#EFF6FF',
       borderRadius: 12,
+    },
+    forumBadgeText: {
+      fontSize: 12,
+      fontWeight: '600' as const,
+      color: colors.primary,
     },
     qaMetadata: {
       flexDirection: 'row',

@@ -413,8 +413,8 @@ function CategoryCard({
   const { spacing, radii } = useTheme();
 
   // Map invalid icon names to valid ones
-  const getValidIconName = (iconName: string): keyof typeof Ionicons.glyphMap => {
-    const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+  const getValidIconName = (iconName: string): string => {
+    const iconMap: Record<string, string> = {
       'pray': 'hand-right',
       'church': 'business',
       'prayer': 'hand-right',
@@ -422,7 +422,7 @@ function CategoryCard({
       'user': 'person',
     };
 
-    return (iconMap[iconName] || iconName || 'apps') as keyof typeof Ionicons.glyphMap;
+    return iconMap[iconName] || iconName || 'apps';
   };
 
   return (
@@ -456,7 +456,7 @@ function CategoryCard({
           elevation: 1,
         }}
       >
-        <Ionicons name={getValidIconName(category.iconName)} size={18} color={category.accentColor} />
+        <Ionicons name={getValidIconName(category.iconName as string) as any} size={18} color={category.accentColor} />
       </View>
       <View style={{ flex: 1 }}>
         <Text
@@ -484,8 +484,8 @@ function CommunityRow({
   const { colors, spacing, radii } = useTheme();
 
   // Map invalid icon names to valid ones
-  const getValidIconName = (iconName: string): keyof typeof Ionicons.glyphMap => {
-    const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+  const getValidIconName = (iconName: string): string => {
+    const iconMap: Record<string, string> = {
       'pray': 'hand-right',
       'church': 'business',
       'prayer': 'hand-right',
@@ -493,7 +493,7 @@ function CommunityRow({
       'user': 'person',
     };
 
-    return (iconMap[iconName] || iconName || 'people') as keyof typeof Ionicons.glyphMap;
+    return iconMap[iconName] || iconName || 'people';
   };
 
   return (
@@ -527,7 +527,7 @@ function CommunityRow({
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={getValidIconName(community.iconName)} size={20} color={community.iconColor} />
+        <Ionicons name={getValidIconName(community.iconName as string) as any} size={20} color={community.iconColor} />
       </View>
 
       {/* Content */}

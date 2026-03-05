@@ -70,7 +70,7 @@ const ANSWER_TEMPLATE = `## Summary
 
 export default function QuestionThreadScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams() as { id: string };
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
   const styles = getThemedStyles(colors, colorScheme);

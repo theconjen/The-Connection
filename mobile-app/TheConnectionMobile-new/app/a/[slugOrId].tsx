@@ -11,7 +11,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
 export default function ApologeticsDeepLink() {
-  const { slugOrId } = useLocalSearchParams<{ slugOrId: string }>();
+  const { slugOrId } = useLocalSearchParams() as { slugOrId: string };
   const router = useRouter();
   const { colors } = useTheme();
 

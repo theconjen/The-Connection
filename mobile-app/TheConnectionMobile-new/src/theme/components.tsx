@@ -17,6 +17,10 @@ import {
   TextInputProps,
   PressableProps,
   ActivityIndicator,
+  StyleProp,
+  ScrollView,
+  Image,
+  ImageStyle,
 } from 'react-native';
 import { useTheme, Theme } from '../contexts/ThemeContext';
 
@@ -24,13 +28,13 @@ import { useTheme, Theme } from '../contexts/ThemeContext';
 // TEXT COMPONENT
 // ============================================================================
 
-type TextVariant = 'body' | 'bodySmall' | 'label' | 'title' | 'heading' | 'caption';
+type TextVariant = 'body' | 'bodySmall' | 'label' | 'title' | 'heading' | 'caption' | 'h3';
 
 interface TextProps {
   children: ReactNode;
   variant?: TextVariant;
   color?: keyof Theme['colors'];
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   numberOfLines?: number;
 }
 
@@ -40,6 +44,7 @@ const textVariantStyles: Record<TextVariant, (theme: Theme) => TextStyle> = {
   label: (t) => ({ fontSize: t.typeScale.sm, fontWeight: '500' }),
   title: (t) => ({ fontSize: t.typeScale.xl, fontWeight: '600' }),
   heading: (t) => ({ fontSize: t.typeScale['2xl'], fontWeight: '700' }),
+  h3: (t) => ({ fontSize: t.typeScale.lg, fontWeight: '600' }),
   caption: (t) => ({ fontSize: t.typeScale.xs }),
 };
 
@@ -82,7 +87,7 @@ export function Text({ children, variant = 'body', color = 'textPrimary', style,
 
 interface CardProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   shadow?: 'none' | 'sm' | 'md' | 'lg';
 }
 
@@ -121,7 +126,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   size?: ButtonSize;
   loading?: boolean;
   fullWidth?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 const buttonSizes: Record<ButtonSize, { paddingVertical: number; paddingHorizontal: number; fontSize: number }> = {
@@ -251,7 +256,7 @@ export function Input({ label, error, containerStyle, style, ...props }: InputPr
 // ============================================================================
 
 interface DividerProps {
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Divider({ style }: DividerProps) {
@@ -277,7 +282,7 @@ export function Divider({ style }: DividerProps) {
 
 interface ScreenProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padded?: boolean;
 }
 
@@ -309,7 +314,7 @@ type BadgeVariant = 'default' | 'secondary' | 'success' | 'destructive';
 interface BadgeProps {
   children: ReactNode;
   variant?: BadgeVariant;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Badge({ children, variant = 'default', style }: BadgeProps) {
@@ -363,12 +368,13 @@ export function Badge({ children, variant = 'default', style }: BadgeProps) {
 interface AvatarProps {
   size?: number;
   initials?: string;
-  style?: ViewStyle;
+  uri?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function Avatar({ size = 40, initials, style }: AvatarProps) {
+export function Avatar({ size = 40, initials, uri, style }: AvatarProps) {
   const theme = useTheme();
-  
+
   return (
     <View
       style={[
@@ -379,11 +385,14 @@ export function Avatar({ size = 40, initials, style }: AvatarProps) {
           backgroundColor: theme.colors.secondary,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         },
         style,
       ]}
     >
-      {initials && (
+      {uri ? (
+        <Image source={{ uri }} style={{ width: size, height: size }} />
+      ) : initials ? (
         <RNText
           style={{
             color: theme.colors.secondaryForeground,
@@ -393,7 +402,40 @@ export function Avatar({ size = 40, initials, style }: AvatarProps) {
         >
           {initials}
         </RNText>
-      )}
+      ) : null}
     </View>
   );
 }
+
+// Avatar sub-components for web-style API compatibility
+export const AvatarImage = Image;
+export const AvatarFallback = View;
+
+// ============================================================================
+// SCROLL AREA COMPONENT
+// ============================================================================
+
+interface ScrollAreaProps {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  horizontal?: boolean;
+}
+
+export function ScrollArea({ children, style, horizontal }: ScrollAreaProps) {
+  return (
+    <ScrollView style={style} horizontal={horizontal} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+      {children}
+    </ScrollView>
+  );
+}
+
+// ScrollBar is a no-op on native (handled by OS)
+export function ScrollBar(_props: { orientation?: 'horizontal' | 'vertical' }) {
+  return null;
+}
+
+// ============================================================================
+// TYPE EXPORTS
+// ============================================================================
+
+export type { TextProps, TextVariant, CardProps, ButtonProps, InputProps, DividerProps, ScreenProps, BadgeProps, AvatarProps, ScrollAreaProps };

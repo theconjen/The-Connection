@@ -321,6 +321,10 @@ export const communitiesAPI = {
     apiClient.post(`/api/community-invitations/${invitationId}/accept`).then(res => res.data),
   declineInvitation: (invitationId: number) =>
     apiClient.post(`/api/community-invitations/${invitationId}/decline`).then(res => res.data),
+
+  // Active communities (most recent activity)
+  getActive: (limit: number = 8) =>
+    apiClient.get('/api/communities', { params: { sort: 'active', limit } }).then(res => res.data),
 };
 
 // Direct Messages API
@@ -419,6 +423,22 @@ export const eventsAPI = {
     apiClient.get(`/api/events/${eventId}/nearby-users-count`, { params: { radius: radiusMiles } }).then(res => res.data),
   inviteNearbyUsers: (eventId: number, radiusMiles: number = 30, sendNotifications: boolean = true) =>
     apiClient.post(`/api/events/${eventId}/invite-nearby`, { radiusMiles, sendNotifications }).then(res => res.data),
+
+  // RSVP management (host view)
+  getRsvpsManage: (id: number) =>
+    apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
+
+  // Post-event attendance confirmation
+  confirmAttendance: (eventId: number) =>
+    apiClient.post(`/api/events/${eventId}/confirm-attendance`).then(res => res.data),
+
+  // Cancel event
+  cancel: (id: number) =>
+    apiClient.delete(`/api/events/${id}`).then(res => res.data),
+
+  // Get my events (created by current user)
+  getMy: () =>
+    apiClient.get('/api/events/my').then(res => res.data),
 };
 
 // Organizations/Churches API (Commons)

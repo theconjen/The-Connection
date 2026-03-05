@@ -12,7 +12,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import apiClient from '../../src/lib/apiClient';
 
 export default function ProfileDeepLink() {
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { username } = useLocalSearchParams() as { username: string };
   const router = useRouter();
   const { colors } = useTheme();
   const [error, setError] = useState<string | null>(null);

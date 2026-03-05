@@ -18,6 +18,9 @@ interface User {
   onboardingCompleted?: boolean;
   role?: string; // admin, pastor, leader, member
   permissions?: string[]; // inbox_access, manage_experts, etc.
+  isAdmin?: boolean;
+  profileVisibility?: string;
+  dateOfBirth?: string;
 }
 
 interface RegisterPayload {
@@ -26,6 +29,8 @@ interface RegisterPayload {
   password: string;
   firstName?: string;
   lastName?: string;
+  dob?: string;
+  ageConfirmed?: boolean;
 }
 
 interface RegisterResult {

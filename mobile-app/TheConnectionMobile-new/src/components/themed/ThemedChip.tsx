@@ -34,7 +34,7 @@ export function ThemedChip({
 
   return (
     <Pressable
-      style={({ pressed }) => [chipStyle, pressed && { opacity: 0.7 }, style]}
+      style={({ pressed }) => StyleSheet.flatten([chipStyle, pressed && { opacity: 0.7 }, style as any].filter(Boolean) as any[])}
       {...props}
     >
       <Text

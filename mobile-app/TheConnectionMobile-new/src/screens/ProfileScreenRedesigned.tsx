@@ -68,7 +68,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   // Fetch attended events for the Events tab
   const { data: attendedEventsData, refetch: refetchAttendedEvents } = useQuery({
     queryKey: ['attended-events', targetUserId],
-    queryFn: () => eventsAPI.getAttendedEvents(targetUserId),
+    queryFn: () => eventsAPI.getAttendees(targetUserId),
     enabled: !!targetUserId,
   });
 
