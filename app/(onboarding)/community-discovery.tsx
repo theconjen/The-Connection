@@ -12,13 +12,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import { useAuth } from '../../src/contexts/AuthContext';
 import { communitiesAPI } from '../../src/lib/apiClient';
 import apiClient from '../../src/lib/apiClient';
 import * as SecureStore from 'expo-secure-store';
@@ -36,28 +34,82 @@ export default function CommunityDiscoveryScreen() {
   const router = useRouter();
   const { colors, colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
-  const { user, refresh } = useAuth();
 
   const [communities, setCommunities] = useState<Community[]>([]);
   const [joinedCommunities, setJoinedCommunities] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [inviteCommunityId, setInviteCommunityId] = useState<number | null>(null);
 
   useEffect(() => {
     loadCommunities();
+    // Track onboarding step for analytics
+    apiClient.post('/api/user/onboarding', { onboardingStep: 'community-discovery' }).catch(() => {});
   }, []);
 
   const loadCommunities = async () => {
     try {
       setIsLoading(true);
-      const data = await communitiesAPI.getAll();
 
-      // Sort by member count and take top 10
-      const sorted = data
-        .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0))
-        .slice(0, 10);
+      // Check for invite link community
+      let inviteId: number | null = null;
+      try {
+        const storedInviteId = await SecureStore.getItemAsync('invite_community_id');
+        if (storedInviteId) {
+          inviteId = parseInt(storedInviteId, 10);
+          setInviteCommunityId(inviteId);
+          // Clean up so it doesn't persist across sessions
+          await SecureStore.deleteItemAsync('invite_community_id');
+        }
+      } catch {
+        // No invite link
+      }
 
-      setCommunities(sorted);
+      // Try the recommendation engine first (uses interests, location, denomination)
+      let data: Community[] = [];
+      try {
+        const res = await apiClient.get('/api/communities/recommended?limit=8');
+        data = res.data || [];
+      } catch {
+        // Recommendation endpoint may not be available — fall back
+      }
+
+      // Fallback: sort by member count if recommendations are empty
+      if (data.length === 0) {
+        const allCommunities = await communitiesAPI.getAll();
+        data = allCommunities
+          .sort((a: any, b: any) => (b.memberCount || 0) - (a.memberCount || 0))
+          .slice(0, 8);
+      }
+
+      // If there's an invite community, ensure it's at the top
+      if (inviteId) {
+        const inviteCommunity = data.find(c => c.id === inviteId);
+        if (inviteCommunity) {
+          // Move to top
+          data = [inviteCommunity, ...data.filter(c => c.id !== inviteId)];
+        } else {
+          // Fetch it separately and prepend
+          try {
+            const inviteData = await communitiesAPI.getById(inviteId);
+            if (inviteData) {
+              data = [inviteData, ...data.slice(0, 7)];
+            }
+          } catch {
+            // Invite community not found — proceed normally
+          }
+        }
+
+        // Auto-join the invite community
+        try {
+          await communitiesAPI.join(inviteId);
+          setJoinedCommunities(new Set([inviteId]));
+        } catch {
+          // May already be a member
+        }
+      }
+
+      setCommunities(data);
     } catch (error) {
       Alert.alert('Error', 'Failed to load communities');
     } finally {
@@ -85,53 +137,22 @@ export default function CommunityDiscoveryScreen() {
     }
   };
 
-  const completeOnboarding = async () => {
+  const handleContinue = async () => {
     setIsCompleting(true);
     try {
-      // Get saved onboarding data
-      const profileData = await SecureStore.getItemAsync('onboarding_profile');
-      const faithData = await SecureStore.getItemAsync('onboarding_faith');
+      // Save joined community IDs for the first-action screen
+      const joinedIds = Array.from(joinedCommunities);
+      const joinedNames = communities
+        .filter(c => joinedCommunities.has(c.id))
+        .map(c => ({ id: c.id, name: c.name }));
 
-      const profile = profileData ? JSON.parse(profileData) : {};
-      const faith = faithData ? JSON.parse(faithData) : {};
+      await SecureStore.setItemAsync('onboarding_joined_communities', JSON.stringify(joinedNames));
 
-      // Update user profile with all onboarding data
-      await apiClient.patch('/api/user/profile', {
-        displayName: profile.displayName,
-        bio: profile.bio,
-        location: profile.location,
-        denomination: faith.denomination,
-        homeChurch: faith.homeChurch,
-        favoriteBibleVerse: faith.favoriteBibleVerse,
-        interests: faith.interests || [],
-      });
-
-      // Mark onboarding as completed
-      await apiClient.post('/api/user/onboarding', {
-        onboardingCompleted: true,
-        interests: faith.interests || [],
-      });
-
-      // Refresh user context to get updated onboardingCompleted status
-      await refresh();
-
-      // Clean up secure storage
-      await SecureStore.deleteItemAsync('onboarding_profile');
-      await SecureStore.deleteItemAsync('onboarding_faith');
-
-      // Navigate to feed
-      router.replace('/(tabs)/home');
-
-      // Show success message
-      setTimeout(() => {
-        Alert.alert(
-          'Welcome to The Connection! 🙏',
-          'Your profile has been set up. Start exploring communities and connecting with believers.'
-        );
-      }, 500);
+      // Navigate to first-action screen
+      router.push('/(onboarding)/first-action');
     } catch (error) {
-      Alert.alert('Error', 'Failed to complete setup. You can finish it later in settings.');
-      router.replace('/(tabs)/home');
+      // If storing fails, still navigate
+      router.push('/(onboarding)/first-action');
     } finally {
       setIsCompleting(false);
     }
@@ -220,23 +241,41 @@ export default function CommunityDiscoveryScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '100%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '75%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 3 of 3
+          Step 3 of 4
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {inviteCommunityId && communities.length > 0 && (
+          <View style={[styles.inviteBanner, {
+            backgroundColor: colors.primary + '15',
+            borderColor: colors.primary,
+          }]}>
+            <Ionicons name="mail-open" size={20} color={colors.primary} />
+            <Text style={[styles.inviteBannerText, { color: colors.textPrimary }]}>
+              You've been invited to{' '}
+              <Text style={{ fontWeight: '700' }}>
+                {communities.find(c => c.id === inviteCommunityId)?.name || 'a community'}
+              </Text>
+              !
+            </Text>
+          </View>
+        )}
+
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Join communities that align with your faith and interests. You can always discover more later.
+          {inviteCommunityId
+            ? 'We also found some communities you might enjoy based on your interests.'
+            : 'Join communities that align with your faith and interests. You can always discover more later.'}
         </Text>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Loading communities...
+              Finding communities for you...
             </Text>
           </View>
         ) : communities.length > 0 ? (
@@ -278,15 +317,15 @@ export default function CommunityDiscoveryScreen() {
 
         <Pressable
           style={[styles.button, { backgroundColor: colors.primary }]}
-          onPress={completeOnboarding}
+          onPress={handleContinue}
           disabled={isCompleting}
         >
           {isCompleting ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.buttonText}>Complete Setup</Text>
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Continue</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
             </>
           )}
         </Pressable>
@@ -334,6 +373,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 150,
+  },
+  inviteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 16,
+  },
+  inviteBannerText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
   },
   subtitle: {
     fontSize: 15,

@@ -12,6 +12,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="profile-setup" />
       <Stack.Screen name="faith-background" />
       <Stack.Screen name="community-discovery" />
+      <Stack.Screen name="first-action" />
     </Stack>
   );
 }

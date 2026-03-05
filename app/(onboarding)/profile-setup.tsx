@@ -3,7 +3,7 @@
  * Step 2: Basic profile information
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,11 @@ export default function ProfileSetupScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+
+  // Track onboarding step for analytics
+  useEffect(() => {
+    apiClient.post('/api/user/onboarding', { onboardingStep: 'profile-setup' }).catch(() => {});
+  }, []);
 
   const pickImage = async () => {
     try {

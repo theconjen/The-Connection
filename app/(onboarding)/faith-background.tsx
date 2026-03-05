@@ -3,7 +3,7 @@
  * Step 3: Denomination, interests, and spiritual background
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import * as SecureStore from 'expo-secure-store';
 import apiClient from '../../src/lib/apiClient';
 
 const DENOMINATIONS = [
+  'Still Exploring',
   'Baptist',
   'Methodist',
   'Presbyterian',
@@ -72,6 +73,11 @@ export default function FaithBackgroundScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
+  // Track onboarding step for analytics
+  useEffect(() => {
+    apiClient.post('/api/user/onboarding', { onboardingStep: 'faith-background' }).catch(() => {});
+  }, []);
+
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
       setSelectedInterests(selectedInterests.filter(i => i !== interest));
@@ -107,13 +113,28 @@ export default function FaithBackgroundScreen() {
   const handleContinue = async () => {
     setIsLoading(true);
     try {
-      // Save to secure storage
-      await SecureStore.setItemAsync('onboarding_faith', JSON.stringify({
+      const faithData = {
         denomination,
         interests: selectedInterests,
         homeChurch: homeChurch.trim(),
         favoriteBibleVerse: favoriteBibleVerse.trim(),
-      }));
+      };
+
+      // Save to secure storage
+      await SecureStore.setItemAsync('onboarding_faith', JSON.stringify(faithData));
+
+      // Save to server immediately so the recommendation engine
+      // has user interests/denomination when community discovery loads
+      try {
+        await apiClient.patch('/api/user/profile', {
+          denomination: faithData.denomination || undefined,
+          interests: faithData.interests.length > 0 ? faithData.interests : undefined,
+          homeChurch: faithData.homeChurch || undefined,
+          favoriteBibleVerse: faithData.favoriteBibleVerse || undefined,
+        });
+      } catch {
+        // Non-blocking — data will still be saved in completeOnboarding
+      }
 
       router.push('/(onboarding)/community-discovery');
     } catch (error) {
@@ -139,10 +160,10 @@ export default function FaithBackgroundScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '66%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '50%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 2 of 3
+          Step 2 of 4
         </Text>
       </View>
 

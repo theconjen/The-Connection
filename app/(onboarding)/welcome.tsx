@@ -3,7 +3,7 @@
  * First screen after registration - introduces values and mission
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,11 @@ export default function WelcomeScreen() {
   const isDark = colorScheme === 'dark';
   const { refresh } = useAuth();
   const [isSkipping, setIsSkipping] = useState(false);
+
+  // Track onboarding step for analytics
+  useEffect(() => {
+    apiClient.post('/api/user/onboarding', { onboardingStep: 'welcome' }).catch(() => {});
+  }, []);
 
   const handleSkip = async () => {
     setIsSkipping(true);
