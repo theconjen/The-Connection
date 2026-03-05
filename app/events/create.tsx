@@ -18,10 +18,11 @@ import {
   Pressable,
   Switch,
   Image,
+  FlatList,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { eventsAPI, communitiesAPI } from '../../src/lib/apiClient';
+import apiClient, { eventsAPI, communitiesAPI } from '../../src/lib/apiClient';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,6 +104,17 @@ export default function CreateEventScreen() {
   // Event category/type
   const [category, setCategory] = useState<string | null>(null);
 
+  // Recurrence state
+  const [recurrence, setRecurrence] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
+  const [showRecurrenceEndPicker, setShowRecurrenceEndPicker] = useState(false);
+
+  // Template state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+
   // Modal state
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -122,6 +134,13 @@ export default function CreateEventScreen() {
     }
   }, [selectedDate, isMultiDayEvent]);
 
+  // Load templates on mount
+  useEffect(() => {
+    apiClient.get('/api/event-templates').then(res => {
+      setTemplates(res.data.templates || res.data || []);
+    }).catch(() => {});
+  }, []);
+
   // Event categories
   const EVENT_CATEGORIES = [
     { value: 'sunday_service', label: 'Sunday Service', icon: 'sunny-outline' },
@@ -134,6 +153,38 @@ export default function CreateEventScreen() {
     { value: 'youth', label: 'Youth Event', icon: 'school-outline' },
     { value: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
   ] as const;
+
+  // Recurrence picker using Alert
+  const handleRecurrencePress = () => {
+    Alert.alert('Repeat', 'How often should this event repeat?', [
+      { text: 'None', onPress: () => { setRecurrence('none'); setRecurrenceEndDate(null); } },
+      { text: 'Daily', onPress: () => setRecurrence('daily') },
+      { text: 'Weekly', onPress: () => setRecurrence('weekly') },
+      { text: 'Monthly', onPress: () => setRecurrence('monthly') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // Recurrence label helper
+  const getRecurrenceLabel = () => {
+    switch (recurrence) {
+      case 'daily': return 'Daily';
+      case 'weekly': return 'Weekly';
+      case 'monthly': return 'Monthly';
+      default: return 'None';
+    }
+  };
+
+  // Apply template to form fields
+  const applyTemplate = (template: any) => {
+    const data = template.templateData || template;
+    setTitle(data.title || '');
+    setDescription(data.description || '');
+    setCategory(data.category || null);
+    setLocation(data.location || '');
+    if (data.isPublic !== undefined) setIsPublic(data.isPublic);
+    setShowTemplateModal(false);
+  };
 
   // Fetch user's communities (only where user is moderator or owner)
   const { data: communities, isLoading: communitiesLoading } = useQuery<Community[]>({
@@ -352,7 +403,76 @@ export default function CreateEventScreen() {
 
     // Debug logging - show exactly what's being sent
 
-    createMutation.mutate(payload);
+    // Handle recurring vs single event submission
+    if (recurrence !== 'none') {
+      const recurringData = {
+        ...payload,
+        recurrencePattern: recurrence,
+        recurrenceEndDate: recurrenceEndDate ? recurrenceEndDate.toISOString().split('T')[0] : undefined,
+      };
+      try {
+        const response = await apiClient.post('/api/events/recurring', recurringData);
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        if (selectedCommunityId) {
+          queryClient.invalidateQueries({ queryKey: ['community-events', selectedCommunityId] });
+        }
+
+        // Save as template if requested
+        if (saveAsTemplate && templateName.trim()) {
+          await apiClient.post('/api/event-templates', {
+            name: templateName,
+            templateData: payload,
+          }).catch(() => {}); // Silent fail for template save
+        }
+
+        const count = response.data?.count || response.data?.events?.length || 'multiple';
+        Alert.alert('Success', `${count} recurring events created!`, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } catch (error: any) {
+        const errorData = error.response?.data;
+        let message = 'Failed to create recurring events';
+        if (errorData?.error) message = errorData.error;
+        else if (errorData?.message) message = errorData.message;
+        Alert.alert('Error', message);
+      }
+    } else {
+      // Save as template if requested (do it after successful creation in onSuccess)
+      if (saveAsTemplate && templateName.trim()) {
+        // Store template data to save after success
+        const templateData = { ...payload };
+        const originalOnSuccess = createMutation.mutate;
+        // We'll handle template save in a wrapper
+        try {
+          const result = await eventsAPI.create(payload);
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          if (selectedCommunityId) {
+            queryClient.invalidateQueries({ queryKey: ['community-events', selectedCommunityId] });
+          }
+          // Save template after successful event creation
+          await apiClient.post('/api/event-templates', {
+            name: templateName,
+            templateData,
+          }).catch(() => {}); // Silent fail for template save
+          Alert.alert('Success', `Event created! (ID: ${result?.id || 'unknown'})`, [
+            { text: 'OK', onPress: () => router.back() },
+          ]);
+        } catch (error: any) {
+          const errorData = error.response?.data;
+          let message = 'Failed to create event';
+          if (errorData?.error) message = errorData.error;
+          else if (errorData?.message) message = errorData.message;
+          else if (errorData?.details) {
+            message = Array.isArray(errorData.details)
+              ? errorData.details.map((d: any) => d.message || d).join(', ')
+              : errorData.details;
+          }
+          Alert.alert('Error', message);
+        }
+      } else {
+        createMutation.mutate(payload);
+      }
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -406,6 +526,18 @@ export default function CreateEventScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.form}>
+          {/* Use Template Button */}
+          {templates.length > 0 && (
+            <TouchableOpacity
+              style={styles.useTemplateButton}
+              onPress={() => setShowTemplateModal(true)}
+            >
+              <Ionicons name="copy-outline" size={20} color={colors.primary} />
+              <Text style={styles.useTemplateText}>Use Template</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+
           {/* Community Selector */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isAppOwner ? 'Host' : 'Community'} *</Text>
@@ -668,6 +800,80 @@ export default function CreateEventScreen() {
               </Text>
             )}
           </View>
+
+          {/* Repeat / Recurrence Selector */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Repeat</Text>
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={handleRecurrencePress}
+            >
+              <Ionicons name="repeat-outline" size={20} color={recurrence !== 'none' ? colors.primary : colors.textMuted} />
+              <Text style={[styles.pickerText, recurrence === 'none' && styles.placeholderText]}>
+                {getRecurrenceLabel()}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Repeat Until Date Picker - Only shown when recurrence is set */}
+          {recurrence !== 'none' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Repeat Until</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowRecurrenceEndPicker(true)}
+              >
+                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                <Text style={[styles.pickerText, !recurrenceEndDate && styles.placeholderText]}>
+                  {recurrenceEndDate ? formatDate(recurrenceEndDate) : 'Select end date...'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={[styles.locationHint, { color: colors.textMuted, fontStyle: 'italic' }]}>
+                Events will repeat {recurrence} until this date
+              </Text>
+            </View>
+          )}
+
+          {/* Save as Template Section */}
+          <View style={styles.inputGroup}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <View style={styles.toggleHeader}>
+                  <Ionicons
+                    name="bookmark-outline"
+                    size={20}
+                    color={saveAsTemplate ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={styles.toggleLabel}>Save as Template</Text>
+                </View>
+                <Text style={styles.toggleDescription}>
+                  Save this event's details as a reusable template
+                </Text>
+              </View>
+              <Switch
+                value={saveAsTemplate}
+                onValueChange={setSaveAsTemplate}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
+
+          {/* Template Name Input - Only shown when save as template is on */}
+          {saveAsTemplate && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Template Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={templateName}
+                onChangeText={setTemplateName}
+                placeholder="e.g., Weekly Bible Study"
+                placeholderTextColor={colors.textMuted}
+                maxLength={80}
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -698,10 +904,74 @@ export default function CreateEventScreen() {
               </Text>
             </View>
           ) : (
-            <Text style={styles.createButtonText}>Create Event</Text>
+            <Text style={styles.createButtonText}>
+              {recurrence !== 'none' ? 'Create Recurring Events' : 'Create Event'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Template Picker Modal */}
+      <Modal
+        visible={showTemplateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTemplateModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowTemplateModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Event Templates</Text>
+              <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {templates.length === 0 ? (
+                <View style={styles.emptyTemplateState}>
+                  <Ionicons name="document-outline" size={40} color={colors.textMuted} />
+                  <Text style={[styles.emptyTemplateText, { color: colors.textMuted }]}>
+                    No templates saved yet
+                  </Text>
+                </View>
+              ) : (
+                templates.map((template, index) => {
+                  const data = template.templateData || template;
+                  const categoryInfo = EVENT_CATEGORIES.find(c => c.value === data.category);
+                  return (
+                    <TouchableOpacity
+                      key={template.id || index}
+                      style={styles.communityOption}
+                      onPress={() => applyTemplate(template)}
+                    >
+                      <View style={styles.communityInfo}>
+                        <Text style={styles.communityName}>{template.name || data.title || 'Untitled Template'}</Text>
+                        {categoryInfo && (
+                          <View style={styles.templateCategoryBadge}>
+                            <Ionicons name={categoryInfo.icon as any} size={14} color={colors.primary} />
+                            <Text style={[styles.templateCategoryText, { color: colors.primary }]}>
+                              {categoryInfo.label}
+                            </Text>
+                          </View>
+                        )}
+                        {data.description && (
+                          <Text style={styles.communityDescription} numberOfLines={1}>
+                            {data.description}
+                          </Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Community Picker Modal */}
       <Modal
@@ -929,6 +1199,64 @@ export default function CreateEventScreen() {
               setShowEndDatePicker(false);
               if (date) {
                 setSelectedEndDate(date);
+              }
+            }}
+            themeVariant={colorScheme}
+            minimumDate={selectedDate}
+          />
+        )
+      )}
+
+      {/* Recurrence End Date Picker - iOS: wrapped in Modal with Done button */}
+      {Platform.OS === 'ios' ? (
+        <Modal
+          visible={showRecurrenceEndPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowRecurrenceEndPicker(false)}
+        >
+          <Pressable
+            style={styles.pickerModalOverlay}
+            onPress={() => setShowRecurrenceEndPicker(false)}
+          >
+            <View style={styles.pickerModalContent}>
+              <View style={styles.pickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowRecurrenceEndPicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.textMuted }]}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={styles.pickerModalTitle}>Repeat Until</Text>
+                <TouchableOpacity onPress={() => setShowRecurrenceEndPicker(false)}>
+                  <Text style={[styles.pickerModalButton, { color: colors.primary }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ paddingHorizontal: 12, paddingBottom: 16 }}>
+                <DateTimePicker
+                  value={recurrenceEndDate || new Date(selectedDate.getTime() + 30 * 24 * 60 * 60 * 1000)}
+                  mode="date"
+                  display="inline"
+                  onChange={(event, date) => {
+                    if (date) {
+                      setRecurrenceEndDate(date);
+                    }
+                  }}
+                  themeVariant={colorScheme}
+                  minimumDate={selectedDate}
+                  style={{ height: 340 }}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      ) : (
+        showRecurrenceEndPicker && (
+          <DateTimePicker
+            value={recurrenceEndDate || new Date(selectedDate.getTime() + 30 * 24 * 60 * 60 * 1000)}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowRecurrenceEndPicker(false);
+              if (date) {
+                setRecurrenceEndDate(date);
               }
             }}
             themeVariant={colorScheme}
@@ -1349,6 +1677,45 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark') =>
       alignItems: 'center',
       gap: 12,
       flex: 1,
+    },
+    // Use Template button
+    useTemplateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      marginBottom: 20,
+    },
+    useTemplateText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.primary,
+      flex: 1,
+    },
+    // Template modal extras
+    emptyTemplateState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+      gap: 12,
+    },
+    emptyTemplateText: {
+      fontSize: 15,
+      fontWeight: '500',
+    },
+    templateCategoryBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 4,
+    },
+    templateCategoryText: {
+      fontSize: 13,
+      fontWeight: '500',
     },
     // iOS Date/Time Picker Modal Styles
     pickerModalOverlay: {

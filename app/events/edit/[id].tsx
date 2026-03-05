@@ -17,6 +17,9 @@ import {
   Modal,
   SectionList,
   Image,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -27,10 +30,18 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 
+// Event type categories
+const EVENT_CATEGORIES = [
+  'Sunday Service', 'Worship', 'Bible Study', 'Prayer Meeting',
+  'Youth Group', 'Small Group', 'Fellowship', 'Outreach',
+  'Conference', 'Workshop', 'Activity', 'Other',
+] as const;
+
 interface Event {
   id: number;
   title: string;
   description: string;
+  category?: string;
   location?: string;
   latitude?: number;
   longitude?: number;
@@ -41,6 +52,9 @@ interface Event {
   creatorId: number;
   hostUserId?: number;
   imageUrl?: string | null;
+  imagePosition?: string | null;
+  targetGender?: string | null;
+  targetAgeGroup?: string | null;
   attendeeCount?: number;
 }
 
@@ -98,6 +112,23 @@ export default function EditEventScreen() {
   // Flyer image state
   const [flyerImage, setFlyerImage] = useState<string | null>(null);
   const [flyerChanged, setFlyerChanged] = useState(false);
+  const [flyerDims, setFlyerDims] = useState<{ w: number; h: number } | null>(null);
+
+  // Image position as percentage (0 = show top, 50 = center, 100 = show bottom)
+  const [imagePosition, setImagePosition] = useState(50);
+
+  // Drag refs for flyer crop
+  const CROP_HEIGHT = 200;
+  const dragY = React.useRef(new Animated.Value(0)).current;
+  const dragOffsetRef = React.useRef(0);
+  const maxDragRef = React.useRef(0);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  // New fields: category, audience
+  const [category, setCategory] = useState<string>('Sunday Service');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [targetGender, setTargetGender] = useState<'all' | 'men' | 'women'>('all');
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
 
   // Fetch event data
   const { data: event, isLoading: eventLoading } = useQuery<Event>({
@@ -165,8 +196,66 @@ export default function EditEventScreen() {
       if (event.imageUrl) {
         setFlyerImage(event.imageUrl);
       }
+
+      // Load new fields
+      setCategory(event.category || 'Sunday Service');
+      // Parse imagePosition: legacy 'top'/'center'/'bottom' or numeric string
+      const posStr = event.imagePosition || 'center';
+      if (posStr === 'top') setImagePosition(0);
+      else if (posStr === 'center') setImagePosition(50);
+      else if (posStr === 'bottom') setImagePosition(100);
+      else setImagePosition(parseInt(posStr) || 50);
+
+      setTargetGender((event.targetGender as any) || 'all');
+      setSelectedAgeGroups(
+        event.targetAgeGroup ? event.targetAgeGroup.split(',').filter(Boolean) : []
+      );
     }
   }, [event]);
+
+  // Initialize drag position when flyer dimensions become available
+  React.useEffect(() => {
+    if (flyerDims && flyerImage) {
+      const formWidth = Dimensions.get('window').width - 40;
+      const renderedH = (flyerDims.h / flyerDims.w) * formWidth;
+      const maxD = Math.min(0, CROP_HEIGHT - renderedH);
+      maxDragRef.current = maxD;
+
+      const y = maxD === 0 ? 0 : (imagePosition / 100) * maxD;
+      dragY.setValue(y);
+      dragOffsetRef.current = y;
+    }
+  }, [flyerDims]);
+
+  // PanResponder for dragging the flyer image
+  const cropPanResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 3,
+      onMoveShouldSetPanResponderCapture: (_, gs) => Math.abs(gs.dy) > 8,
+      onPanResponderGrant: () => {
+        scrollViewRef.current?.setNativeProps?.({ scrollEnabled: false });
+      },
+      onPanResponderMove: (_, gs) => {
+        const newY = dragOffsetRef.current + gs.dy;
+        const clamped = Math.max(maxDragRef.current, Math.min(0, newY));
+        dragY.setValue(clamped);
+      },
+      onPanResponderRelease: (_, gs) => {
+        scrollViewRef.current?.setNativeProps?.({ scrollEnabled: true });
+        const newY = dragOffsetRef.current + gs.dy;
+        const clamped = Math.max(maxDragRef.current, Math.min(0, newY));
+        dragOffsetRef.current = clamped;
+        dragY.setValue(clamped);
+        const maxD = maxDragRef.current;
+        const pct = maxD === 0 ? 50 : Math.round((clamped / maxD) * 100);
+        setImagePosition(pct);
+      },
+      onPanResponderTerminate: () => {
+        scrollViewRef.current?.setNativeProps?.({ scrollEnabled: true });
+      },
+    })
+  ).current;
 
   // Check if user can edit this event
   const canEdit = user && event && (
@@ -214,10 +303,14 @@ export default function EditEventScreen() {
     const updateData: any = {
       title: title.trim(),
       description: description.trim(),
+      category,
       location: location.trim() || undefined,
       eventDate: dateStr,
       startTime: startTimeStr,
       endTime: endTimeStr,
+      imagePosition: String(imagePosition),
+      targetGender: targetGender === 'all' ? null : targetGender,
+      targetAgeGroup: selectedAgeGroups.length > 0 ? selectedAgeGroups.join(',') : null,
     };
 
     // Only include imageUrl if it was changed
@@ -268,6 +361,10 @@ export default function EditEventScreen() {
         const base64Image = `data:${mimeType};base64,${asset.base64}`;
         setFlyerImage(base64Image);
         setFlyerChanged(true);
+        setFlyerDims(null);
+        setImagePosition(50);
+        dragOffsetRef.current = 0;
+        dragY.setValue(0);
       }
     }
   };
@@ -275,6 +372,10 @@ export default function EditEventScreen() {
   const removeImage = () => {
     setFlyerImage(null);
     setFlyerChanged(true);
+    setFlyerDims(null);
+    setImagePosition(50);
+    dragOffsetRef.current = 0;
+    dragY.setValue(0);
   };
 
   // Handle date picker confirm
@@ -377,7 +478,7 @@ export default function EditEventScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollViewRef} style={styles.form} keyboardShouldPersistTaps="handled">
         {/* Title */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Event Title *</Text>
@@ -419,19 +520,50 @@ export default function EditEventScreen() {
           />
         </View>
 
-        {/* Event Flyer Image */}
+        {/* Event Flyer — draggable to choose card crop */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Event Flyer</Text>
           {flyerImage ? (
-            <View style={styles.flyerPreviewContainer}>
-              <Image source={{ uri: flyerImage }} style={styles.flyerPreview} />
-              <View style={styles.flyerOverlay}>
-                <TouchableOpacity style={styles.flyerActionButton} onPress={pickImage}>
-                  <Ionicons name="pencil" size={18} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.flyerActionButton, styles.flyerRemoveButton]} onPress={removeImage}>
-                  <Ionicons name="trash" size={18} color="#fff" />
-                </TouchableOpacity>
+            <View>
+              {/* Draggable crop area */}
+              <View
+                style={styles.flyerCropContainer}
+                {...cropPanResponder.panHandlers}
+              >
+                <Animated.Image
+                  source={{ uri: flyerImage }}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: dragY,
+                    width: Dimensions.get('window').width - 40,
+                    height: flyerDims
+                      ? (flyerDims.h / flyerDims.w) * (Dimensions.get('window').width - 40)
+                      : CROP_HEIGHT * 2,
+                  }}
+                  resizeMode="cover"
+                  onLoad={(e: any) => {
+                    const { width, height } = e.nativeEvent.source;
+                    setFlyerDims({ w: width, h: height });
+                  }}
+                />
+                {/* Trash button overlay */}
+                <View style={styles.flyerOverlay}>
+                  <TouchableOpacity
+                    style={[styles.flyerActionButton, styles.flyerRemoveButton]}
+                    onPress={removeImage}
+                  >
+                    <Ionicons name="trash" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                {/* Drag hint with live position */}
+                <View style={styles.dragHint}>
+                  <Ionicons name="swap-vertical" size={14} color="rgba(255,255,255,0.9)" />
+                  <Text style={styles.dragHintText}>
+                    Drag to adjust · {imagePosition}%
+                  </Text>
+                </View>
               </View>
             </View>
           ) : (
@@ -445,6 +577,11 @@ export default function EditEventScreen() {
               </View>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* ── Date & Time ── */}
+        <View style={styles.sectionDivider}>
+          <Text style={styles.sectionTitle}>Date & Time</Text>
         </View>
 
         {/* Date */}
@@ -502,6 +639,110 @@ export default function EditEventScreen() {
           )}
         </View>
 
+        {/* ── Event Settings ── */}
+        <View style={styles.sectionDivider}>
+          <Text style={styles.sectionTitle}>Event Settings</Text>
+        </View>
+
+        {/* Event Type */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Event Type</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowCategoryPicker(true)}
+          >
+            <Text style={styles.pickerText}>{category}</Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* For Who */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>For Who</Text>
+          <View style={styles.chipRow}>
+            {([
+              { value: 'all' as const, label: 'Everyone', icon: 'people-outline' as const },
+              { value: 'men' as const, label: 'Men', icon: 'man-outline' as const },
+              { value: 'women' as const, label: 'Women', icon: 'woman-outline' as const },
+            ]).map(({ value, label, icon }) => {
+              const isActive = targetGender === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[
+                    styles.chipWithIcon,
+                    {
+                      backgroundColor: isActive ? colors.accent : colors.surface,
+                      borderColor: isActive ? colors.accent : colors.borderSoft,
+                    },
+                  ]}
+                  onPress={() => setTargetGender(value)}
+                >
+                  <Ionicons
+                    name={icon}
+                    size={16}
+                    color={isActive ? '#fff' : colors.textSecondary}
+                  />
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '500',
+                    color: isActive ? '#fff' : colors.textPrimary,
+                  }}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Age Group (multi-select) */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Age Group</Text>
+          <Text style={styles.chipHint}>
+            Select one or more. Leave empty for all ages.
+          </Text>
+          <View style={styles.chipRowWrap}>
+            {([
+              { value: 'kids', label: 'Kids' },
+              { value: 'teens', label: 'Teens' },
+              { value: 'young_adults', label: 'Young Adults' },
+              { value: 'adults', label: 'Adults' },
+              { value: 'seniors', label: 'Seniors' },
+            ]).map(({ value, label }) => {
+              const isSelected = selectedAgeGroups.includes(value);
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isSelected ? colors.accent : colors.surface,
+                      borderColor: isSelected ? colors.accent : colors.borderSoft,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedAgeGroups(prev =>
+                      isSelected ? prev.filter(v => v !== value) : [...prev, value]
+                    );
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '500',
+                    color: isSelected ? '#fff' : colors.textPrimary,
+                  }}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {selectedAgeGroups.length === 0 && (
+            <Text style={styles.chipSubtext}>All ages welcome</Text>
+          )}
+        </View>
+
         {/* View Attendees Button */}
         <TouchableOpacity
           style={styles.attendeesButton}
@@ -513,6 +754,9 @@ export default function EditEventScreen() {
           </Text>
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
+
+        {/* Bottom spacing */}
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Date Picker Modal */}
@@ -589,6 +833,47 @@ export default function EditEventScreen() {
                 style={styles.picker}
               />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category Picker Modal */}
+      <Modal visible={showCategoryPicker} transparent animationType="slide">
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerModalContent}>
+            <View style={styles.pickerModalHeader}>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Text style={styles.pickerModalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.pickerModalTitle}>Event Type</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <Text style={styles.pickerModalDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 300, paddingHorizontal: 16 }}>
+              {EVENT_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.borderSubtle,
+                  }}
+                  onPress={() => {
+                    setCategory(cat);
+                    setShowCategoryPicker(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: colors.textPrimary }}>{cat}</Text>
+                  {category === cat && (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -693,22 +978,18 @@ const getStyles = (colors: any, colorScheme: string) => StyleSheet.create({
     height: 120,
     textAlignVertical: 'top',
   },
-  flyerPreviewContainer: {
-    position: 'relative',
+  flyerCropContainer: {
+    height: 200,
     borderRadius: 12,
     overflow: 'hidden',
-  },
-  flyerPreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: '#000',
   },
   flyerOverlay: {
     position: 'absolute',
     top: 8,
     right: 8,
-    flexDirection: 'row',
-    gap: 8,
   },
   flyerActionButton: {
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -717,6 +998,23 @@ const getStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   },
   flyerRemoveButton: {
     backgroundColor: 'rgba(239,68,68,0.9)',
+  },
+  dragHint: {
+    position: 'absolute',
+    bottom: 8,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  dragHintText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
   },
   flyerUploadButton: {
     backgroundColor: colors.surface,
@@ -738,6 +1036,55 @@ const getStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   flyerUploadHint: {
     fontSize: 13,
     textAlign: 'center',
+  },
+  sectionDivider: {
+    marginTop: 4,
+    marginBottom: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chipRowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chipWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chipHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  chipSubtext: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: 6,
   },
   pickerButton: {
     backgroundColor: colors.surface,
