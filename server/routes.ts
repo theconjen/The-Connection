@@ -2100,6 +2100,113 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     }
   });
 
+  // Get single prayer request by ID
+  app.get('/api/prayer-requests/:id', async (req, res) => {
+    try {
+      const prayerRequestId = parseInt(req.params.id);
+      if (!Number.isFinite(prayerRequestId)) {
+        return res.status(400).json({ error: 'Invalid prayer request ID' });
+      }
+
+      const prayerRequest = await storage.getPrayerRequest(prayerRequestId);
+      if (!prayerRequest) {
+        return res.status(404).json({ error: 'Prayer request not found' });
+      }
+
+      // Get author info
+      const author = await storage.getUser((prayerRequest as any).authorId || (prayerRequest as any).userId);
+      const authorName = author
+        ? (author.displayName || author.username || 'Anonymous')
+        : 'Anonymous';
+
+      // Get prayer count
+      const prayers = await storage.getPrayersForRequest(prayerRequestId);
+      const prayerCount = prayers.length;
+
+      // Check if current user has prayed (if authenticated)
+      const userId = (req as any).session?.userId;
+      const isPrayed = userId ? prayers.some((p: any) => p.userId === userId) : false;
+
+      res.json({
+        ...prayerRequest,
+        authorName,
+        authorAvatar: author?.profileImageUrl || null,
+        prayerCount,
+        isPrayed,
+      });
+    } catch (error) {
+      console.error('Error fetching prayer request:', error);
+      res.status(500).json(buildErrorResponse('Error fetching prayer request', error));
+    }
+  });
+
+  // Get comments on a prayer request (reuses the comments table with postId = prayerRequestId)
+  app.get('/api/prayer-requests/:id/comments', async (req, res) => {
+    try {
+      const prayerRequestId = parseInt(req.params.id);
+      if (!Number.isFinite(prayerRequestId)) {
+        return res.status(400).json({ error: 'Invalid prayer request ID' });
+      }
+
+      const comments = await storage.getCommentsByPostId(prayerRequestId);
+
+      // Enrich with author info
+      const enriched = await Promise.all(
+        comments.map(async (comment: any) => {
+          const author = comment.authorId ? await storage.getUser(comment.authorId) : null;
+          return {
+            ...comment,
+            authorName: author ? (author.displayName || author.username || 'Anonymous') : 'Anonymous',
+            authorAvatar: author?.profileImageUrl || null,
+          };
+        })
+      );
+
+      res.json(enriched);
+    } catch (error) {
+      console.error('Error fetching prayer comments:', error);
+      res.status(500).json(buildErrorResponse('Error fetching prayer comments', error));
+    }
+  });
+
+  // Create a comment on a prayer request
+  app.post('/api/prayer-requests/:id/comments', isAuthenticated, async (req, res) => {
+    try {
+      const prayerRequestId = parseInt(req.params.id);
+      const userId = requireSessionUserId(req);
+
+      if (!Number.isFinite(prayerRequestId)) {
+        return res.status(400).json({ error: 'Invalid prayer request ID' });
+      }
+
+      const { content } = req.body;
+      if (!content || typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ error: 'Comment content is required' });
+      }
+
+      await ensureCleanText(content, 'Prayer comment');
+
+      const comment = await storage.createComment({
+        content: content.trim(),
+        postId: prayerRequestId,
+        authorId: userId,
+      });
+
+      // Get author info for response
+      const author = await storage.getUser(userId);
+
+      res.status(201).json({
+        ...comment,
+        authorName: author ? (author.displayName || author.username || 'Anonymous') : 'Anonymous',
+        authorAvatar: author?.profileImageUrl || null,
+      });
+    } catch (error) {
+      if (handleModerationError(res, error)) return;
+      console.error('Error creating prayer comment:', error);
+      res.status(500).json(buildErrorResponse('Error creating prayer comment', error));
+    }
+  });
+
   // Apologetics endpoints
   app.get('/api/apologetics', async (req, res) => {
     try {
