@@ -3,7 +3,7 @@
  * Shows community feed, events, chat, members, and prayer requests
  */
 
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
   View,
   ScrollView,
@@ -19,7 +19,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient, { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
@@ -102,17 +102,8 @@ export default function CommunityDetailScreen() {
       return result;
     },
     enabled: !!communityId,
-    staleTime: 0, // Always fetch fresh data to ensure membership status is current
+    staleTime: 2 * 60 * 1000, // 2 minutes — membership status updates on join/leave actions
   });
-
-  // Refetch community data whenever screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (communityId) {
-        refetchCommunity();
-      }
-    }, [communityId, refetchCommunity])
-  );
 
   // Fetch wall posts
   const { data: wallPosts = [], isLoading: postsLoading, refetch: refetchPosts } = useQuery<WallPost[]>({
@@ -395,6 +386,23 @@ export default function CommunityDetailScreen() {
       Alert.alert('Error', error.response?.data?.message || 'Failed to delete post');
     },
   });
+
+  // Like wall post — optimistic update
+  const handleLikePost = (post: WallPost) => {
+    // Optimistically update the cache
+    queryClient.setQueryData(['community-wall', communityId], (old: WallPost[] | undefined) => {
+      if (!old) return old;
+      return old.map(p =>
+        p.id === post.id
+          ? { ...p, isLiked: !p.isLiked, likesCount: (p.likesCount || 0) + (p.isLiked ? -1 : 1) }
+          : p
+      );
+    });
+    // Fire and forget — revert on error
+    communitiesAPI.toggleWallPostLike(communityId, post.id).catch(() => {
+      queryClient.invalidateQueries({ queryKey: ['community-wall', communityId] });
+    });
+  };
 
   // Create prayer request mutation
   const createPrayerMutation = useMutation({
@@ -1022,19 +1030,37 @@ export default function CommunityDetailScreen() {
                             )
                           )}
 
-                          {/* Comment action */}
-                          <TouchableOpacity
-                            style={styles.commentAction}
-                            onPress={() => router.push({
-                              pathname: '/communities/wall-post/[id]' as any,
-                              params: { id: post.id.toString(), communityId: communityId.toString() },
-                            })}
-                          >
-                            <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
-                            <Text style={[styles.commentActionText, { color: colors.textSecondary }]}>
-                              {(post.commentCount || 0) > 0 ? `${post.commentCount} comments` : 'Comment'}
-                            </Text>
-                          </TouchableOpacity>
+                          {/* Like and Comment actions */}
+                          <View style={styles.postActions}>
+                            <TouchableOpacity
+                              style={styles.commentAction}
+                              onPress={() => handleLikePost(post)}
+                            >
+                              <Ionicons
+                                name={post.isLiked ? "heart" : "heart-outline"}
+                                size={18}
+                                color={post.isLiked ? "#EF4444" : colors.textSecondary}
+                              />
+                              {(post.likesCount || 0) > 0 && (
+                                <Text style={[styles.commentActionText, { color: post.isLiked ? "#EF4444" : colors.textSecondary }]}>
+                                  {post.likesCount}
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.commentAction}
+                              onPress={() => router.push({
+                                pathname: '/communities/wall-post/[id]' as any,
+                                params: { id: post.id.toString(), communityId: communityId.toString() },
+                              })}
+                            >
+                              <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
+                              <Text style={[styles.commentActionText, { color: colors.textSecondary }]}>
+                                {(post.commentCount || 0) > 0 ? `${post.commentCount}` : 'Comment'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       );
                     }}
@@ -2242,14 +2268,19 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     color: colors.foreground,
     lineHeight: 22,
   },
-  commentAction: {
+  postActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 20,
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
+  },
+  commentAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   commentActionText: {
     fontSize: 13,

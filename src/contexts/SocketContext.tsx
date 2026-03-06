@@ -37,61 +37,73 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = React.useState(false);
 
+  // Debounce timer refs — batch rapid socket events into single invalidations
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  const debouncedInvalidate = useCallback((key: string, queryKey: any[], options?: { exact?: boolean }) => {
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+    }
+    debounceTimers.current[key] = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey, ...options });
+      delete debounceTimers.current[key];
+    }, 2000); // 2-second debounce — batches rapid events
+  }, [queryClient]);
+
   // Handle new DM event
   const handleNewDM = useCallback((message: any) => {
+    // Only invalidate the specific conversation + badge count
+    debouncedInvalidate('conversations', ['conversations']);
+    debouncedInvalidate('unread-count', ['unread-count']);
 
-    // Update conversations list cache
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
-
-    // Update unread count
-    queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-
-    // If we're in a specific conversation, update that cache too
     if (message.senderId) {
-      queryClient.invalidateQueries({ queryKey: ['messages', message.senderId] });
+      // Invalidate only the exact conversation, not all messages
+      queryClient.invalidateQueries({ queryKey: ['messages', message.senderId], exact: true });
     }
-  }, [queryClient]);
+  }, [queryClient, debouncedInvalidate]);
 
   // Handle DM reaction event
   const handleDMReaction = useCallback((data: any) => {
-    // Invalidate the specific conversation
-    queryClient.invalidateQueries({ queryKey: ['messages'] });
+    // Only invalidate the specific conversation if we know which one
+    if (data?.conversationId || data?.senderId) {
+      const key = data.conversationId || data.senderId;
+      queryClient.invalidateQueries({ queryKey: ['messages', key], exact: true });
+    }
+    // Don't invalidate ALL messages — that causes every conversation to refetch
   }, [queryClient]);
 
-  // Handle new notification event (for all notification types: follows, likes, comments, events, etc.)
+  // Handle new notification event — only update badge count immediately, defer the rest
   const handleNewNotification = useCallback((notification: any) => {
+    // Badge counts are lightweight — update immediately
+    queryClient.invalidateQueries({ queryKey: ['notification-count'], exact: true });
+    queryClient.invalidateQueries({ queryKey: ['unread-notification-count'], exact: true });
 
-    // Update notifications list cache
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    // Notification list can wait — debounce to batch rapid notifications
+    debouncedInvalidate('notifications', ['notifications']);
 
-    // Update notification count (badge)
-    queryClient.invalidateQueries({ queryKey: ['notification-count'] });
-    queryClient.invalidateQueries({ queryKey: ['unread-notification-count'] });
-
-    // For specific notification types, also update related caches
+    // Only invalidate specific resources if we have exact IDs — never broad keys
     if (notification.type === 'follow' || notification.type === 'follow_request' || notification.type === 'follow_accepted') {
-      // Update follow-related queries
-      queryClient.invalidateQueries({ queryKey: ['followers'] });
-      queryClient.invalidateQueries({ queryKey: ['following'] });
-      queryClient.invalidateQueries({ queryKey: ['follow-requests'] });
+      // Debounce follow queries — multiple follow events can fire in quick succession
+      debouncedInvalidate('follow-requests', ['follow-requests']);
+      // Don't invalidate ['followers'] or ['following'] — these are expensive list queries
+      // They'll refresh naturally when the user visits the profile screen (staleTime handles this)
     }
 
     if (notification.type === 'post_like' || notification.type === 'post_comment' || notification.type === 'comment_reply') {
-      // Update post-related queries
+      // Only invalidate the specific post, not all posts
       if (notification.data?.postId) {
-        queryClient.invalidateQueries({ queryKey: ['post', notification.data.postId] });
-        queryClient.invalidateQueries({ queryKey: ['comments', notification.data.postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', notification.data.postId], exact: true });
+        queryClient.invalidateQueries({ queryKey: ['comments', notification.data.postId], exact: true });
       }
     }
 
     if (notification.type === 'event_updated' || notification.type === 'event_canceled') {
-      // Update event-related queries
+      // Only invalidate the specific event — never the entire events list
       if (notification.data?.eventId) {
-        queryClient.invalidateQueries({ queryKey: ['event', notification.data.eventId] });
+        queryClient.invalidateQueries({ queryKey: ['event', notification.data.eventId], exact: true });
       }
-      queryClient.invalidateQueries({ queryKey: ['events'] });
     }
-  }, [queryClient]);
+  }, [queryClient, debouncedInvalidate]);
 
   // Connect socket when user is authenticated
   useEffect(() => {
@@ -176,6 +188,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     // Cleanup on unmount or user change
     return () => {
+      // Clear all debounce timers
+      Object.values(debounceTimers.current).forEach(clearTimeout);
+      debounceTimers.current = {};
+
       if (socketRef.current) {
         socketRef.current.off('dm:new', handleNewDM);
         socketRef.current.off('new_message', handleNewDM);

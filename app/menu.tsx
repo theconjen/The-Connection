@@ -13,7 +13,7 @@ export default function MenuScreen() {
   const menuItems = [
     { title: 'Profile', icon: 'person-outline', route: '/(tabs)/profile' },
     { title: 'Direct Messages', icon: 'mail-outline', route: '/messages' },
-    { title: 'Prayers', icon: 'heart-outline', route: '/(tabs)/prayers' },
+    { title: 'Prayer Requests', icon: 'heart-outline', route: '/(tabs)/communities' },
     { title: 'Privacy Policy', icon: 'shield-outline', route: '/settings/privacy' },
     { title: 'Community Guidelines', icon: 'book-outline', route: '/settings/guidelines' },
   ];
