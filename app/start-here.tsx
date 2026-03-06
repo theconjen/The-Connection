@@ -2,8 +2,11 @@
  * Start Here Onboarding Screen
  * A low-friction onboarding flow for new users:
  * 1. Location (optional) - Enable to see nearby communities
- * 2. Categories (required) - Choose 3-5 categories
- * 3. Starter Communities - Join a few to get started
+ * 2. Church Background (optional) - Denomination
+ * 3. Life Stage (optional) - College, married, parent, etc.
+ * 4. Cultural Background (optional) - Heritage/ethnicity
+ * 5. Categories (required) - Choose 3-5 categories
+ * 6. Starter Communities - Join a few to get started
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -161,10 +164,37 @@ export default function StartHereScreen() {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  // Profile questionnaire state
+  const [selectedDenomination, setSelectedDenomination] = useState<string | null>(null);
+  const [selectedLifeStage, setSelectedLifeStage] = useState<string | null>(null);
+  const [selectedCulture, setSelectedCulture] = useState<string | null>(null);
+
   // Categories state - always start fresh, don't load saved preferences
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const MIN_CATEGORIES = 3;
   const MAX_CATEGORIES = 5;
+
+  // Questionnaire options
+  const DENOMINATIONS = [
+    'Non-denominational', 'Baptist', 'Catholic', 'Methodist',
+    'Pentecostal', 'Presbyterian', 'Lutheran', 'Anglican/Episcopal',
+    'Church of Christ', 'Assemblies of God', 'Seventh-day Adventist',
+    'Orthodox', 'Calvary Chapel', 'Other',
+  ];
+  const LIFE_STAGES = [
+    { id: 'college', label: 'College Student' },
+    { id: 'young_professional', label: 'Young Professional' },
+    { id: 'single', label: 'Single' },
+    { id: 'married', label: 'Married' },
+    { id: 'parent', label: 'Parent' },
+    { id: 'empty_nester', label: 'Empty Nester' },
+    { id: 'retired', label: 'Retired' },
+  ];
+  const CULTURAL_BACKGROUNDS = [
+    'African American', 'African', 'Latino/Hispanic', 'East Asian',
+    'South Asian', 'Southeast Asian', 'Middle Eastern', 'Caribbean',
+    'Pacific Islander', 'European', 'Mixed/Multicultural', 'Other',
+  ];
 
   // Communities state
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -480,13 +510,25 @@ export default function StartHereScreen() {
       // Save categories (using existing saveSelectedTopics for backwards compatibility)
       await saveSelectedTopics(selectedCategories);
 
-      // Save gender to user profile based on category selection
-      const selectedGender = selectedCategories.includes('Men') ? 'male'
-        : selectedCategories.includes('Women') ? 'female'
-        : null;
-      if (selectedGender) {
+      // Save profile data from questionnaire to feed the recommendation algorithm
+      const profileUpdate: Record<string, any> = {};
+
+      // Gender from category selection
+      if (selectedCategories.includes('Men')) profileUpdate.gender = 'male';
+      else if (selectedCategories.includes('Women')) profileUpdate.gender = 'female';
+
+      // Denomination, life stage, cultural background
+      if (selectedDenomination) profileUpdate.denomination = selectedDenomination;
+      if (selectedLifeStage) profileUpdate.lifeStage = selectedLifeStage;
+      if (selectedCulture) profileUpdate.culturalBackground = selectedCulture;
+
+      // Save interests from category selections (excluding gender categories)
+      const interestCategories = selectedCategories.filter(c => c !== 'Men' && c !== 'Women');
+      if (interestCategories.length > 0) profileUpdate.interests = interestCategories.join(',');
+
+      if (Object.keys(profileUpdate).length > 0) {
         try {
-          await apiClient.patch('/api/user/profile', { gender: selectedGender });
+          await apiClient.patch('/api/user/profile', profileUpdate);
         } catch {}
       }
 
@@ -573,7 +615,145 @@ export default function StartHereScreen() {
           )}
         </View>
 
-        {/* Section 2: Categories (Required) */}
+        {/* Section 2: Church Background */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="home-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                Church Background
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
+                What's your denomination? Optional.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.topicsContainer}>
+            {DENOMINATIONS.map(denom => {
+              const isSelected = selectedDenomination === denom;
+              return (
+                <Pressable
+                  key={denom}
+                  style={[
+                    styles.topicChip,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
+                    },
+                  ]}
+                  onPress={() => setSelectedDenomination(isSelected ? null : denom)}
+                >
+                  <Text
+                    style={[
+                      styles.topicChipText,
+                      { color: isSelected ? '#fff' : colors.textPrimary },
+                    ]}
+                  >
+                    {denom}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Section 3: Life Stage */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="person-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                Where Are You in Life?
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
+                Helps us find communities in your season. Optional.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.topicsContainer}>
+            {LIFE_STAGES.map(stage => {
+              const isSelected = selectedLifeStage === stage.id;
+              return (
+                <Pressable
+                  key={stage.id}
+                  style={[
+                    styles.topicChip,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
+                    },
+                  ]}
+                  onPress={() => setSelectedLifeStage(isSelected ? null : stage.id)}
+                >
+                  <Text
+                    style={[
+                      styles.topicChipText,
+                      { color: isSelected ? '#fff' : colors.textPrimary },
+                    ]}
+                  >
+                    {stage.label}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Section 4: Cultural Background */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="globe-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                Cultural Background
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
+                Find communities that share your heritage. Optional.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.topicsContainer}>
+            {CULTURAL_BACKGROUNDS.map(culture => {
+              const isSelected = selectedCulture === culture;
+              return (
+                <Pressable
+                  key={culture}
+                  style={[
+                    styles.topicChip,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.borderSubtle,
+                    },
+                  ]}
+                  onPress={() => setSelectedCulture(isSelected ? null : culture)}
+                >
+                  <Text
+                    style={[
+                      styles.topicChipText,
+                      { color: isSelected ? '#fff' : colors.textPrimary },
+                    ]}
+                  >
+                    {culture}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Section 5: Categories (Required) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
@@ -625,7 +805,7 @@ export default function StartHereScreen() {
           </Text>
         </View>
 
-        {/* Section 3: Starter Communities */}
+        {/* Section 6: Starter Communities */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: colors.primary + '15' }]}>
