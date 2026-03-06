@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/contexts/ThemeContext';
-import { communitiesAPI } from '../src/lib/apiClient';
+import apiClient, { communitiesAPI } from '../src/lib/apiClient';
 import {
   AVAILABLE_CATEGORIES,
   saveLocationPermissionGranted,
@@ -479,6 +479,16 @@ export default function StartHereScreen() {
     try {
       // Save categories (using existing saveSelectedTopics for backwards compatibility)
       await saveSelectedTopics(selectedCategories);
+
+      // Save gender to user profile based on category selection
+      const selectedGender = selectedCategories.includes('Men') ? 'male'
+        : selectedCategories.includes('Women') ? 'female'
+        : null;
+      if (selectedGender) {
+        try {
+          await apiClient.patch('/api/user/profile', { gender: selectedGender });
+        } catch {}
+      }
 
       // Mark Start Here as completed
       await setStartHereCompleted(true);
