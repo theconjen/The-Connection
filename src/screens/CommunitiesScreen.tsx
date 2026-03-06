@@ -781,6 +781,13 @@ export function CommunitiesScreen({
     staleTime: 0, // Always fetch fresh data to ensure membership status is current
   });
 
+  // Fetch personalized recommendations (interests, location, demographics, denomination)
+  const { data: recommendedCommunities = [] } = useQuery({
+    queryKey: ['recommended-communities'],
+    queryFn: () => communitiesAPI.getRecommended(20),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
   // Map communities to channels format for the horizontal scroll
   const userChannels: Channel[] = React.useMemo(() => {
     // Ensure userCommunities is an array before filtering
@@ -931,6 +938,14 @@ export function CommunitiesScreen({
 
     return filtered;
   }, [communities, selectedCategory]);
+
+  // Determine if search/filters are active — if so, show search results; otherwise show recommendations
+  const hasActiveSearchOrFilters = searchQuery.trim().length > 0
+    || Object.values(selectedFilters).some(arr => arr.length > 0)
+    || !!selectedCategory;
+
+  // The display list: recommendations when browsing, search/filter results when searching
+  const displayCommunities = hasActiveSearchOrFilters ? filteredCommunities : recommendedCommunities;
 
   // Communities are now fetched from the API via useEffect above
 
@@ -1131,7 +1146,7 @@ export function CommunitiesScreen({
             }}
           >
             <Text variant="bodySmall" style={{ fontWeight: '700' }}>
-              Recommended for You
+              {hasActiveSearchOrFilters ? 'Search Results' : 'Recommended for You'}
             </Text>
             <Pressable onPress={() => {
               // Clear filters and search to show all communities sorted by proximity
@@ -1245,7 +1260,7 @@ export function CommunitiesScreen({
           {/* Community List */}
           {!isLoading && !error && (
             <View style={{ gap: spacing.sm }}>
-              {filteredCommunities.length === 0 ? (
+              {displayCommunities.length === 0 ? (
                 <View style={{ alignItems: 'center', padding: spacing.xl, gap: spacing.md }}>
                   <View
                     style={{
@@ -1291,7 +1306,7 @@ export function CommunitiesScreen({
                 </View>
               ) : (
                 <FlatList
-                  data={filteredCommunities}
+                  data={displayCommunities}
                   keyExtractor={(item) => item.id.toString()}
                   scrollEnabled={false}
                   renderItem={({ item: community }) => {

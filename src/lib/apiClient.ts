@@ -305,6 +305,7 @@ export const pollsAPI = {
 // Communities API
 export const communitiesAPI = {
   getAll: () => apiClient.get('/api/communities').then(res => res.data),
+  getRecommended: (limit: number = 15) => apiClient.get(`/api/communities/recommended?limit=${limit}`).then(res => res.data),
   getById: (id: number) => apiClient.get(`/api/communities/${id}`, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
