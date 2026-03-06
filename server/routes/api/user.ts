@@ -107,7 +107,7 @@ router.patch('/profile', async (req, res, next) => {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age, gender
+      birthday, age, gender, culturalBackground, lifeStage
     } = req.body;
 
     // Only allow updating specific fields
@@ -128,6 +128,8 @@ router.patch('/profile', async (req, res, next) => {
     if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
       updateData.gender = gender;
     }
+    if (culturalBackground !== undefined) updateData.culturalBackground = culturalBackground;
+    if (lifeStage !== undefined) updateData.lifeStage = lifeStage;
     if (birthday !== undefined) {
       // Validate age is 13+ if birthday is provided (COPPA compliance)
       const birthdayDate = new Date(birthday);
@@ -208,7 +210,7 @@ router.patch('/:id', async (req, res, next) => {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age, gender
+      birthday, age, gender, culturalBackground, lifeStage
     } = req.body;
 
     // Only allow updating specific fields
@@ -229,6 +231,8 @@ router.patch('/:id', async (req, res, next) => {
     if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
       updateData.gender = gender;
     }
+    if (culturalBackground !== undefined) updateData.culturalBackground = culturalBackground;
+    if (lifeStage !== undefined) updateData.lifeStage = lifeStage;
     if (birthday !== undefined) {
       // Validate age is 13+ if birthday is provided (COPPA compliance)
       const birthdayDate = new Date(birthday);

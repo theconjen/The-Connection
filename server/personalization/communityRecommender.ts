@@ -99,31 +99,79 @@ export function calculateLocationScore(user: User, community: Community): number
 
 /**
  * Calculate demographic alignment score (0-100)
- * Matches age group, gender, life stage, etc.
+ * Matches age group, gender, life stage, and cultural background
  */
 export function calculateDemographicScore(user: User, community: Community): number {
-  let score = 50; // Start neutral
-
-  // Age group matching (we don't have user age, but could infer from profile)
-  // For now, "All Ages" communities get a small boost
-  if (community.ageGroup === 'All Ages') {
-    score += 10;
-  }
+  let score = 40; // Start slightly below neutral
 
   // Gender matching
-  if (community.gender === 'Co-Ed' || !community.gender) {
-    score += 10; // Inclusive communities
+  const communityGender = (community.gender || '').toLowerCase();
+  const userGender = (user as any).gender; // "male", "female", or null
+  if (!communityGender || communityGender === 'co-ed') {
+    score += 5; // Inclusive communities get a small boost
+  } else if (userGender) {
+    // Match men's communities to male users, women's to female
+    if ((communityGender.includes('men') && userGender === 'male') ||
+        (communityGender.includes('women') && userGender === 'female')) {
+      score += 25; // Strong gender match
+    } else if ((communityGender.includes('men') && userGender === 'female') ||
+               (communityGender.includes('women') && userGender === 'male')) {
+      return 10; // Mismatch — low score
+    }
   }
 
-  // Life stage matching (would need user life stage data)
-  const lifeStages = community.lifeStages || [];
-  if (lifeStages.includes('All') || lifeStages.length === 0) {
-    score += 10;
+  // Life stage matching
+  const communityLifeStages = community.lifeStages || [];
+  const userLifeStage = (user as any).lifeStage; // e.g. "college", "young_professional", "married"
+  if (userLifeStage && communityLifeStages.length > 0) {
+    const lifeStageMap: Record<string, string[]> = {
+      'college': ['Students', 'Young Adults'],
+      'young_professional': ['Young Professionals', 'Young Adults'],
+      'single': ['Singles'],
+      'married': ['Married', 'Couples'],
+      'parent': ['Parents', 'Families'],
+      'empty_nester': ['Empty Nesters', 'Seniors'],
+      'retired': ['Seniors', 'Retirees'],
+    };
+    const matchTerms = lifeStageMap[userLifeStage] || [];
+    const hasMatch = matchTerms.some(term =>
+      communityLifeStages.some(cls => cls.toLowerCase().includes(term.toLowerCase()))
+    );
+    if (hasMatch) score += 20;
+  } else if (communityLifeStages.includes('All') || communityLifeStages.length === 0) {
+    score += 5;
+  }
+
+  // Cultural background matching — boost communities that mention user's culture
+  const userCulture = (user as any).culturalBackground;
+  if (userCulture) {
+    const communityText = `${community.name} ${(community as any).description || ''}`.toLowerCase();
+    const cultureKeywords: Record<string, string[]> = {
+      'African American': ['african american', 'black', 'african'],
+      'African': ['african', 'nigeria', 'ghana', 'kenya', 'ethiopia'],
+      'Latino/Hispanic': ['latino', 'latina', 'hispanic', 'spanish'],
+      'East Asian': ['chinese', 'korean', 'japanese', 'east asian', 'asian'],
+      'South Asian': ['south asian', 'indian', 'pakistani', 'sri lankan'],
+      'Southeast Asian': ['filipino', 'vietnamese', 'southeast asian'],
+      'Middle Eastern': ['middle eastern', 'arab', 'persian'],
+      'Caribbean': ['caribbean', 'jamaican', 'haitian', 'island'],
+      'Pacific Islander': ['pacific islander', 'hawaiian', 'samoan', 'polynesian'],
+      'European': ['european'],
+      'Mixed/Multicultural': ['multicultural', 'diverse', 'multi-ethnic'],
+    };
+    const keywords = cultureKeywords[userCulture] || [userCulture.toLowerCase()];
+    const hasCultureMatch = keywords.some(kw => communityText.includes(kw));
+    if (hasCultureMatch) score += 20;
+  }
+
+  // Age group matching
+  if (community.ageGroup === 'All Ages') {
+    score += 5;
   }
 
   // Meeting type preference
   if (community.meetingType === 'Hybrid') {
-    score += 10; // Hybrid is most flexible
+    score += 5; // Hybrid is most flexible
   }
 
   return Math.min(score, 100);

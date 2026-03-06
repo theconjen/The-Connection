@@ -107,6 +107,8 @@ export const users = pgTable("users", {
   favoriteBibleVerse: text("favorite_bible_verse"),
   testimony: text("testimony"),
   interests: text("interests"),
+  culturalBackground: text("cultural_background"), // e.g. "African American", "Latino", "East Asian", etc.
+  lifeStage: text("life_stage"), // e.g. "college", "young_professional", "married", "parent", etc.
   // Age Assurance fields (Apple App Store requirement)
   gender: text("gender"), // "male", "female", or null (not specified)
   dateOfBirth: date("date_of_birth"),
