@@ -17,6 +17,7 @@ import {
   TextInput,
   Modal,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,8 @@ interface AdvicePost {
   isLiked?: boolean;
   isBookmarked?: boolean;
   anonymousNickname?: string;
+  imageUrl?: string;
+  imageUrls?: string[];
 }
 
 // Reddit-style hot score for advice posts
@@ -355,6 +358,27 @@ export default function AdviceListScreen() {
           {item.content}
         </Text>
 
+        {/* Image thumbnails */}
+        {(() => {
+          const images = item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [];
+          if (images.length === 0) return null;
+          return (
+            <View style={styles.imageThumbnails}>
+              {images.slice(0, 3).map((url, i) => (
+                <Image key={i} source={{ uri: url }} style={[
+                  styles.thumbnail,
+                  images.length === 1 && styles.thumbnailSingle,
+                ]} resizeMode="cover" />
+              ))}
+              {images.length > 3 && (
+                <View style={[styles.thumbnail, styles.thumbnailMore, { backgroundColor: colors.surfaceMuted }]}>
+                  <Text style={[styles.thumbnailMoreText, { color: colors.textSecondary }]}>+{images.length - 3}</Text>
+                </View>
+              )}
+            </View>
+          );
+        })()}
+
         <View style={styles.adviceFooter}>
           <View style={styles.adviceStats}>
             <Pressable
@@ -613,6 +637,29 @@ const styles = StyleSheet.create({
   adviceContent: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  imageThumbnails: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  thumbnail: {
+    width: 80,
+    height: 60,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  thumbnailSingle: {
+    width: 140,
+    height: 90,
+  },
+  thumbnailMore: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbnailMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   adviceFooter: {
     flexDirection: 'row',

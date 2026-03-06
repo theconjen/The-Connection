@@ -143,7 +143,7 @@ export default function UserProfileScreen() {
   });
 
   const handleFollowToggle = () => {
-    if (followStatus?.isFollowing) {
+    if (followStatus?.isFollowing || followStatus?.isPending) {
       unfollowMutation.mutate();
     } else {
       followMutation.mutate();
@@ -421,20 +421,20 @@ export default function UserProfileScreen() {
                 style={[
                   styles.followButton,
                   { backgroundColor: colors.primary },
-                  followStatus?.isFollowing && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }],
+                  (followStatus?.isFollowing || followStatus?.isPending) && [styles.followingButton, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }],
                 ]}
               >
                 {followMutation.isPending || unfollowMutation.isPending ? (
-                  <ActivityIndicator size="small" color={followStatus?.isFollowing ? colors.textPrimary : colors.primaryForeground} />
+                  <ActivityIndicator size="small" color={(followStatus?.isFollowing || followStatus?.isPending) ? colors.textPrimary : colors.primaryForeground} />
                 ) : (
                   <Text
                     style={[
                       styles.followButtonText,
                       { color: colors.primaryForeground },
-                      followStatus?.isFollowing && { color: colors.textPrimary },
+                      (followStatus?.isFollowing || followStatus?.isPending) && { color: colors.textPrimary },
                     ]}
                   >
-                    {followStatus?.isFollowing ? 'Connected' : 'Connect'}
+                    {followStatus?.isFollowing ? 'Connected' : followStatus?.isPending ? 'Connecting...' : 'Connect'}
                   </Text>
                 )}
               </Pressable>

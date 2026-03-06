@@ -219,13 +219,47 @@ export const microblogsAPI = {
     topic?: MicroblogTopic;
     postType?: MicroblogType;
     sourceUrl?: string;
+    anonymousNickname?: string;
+    anonymousCity?: string;
+    imageUris?: string[]; // local file URIs from image picker
     poll?: {
       question: string;
       options: string[];
       endsAt?: string;
       allowMultiple?: boolean;
     };
-  }) => apiClient.post('/api/microblogs', data),
+  }) => {
+    const { imageUris, ...jsonFields } = data;
+
+    // If images are attached, use FormData so multer can process them
+    if (imageUris && imageUris.length > 0) {
+      const formData = new FormData();
+      formData.append('content', jsonFields.content);
+      if (jsonFields.topic) formData.append('topic', jsonFields.topic);
+      if (jsonFields.postType) formData.append('postType', jsonFields.postType);
+      if (jsonFields.sourceUrl) formData.append('sourceUrl', jsonFields.sourceUrl);
+      if (jsonFields.anonymousNickname) formData.append('anonymousNickname', jsonFields.anonymousNickname);
+      if (jsonFields.anonymousCity) formData.append('anonymousCity', jsonFields.anonymousCity);
+      if (jsonFields.poll) formData.append('poll', JSON.stringify(jsonFields.poll));
+
+      imageUris.forEach((uri, index) => {
+        const extension = uri.split('.').pop()?.toLowerCase() || 'jpeg';
+        const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+        formData.append('images', {
+          uri,
+          name: `image-${index}.${extension}`,
+          type: mimeType,
+        } as any);
+      });
+
+      return apiClient.post('/api/microblogs', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    // No images — send as regular JSON
+    return apiClient.post('/api/microblogs', jsonFields);
+  },
   getAll: () => apiClient.get('/api/microblogs'),
   getById: (id: number) => apiClient.get(`/api/microblogs/${id}`),
   like: (id: number) => apiClient.post(`/api/microblogs/${id}/like`),
@@ -297,6 +331,10 @@ export const communitiesAPI = {
     apiClient.post(`/api/communities/${id}/wall`, { content, imageUrl }).then(res => res.data),
   deleteWallPost: (communityId: number, postId: number) =>
     apiClient.delete(`/api/communities/${communityId}/wall/${postId}`).then(res => res.data),
+  getWallPostComments: (communityId: number, postId: number) =>
+    apiClient.get(`/api/communities/${communityId}/wall/${postId}/comments`).then(res => res.data),
+  createWallPostComment: (communityId: number, postId: number, content: string) =>
+    apiClient.post(`/api/communities/${communityId}/wall/${postId}/comments`, { content }).then(res => res.data),
   updateMemberRole: (communityId: number, userId: number, role: 'member' | 'moderator') =>
     apiClient.put(`/api/communities/${communityId}/members/${userId}`, { role }).then(res => res.data),
   removeMember: (communityId: number, userId: number) =>

@@ -60,17 +60,10 @@ export default function CreateAdviceScreen() {
       selectionLimit: MAX_IMAGES - selectedImages.length,
       allowsEditing: false,
       quality: 0.8,
-      base64: true,
     });
 
     if (!result.canceled && result.assets) {
-      const newImages = result.assets
-        .filter(asset => asset.base64)
-        .map(asset => {
-          const extension = asset.uri.split('.').pop()?.toLowerCase() || 'jpeg';
-          const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-          return `data:${mimeType};base64,${asset.base64}`;
-        });
+      const newImages = result.assets.map(asset => asset.uri);
       setSelectedImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
     }
   };
@@ -131,7 +124,7 @@ export default function CreateAdviceScreen() {
       topic: 'QUESTION',
       anonymousNickname: nickname.trim() || undefined,
       anonymousCity: city.trim() || undefined,
-      imageUrls: selectedImages.length > 0 ? selectedImages : undefined,
+      imageUris: selectedImages.length > 0 ? selectedImages : undefined,
       sourceUrl: sourceUrl.trim() || undefined,
     });
   };

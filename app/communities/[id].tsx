@@ -44,6 +44,8 @@ interface WallPost {
   likesCount?: number;
   isLiked?: boolean;
   imageUrl?: string;
+  commentCount?: number;
+  author?: { displayName?: string; username?: string; profileImageUrl?: string; avatarUrl?: string };
 }
 
 interface Community {
@@ -1021,6 +1023,20 @@ export default function CommunityDetailScreen() {
                               />
                             )
                           )}
+
+                          {/* Comment action */}
+                          <TouchableOpacity
+                            style={styles.commentAction}
+                            onPress={() => router.push({
+                              pathname: '/communities/wall-post/[id]' as any,
+                              params: { id: post.id.toString(), communityId: communityId.toString() },
+                            })}
+                          >
+                            <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
+                            <Text style={[styles.commentActionText, { color: colors.textSecondary }]}>
+                              {(post.commentCount || 0) > 0 ? `${post.commentCount} comments` : 'Comment'}
+                            </Text>
+                          </TouchableOpacity>
                         </View>
                       );
                     }}
@@ -2227,6 +2243,19 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     fontSize: 15,
     color: colors.foreground,
     lineHeight: 22,
+  },
+  commentAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  commentActionText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   memberCard: {
     flexDirection: 'row',
