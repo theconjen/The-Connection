@@ -23,6 +23,11 @@ const external = [
   'fsevents',
   // Keep franc-min external (language detection)
   'franc-min',
+  // Sentry has ESM/CJS interop issues with esbuild bundling
+  '@sentry/node',
+  '@sentry/core',
+  '@sentry/node-core',
+  '@sentry/opentelemetry',
 ];
 
 await build({

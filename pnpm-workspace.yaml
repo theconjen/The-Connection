@@ -4,6 +4,10 @@ packages:
   - client
   - server
   - tools/*
+
 onlyBuiltDependencies:
   - '@vercel/speed-insights'
   - esbuild
+  - argon2
+  - sharp
+  - core-js
