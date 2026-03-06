@@ -194,3 +194,23 @@ services:
         value: production
       - key: DATABASE_URL
         value: "REPLACE_ME"
+
+  # Social engagement notifications (unanswered questions + follow-back prompts) - 12pm ET daily
+  - type: cron
+    name: engagement-social
+    schedule: "0 16 * * *"
+    runtime: node
+    repo: https://github.com/theconjen/The-Connection
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.24.0 --activate &&
+      pnpm install
+    startCommand: npx tsx server/scripts/engagement-notifications.ts --social
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: "REPLACE_ME"

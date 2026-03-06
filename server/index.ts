@@ -23,6 +23,8 @@ import { startEventReminderScheduler } from "./services/eventReminderService";
 import { startWeeklyDigestScheduler } from "./services/weeklyDigestService";
 import { startInactivityNudgeScheduler } from "./services/inactivityNudgeService";
 import { startApologeticsNotificationScheduler } from "./services/apologeticsNotificationService";
+import { startDailyVerseScheduler } from "./services/dailyVerseNotificationService";
+import { startMilestoneScheduler } from "./services/communityMilestoneService";
 import compression from "compression";
 
 // Hold a module-level reference to the Sentry SDK when initialized so
@@ -369,6 +371,14 @@ async function bootstrap() {
     // Start apologetics notification scheduler (every 12 hours)
     startApologeticsNotificationScheduler();
     console.info('✅ Apologetics notification scheduler started');
+
+    // Start daily Bible verse push notification (7-8 AM UTC)
+    startDailyVerseScheduler();
+    console.info('✅ Daily verse notification scheduler started');
+
+    // Start community milestone notifications (every 6 hours)
+    startMilestoneScheduler();
+    console.info('✅ Community milestone scheduler started');
   });
 }
 

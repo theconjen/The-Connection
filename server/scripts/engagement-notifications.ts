@@ -695,6 +695,130 @@ async function sendAdminNotifications(): Promise<number> {
 }
 
 // ============================================================================
+// 6. UNANSWERED QUESTIONS CALLOUT
+// ============================================================================
+
+/**
+ * Notify active users that people are waiting for advice
+ * "5 questions still need answers — can you help?"
+ */
+async function sendUnansweredQuestionsNotifications(): Promise<number> {
+  console.info('\n❓ Checking for unanswered advice questions...');
+
+  // Count unanswered advice questions from the past 48 hours
+  const unansweredResult = await db.execute(sql`
+    SELECT COUNT(*) as count FROM microblogs m
+    WHERE m.topic = 'QUESTION'
+      AND m.parent_id IS NULL
+      AND m.deleted_at IS NULL
+      AND m.created_at > NOW() - INTERVAL '48 hours'
+      AND NOT EXISTS (
+        SELECT 1 FROM microblogs r
+        WHERE r.parent_id = m.id AND r.deleted_at IS NULL
+      )
+  `);
+
+  const unansweredCount = parseInt((unansweredResult.rows?.[0] as any)?.count || '0');
+  if (unansweredCount < 3) {
+    console.info(`   Only ${unansweredCount} unanswered — skipping`);
+    return 0;
+  }
+
+  // Get users who have previously replied to advice (active helpers)
+  const helpers = await getEligibleUsers(
+    'unanswered_callout',
+    48, // 2-day cooldown
+    20,
+    `AND u.id IN (
+      SELECT DISTINCT author_id FROM microblogs
+      WHERE parent_id IS NOT NULL AND deleted_at IS NULL
+      AND topic = 'QUESTION'
+    )`
+  );
+
+  if (helpers.length === 0) {
+    console.info('   No eligible helpers');
+    return 0;
+  }
+
+  await notifyMultipleUsers(helpers, {
+    title: 'People need your advice',
+    body: `${unansweredCount} question${unansweredCount !== 1 ? 's' : ''} still waiting for answers — can you help?`,
+    data: {
+      notificationType: 'unanswered_callout',
+      isEngagement: 'true',
+      screen: 'advice',
+    },
+    category: 'feed',
+  });
+
+  console.info(`   ✅ Notified ${helpers.length} helpers about ${unansweredCount} unanswered questions`);
+  return helpers.length;
+}
+
+// ============================================================================
+// 7. FOLLOW-BACK PROMPTS
+// ============================================================================
+
+/**
+ * Remind users to follow back people who connected with them
+ * "Sarah connected with you 3 days ago — connect back?"
+ */
+async function sendFollowBackPrompts(): Promise<number> {
+  console.info('\n🤝 Checking for follow-back opportunities...');
+
+  // Find accepted follows where the target hasn't followed back (after 2-3 days)
+  const pendingFollowBacks = await db.execute(sql`
+    SELECT
+      uf.following_id as target_user_id,
+      uf.follower_id as follower_user_id,
+      u.display_name as follower_name,
+      u.profile_image_url as follower_avatar
+    FROM user_follows uf
+    JOIN users u ON u.id = uf.follower_id
+    WHERE uf.status = 'accepted'
+      AND uf.created_at > NOW() - INTERVAL '5 days'
+      AND uf.created_at < NOW() - INTERVAL '2 days'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_follows uf2
+        WHERE uf2.follower_id = uf.following_id
+          AND uf2.following_id = uf.follower_id
+      )
+      AND uf.following_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+      AND uf.follower_id NOT IN (${sql.join(BOT_USER_IDS.map(id => sql`${id}`), sql`, `)})
+    ORDER BY uf.created_at DESC
+    LIMIT 15
+  `);
+
+  const rows = (pendingFollowBacks.rows || []) as any[];
+  let notificationsSent = 0;
+
+  for (const row of rows) {
+    if (await hasReceivedEngagementToday(row.target_user_id)) continue;
+
+    const followerName = row.follower_name || 'Someone';
+
+    await notifyUserWithPreferences(row.target_user_id, {
+      title: `${followerName} connected with you`,
+      body: 'Connect back to stay in touch and see their posts',
+      data: {
+        notificationType: 'follow_back_prompt',
+        isEngagement: 'true',
+        userId: row.follower_user_id,
+        screen: 'profile',
+        params: { userId: row.follower_user_id },
+      },
+      category: 'feed',
+    });
+
+    notificationsSent++;
+    console.info(`   ✅ Prompted user ${row.target_user_id} to follow back ${followerName}`);
+  }
+
+  return notificationsSent;
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -709,6 +833,7 @@ async function main() {
   const sendEvents = sendAll || args.includes('--events');
   const sendReengagement = sendAll || args.includes('--reengagement');
   const sendAdmin = args.includes('--admin'); // Admin is explicit only
+  const sendSocial = sendAll || args.includes('--social');
 
   console.info('='.repeat(60));
   console.info('📱 Strategic Engagement Notifications');
@@ -755,6 +880,13 @@ async function main() {
     if (sendAdmin) {
       console.info('\n--- ADMIN ---');
       totalSent += await sendAdminNotifications();
+    }
+
+    // 6. SOCIAL (unanswered questions + follow-back prompts)
+    if (sendSocial) {
+      console.info('\n--- SOCIAL ---');
+      totalSent += await sendUnansweredQuestionsNotifications();
+      totalSent += await sendFollowBackPrompts();
     }
 
     console.info('\n' + '='.repeat(60));

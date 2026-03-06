@@ -490,6 +490,8 @@ export function createMicroblogsRouter(storage = defaultStorage) {
           topic: req.body.topic,
           postType: req.body.postType,
           sourceUrl: req.body.sourceUrl,
+          anonymousNickname: req.body.anonymousNickname,
+          anonymousCity: req.body.anonymousCity,
         };
         poll = req.body.poll ? JSON.parse(req.body.poll) : undefined;
       } else {
