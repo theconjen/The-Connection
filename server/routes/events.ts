@@ -1970,6 +1970,38 @@ router.post('/events/:id/invite-nearby', requireAuth, async (req, res) => {
       day: 'numeric'
     });
 
+    // Demographic filtering based on event's target audience
+    const targetGender = (event as any).targetGender; // "men", "women", or null
+    const targetAgeGroup = (event as any).targetAgeGroup; // comma-separated: "kids,teens,young_adults,adults,seniors" or null
+
+    const matchesDemographics = (user: any): boolean => {
+      // Gender filter
+      if (targetGender) {
+        const userGender = user.gender; // "male", "female", or null
+        if (userGender) {
+          // "men" event → only male users, "women" event → only female users
+          if (targetGender === 'men' && userGender !== 'male') return false;
+          if (targetGender === 'women' && userGender !== 'female') return false;
+        }
+        // If user hasn't set gender, include them (don't exclude unknowns)
+      }
+
+      // Age group filter
+      if (targetAgeGroup && user.dateOfBirth) {
+        const ageGroups = targetAgeGroup.split(',').map((s: string) => s.trim());
+        const birthDate = new Date(user.dateOfBirth);
+        const age = Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        const userAgeGroup =
+          age < 13 ? 'kids' :
+          age < 18 ? 'teens' :
+          age < 30 ? 'young_adults' :
+          age < 60 ? 'adults' : 'seniors';
+        if (!ageGroups.includes(userAgeGroup)) return false;
+      }
+
+      return true;
+    };
+
     // Find nearby users and create invitations
     const results: Array<{ userId: number; status: string; distance?: number }> = [];
     let invitedCount = 0;
@@ -1998,6 +2030,9 @@ router.post('/events/:id/invite-nearby', requireAuth, async (req, res) => {
 
       // Skip users outside radius
       if (distance > radius) continue;
+
+      // Skip users who don't match event demographics
+      if (!matchesDemographics(user)) continue;
 
       // Check if already invited
       const existingInvitation = await storage.getEventInvitation(eventId, user.id);
@@ -2095,6 +2130,29 @@ router.get('/events/:id/nearby-users-count', requireAuth, async (req, res) => {
       });
     }
 
+    // Demographic filtering based on event's target audience
+    const targetGender = (event as any).targetGender;
+    const targetAgeGroup = (event as any).targetAgeGroup;
+
+    const matchesDemographics = (user: any): boolean => {
+      if (targetGender) {
+        const userGender = user.gender;
+        if (userGender) {
+          if (targetGender === 'men' && userGender !== 'male') return false;
+          if (targetGender === 'women' && userGender !== 'female') return false;
+        }
+      }
+      if (targetAgeGroup && user.dateOfBirth) {
+        const ageGroups = targetAgeGroup.split(',').map((s: string) => s.trim());
+        const birthDate = new Date(user.dateOfBirth);
+        const age = Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        const userAgeGroup =
+          age < 13 ? 'kids' : age < 18 ? 'teens' : age < 30 ? 'young_adults' : age < 60 ? 'adults' : 'seniors';
+        if (!ageGroups.includes(userAgeGroup)) return false;
+      }
+      return true;
+    };
+
     // Get all users and count nearby ones
     const allUsers = await storage.getAllUsers();
     const existingRsvps = await storage.getEventRSVPs(eventId);
@@ -2114,6 +2172,9 @@ router.get('/events/:id/nearby-users-count', requireAuth, async (req, res) => {
 
       const distance = calculateDistanceMiles(eventLat, eventLon, userLat, userLon);
       if (distance > radius) continue;
+
+      // Skip users who don't match event demographics
+      if (!matchesDemographics(user)) continue;
 
       if (rsvpedUserIds.has(user.id)) {
         alreadyRsvpdCount++;

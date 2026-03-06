@@ -108,6 +108,7 @@ export const users = pgTable("users", {
   testimony: text("testimony"),
   interests: text("interests"),
   // Age Assurance fields (Apple App Store requirement)
+  gender: text("gender"), // "male", "female", or null (not specified)
   dateOfBirth: date("date_of_birth"),
   ageGatePassed: boolean("age_gate_passed").default(false),
   ageVerifiedAt: timestamp("age_verified_at"),

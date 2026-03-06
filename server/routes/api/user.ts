@@ -107,7 +107,7 @@ router.patch('/profile', async (req, res, next) => {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age
+      birthday, age, gender
     } = req.body;
 
     // Only allow updating specific fields
@@ -125,6 +125,9 @@ router.patch('/profile', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
+      updateData.gender = gender;
+    }
     if (birthday !== undefined) {
       // Validate age is 13+ if birthday is provided (COPPA compliance)
       const birthdayDate = new Date(birthday);
@@ -205,7 +208,7 @@ router.patch('/:id', async (req, res, next) => {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age
+      birthday, age, gender
     } = req.body;
 
     // Only allow updating specific fields
@@ -223,6 +226,9 @@ router.patch('/:id', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
+      updateData.gender = gender;
+    }
     if (birthday !== undefined) {
       // Validate age is 13+ if birthday is provided (COPPA compliance)
       const birthdayDate = new Date(birthday);
