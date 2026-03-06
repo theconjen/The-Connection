@@ -423,6 +423,11 @@ export const searchAPI = {
 // Events API
 export const eventsAPI = {
   getAll: () => apiClient.get('/api/events').then(res => res.data),
+  getByCommunity: (communityId: number) =>
+    apiClient.get('/api/events', { params: { communityId } }).then(res => {
+      const data = res.data;
+      return data?.events ?? data ?? [];
+    }),
   getById: (id: number) => apiClient.get(`/api/events/${id}`).then(res => res.data),
   create: (data: {
     title: string;

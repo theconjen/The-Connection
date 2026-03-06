@@ -22,7 +22,7 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient, { communitiesAPI, chatAPI } from '../../src/lib/apiClient';
+import apiClient, { communitiesAPI, chatAPI, eventsAPI } from '../../src/lib/apiClient';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Text } from '../../src/theme';
@@ -124,6 +124,13 @@ export default function CommunityDetailScreen() {
     queryKey: ['prayer-requests', communityId],
     queryFn: () => communitiesAPI.getPrayerRequests(communityId),
     enabled: !!communityId && activeTab === 'prayers' && !!community?.isMember,
+  });
+
+  // Fetch community events
+  const { data: communityEvents = [], isLoading: eventsLoading } = useQuery({
+    queryKey: ['community-events', communityId],
+    queryFn: () => eventsAPI.getByCommunity(communityId),
+    enabled: !!communityId && activeTab === 'events',
   });
 
   // Fetch join requests (for private community admins)
@@ -1084,8 +1091,8 @@ export default function CommunityDetailScreen() {
               />
             ) : (
               <>
-                {/* Create Event Button (Admins Only) */}
-                {community.isAdmin && (
+                {/* Create Event Button (Admins/Members) */}
+                {community.isMember && (
                   <TouchableOpacity
                     style={styles.createEventButton}
                     onPress={() => router.push(`/events/create?communityId=${communityId}`)}
@@ -1095,22 +1102,71 @@ export default function CommunityDetailScreen() {
                   </TouchableOpacity>
                 )}
 
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
-                  <Text style={styles.emptyStateText}>No events scheduled</Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    {community.isMember ? 'Create your first event' : 'Check back later for upcoming events'}
-                  </Text>
-                  {community.isMember && !community.isAdmin && (
-                    <TouchableOpacity
-                      style={[styles.emptyStateCta, { backgroundColor: colors.primary }]}
-                      onPress={() => router.push(`/events/create?communityId=${communityId}`)}
-                    >
-                      <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-                      <Text style={styles.emptyStateCtaText}>Create Event</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {eventsLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+                ) : communityEvents.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
+                    <Text style={styles.emptyStateText}>No events scheduled</Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      {community.isMember ? 'Create your first event' : 'Check back later for upcoming events'}
+                    </Text>
+                  </View>
+                ) : (
+                  communityEvents.map((event: any) => {
+                    const eventDate = event.eventDate
+                      ? new Date(event.eventDate.split(' ')[0] + 'T00:00:00')
+                      : null;
+                    const formatEventTime = (timeStr: string) => {
+                      if (!timeStr) return '';
+                      const [h, m] = timeStr.split(':').map(Number);
+                      const hr = h % 12 || 12;
+                      return `${hr}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+                    };
+
+                    return (
+                      <TouchableOpacity
+                        key={event.id}
+                        style={styles.eventCard}
+                        onPress={() => router.push(`/events/${event.id}`)}
+                        activeOpacity={0.7}
+                      >
+                        {event.imageUrl && (
+                          <Image
+                            source={{ uri: event.imageUrl }}
+                            style={styles.eventImage}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                          />
+                        )}
+                        <View style={styles.eventCardBody}>
+                          <View style={styles.eventDateBadge}>
+                            <Text style={styles.eventDateMonth}>
+                              {eventDate ? eventDate.toLocaleString('en-US', { month: 'short' }).toUpperCase() : ''}
+                            </Text>
+                            <Text style={styles.eventDateDay}>
+                              {eventDate ? eventDate.getDate() : ''}
+                            </Text>
+                          </View>
+                          <View style={styles.eventInfo}>
+                            <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
+                            <Text style={styles.eventTime}>
+                              {event.startTime ? formatEventTime(event.startTime) : ''}
+                              {event.endTime ? ` - ${formatEventTime(event.endTime)}` : ''}
+                            </Text>
+                            {event.location && (
+                              <View style={styles.eventLocationRow}>
+                                <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+                                <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </>
             )}
           </View>
@@ -2493,6 +2549,67 @@ const getStyles = (colors: any, colorScheme: 'light' | 'dark', communityColor: s
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  eventCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  eventImage: {
+    width: '100%',
+    height: 140,
+  },
+  eventCardBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+  },
+  eventDateBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: communityColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  eventDateMonth: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  eventDateDay: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.foreground,
+    marginBottom: 3,
+  },
+  eventTime: {
+    fontSize: 13,
+    color: colors.mutedForeground,
+    marginBottom: 2,
+  },
+  eventLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  eventLocation: {
+    fontSize: 13,
+    color: colors.mutedForeground,
+    flex: 1,
   },
   chatMessages: {
     flex: 1,
