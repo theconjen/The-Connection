@@ -779,8 +779,6 @@ export function CommunitiesScreen({
     queryKey: ['/api/communities'],
     queryFn: communitiesAPI.getAll,
     staleTime: 0, // Always fetch fresh data to ensure membership status is current
-    refetchOnMount: 'always', // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when app comes to foreground
   });
 
   // Map communities to channels format for the horizontal scroll

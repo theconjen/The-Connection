@@ -49,7 +49,6 @@ export const useConversations = () => {
         throw error;
       }
     },
-    refetchInterval: 10000, // Poll every 10 seconds for new messages
     retry: 2, // Retry twice on failure
   });
 };
@@ -89,7 +88,6 @@ export const useUnreadCount = () => {
   return useQuery({
     queryKey: ['unread-count'],
     queryFn: messagesAPI.getUnreadCount,
-    refetchInterval: 60000, // Poll every 60 seconds (reduced to save battery)
   });
 };
 

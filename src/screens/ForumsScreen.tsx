@@ -48,7 +48,6 @@ function useTrendingItems() {
       const response = await apiClient.get('/api/posts/trending/combined?limit=10');
       return response.data;
     },
-    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
     retry: 1, // Only retry once if it fails
   });
 }

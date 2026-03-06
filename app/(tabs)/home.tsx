@@ -28,7 +28,6 @@ export default function HomeTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   // Sync app icon badge whenever polled notification count changes
@@ -49,7 +48,6 @@ export default function HomeTab() {
       }
     },
     enabled: !!user,
-    refetchInterval: 60000, // Reduced from 30s to save battery
   });
 
   return (

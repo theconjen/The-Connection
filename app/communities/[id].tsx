@@ -103,8 +103,6 @@ export default function CommunityDetailScreen() {
     },
     enabled: !!communityId,
     staleTime: 0, // Always fetch fresh data to ensure membership status is current
-    refetchOnMount: 'always', // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when app comes to foreground
   });
 
   // Refetch community data whenever screen comes into focus

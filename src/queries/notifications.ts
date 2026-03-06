@@ -48,7 +48,6 @@ export const useNotifications = (options?: { unreadOnly?: boolean; limit?: numbe
       }
       return response.data?.data?.notifications || response.data?.notifications || [];
     },
-    refetchInterval: 60000, // Poll every 60 seconds (reduced to save battery)
   });
 };
 
@@ -74,7 +73,6 @@ export const useNotificationCount = () => {
         return { count: 0 };
       }
     },
-    refetchInterval: 60000, // Poll every 60 seconds (reduced to save battery)
   });
 };
 

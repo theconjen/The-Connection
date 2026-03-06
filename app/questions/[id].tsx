@@ -93,7 +93,7 @@ export default function QuestionThreadScreen() {
       return response.data;
     },
     enabled: !!questionId && !!user,
-    refetchInterval: 5000, // Poll every 5 seconds for new messages
+    refetchInterval: 30000, // Poll every 30 seconds for new messages
   });
 
   // Send message mutation

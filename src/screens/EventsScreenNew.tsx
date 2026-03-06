@@ -1003,8 +1003,6 @@ export default function EventsScreenNew({
     queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
     staleTime: 2 * 60 * 1000, // 2 minutes - fresher data for better UX
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
-    refetchOnMount: 'always', // Always check for fresh data when mounting
-    refetchOnWindowFocus: false, // Don't refetch on window focus (global handles it)
   });
 
   // Initialize RSVP statuses from API response (persists across app reloads)
