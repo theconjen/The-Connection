@@ -44,7 +44,7 @@ export function NotificationSettingsScreen() {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/user');
+      const response = await apiClient.get('/api/user');
       const user = response.data;
 
       setPreferences({
@@ -56,7 +56,7 @@ export function NotificationSettingsScreen() {
 
       // Load email notification preferences
       try {
-        const emailResponse = await apiClient.get('/user/notification-preferences');
+        const emailResponse = await apiClient.get('/api/user/notification-preferences');
         const emailPrefs = emailResponse.data;
         setEmailPreferences({
           emailEventReminders: emailPrefs.emailEventReminders ?? true,
@@ -84,7 +84,7 @@ export function NotificationSettingsScreen() {
       setSaving(true);
 
       // Send update to server
-      await apiClient.put('/user', { [key]: value });
+      await apiClient.put('/api/user', { [key]: value });
 
     } catch (error) {
       // Revert on error
@@ -98,7 +98,7 @@ export function NotificationSettingsScreen() {
     try {
       setEmailPreferences(prev => ({ ...prev, [key]: value }));
       setSaving(true);
-      await apiClient.patch('/user/notification-preferences', { [key]: value });
+      await apiClient.patch('/api/user/notification-preferences', { [key]: value });
     } catch (error) {
       setEmailPreferences(prev => ({ ...prev, [key]: !value }));
     } finally {

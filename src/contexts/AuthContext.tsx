@@ -253,16 +253,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const hasToken = await hasAuthToken();
         const tokenExpired = await isTokenExpired();
 
-        if (!hasToken || tokenExpired) {
-          // No token or token is expired - clear everything and show login
-          if (tokenExpired && hasToken) {
-            // Token was expired - clean up stale data
-            await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
-            await cacheUserData(null);
-          }
+        if (!hasToken) {
           setUser(null);
           setIsLoading(false);
           return;
+        }
+
+        if (tokenExpired) {
+          // Token expired — attempt a refresh before giving up
+          const refreshed = await refreshAuthToken();
+          if (!refreshed) {
+            // Refresh failed — clean up and show login
+            await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
+            await cacheUserData(null);
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+          // Refresh succeeded — continue with the new token
         }
 
         // Step 2: Token exists and isn't expired - load cached user for instant display
@@ -414,7 +422,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Check if we have a valid auth token
+      // Check if we have an auth token
       const hasToken = await hasAuthToken();
       if (!hasToken) {
         // No token - biometric auth alone isn't enough, need to re-login
@@ -422,7 +430,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Verify the token is still valid
+      // If token is expired or near-expiry, try refreshing before verifying
+      const tokenExpired = await isTokenExpired();
+      if (tokenExpired) {
+        const refreshed = await refreshAuthToken();
+        if (!refreshed) {
+          logger.warn('Biometric auth succeeded but token refresh failed');
+          return false;
+        }
+      }
+
+      // Verify the token is still valid with the server
       await verifyAuth(false);
 
       if (user) {

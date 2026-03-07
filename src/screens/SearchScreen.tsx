@@ -24,7 +24,7 @@ interface SearchScreenProps {
   defaultFilter?: SearchFilter;
 }
 
-type SearchFilter = 'all' | 'accounts' | 'communities' | 'events' | 'forms';
+type SearchFilter = 'all' | 'accounts' | 'communities' | 'events' | 'forms' | 'advice';
 
 interface SavedSearch {
   id: string;
@@ -42,7 +42,7 @@ interface AdvancedFilters {
 }
 
 interface SearchResult {
-  type: 'user' | 'community' | 'post' | 'event';
+  type: 'user' | 'community' | 'post' | 'event' | 'advice' | 'question';
   id: number;
   title?: string;
   name?: string;
@@ -244,6 +244,7 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
     { id: 'all', label: 'All' },
     { id: 'events', label: 'Events' },
     { id: 'forms', label: 'Forms' },
+    { id: 'advice', label: 'Advice' },
     { id: 'accounts', label: 'Accounts' },
     { id: 'communities', label: 'Communities' },
   ];
@@ -259,8 +260,14 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       case 'post':
         router.push(`/posts/${result.id}`);
         break;
+      case 'event':
+        router.push(`/events/${result.id}`);
+        break;
       case 'question':
         router.push(`/apologetics/${result.id}`);
+        break;
+      case 'advice':
+        router.push(`/posts/${result.id}`);
         break;
     }
   };
@@ -273,6 +280,10 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         return 'people-outline';
       case 'post':
         return 'document-text-outline';
+      case 'event':
+        return 'calendar-outline';
+      case 'advice':
+        return 'chatbubble-ellipses-outline';
       case 'question':
         return 'help-circle-outline';
       default:
@@ -287,8 +298,11 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
       case 'community':
         return `${result.memberCount || 0} members${result.isPrivate ? ' • Private' : ''}`;
       case 'post':
+      case 'advice':
       case 'question':
         return result.content?.substring(0, 100);
+      case 'event':
+        return result.location || result.description?.substring(0, 100) || '';
       default:
         return '';
     }

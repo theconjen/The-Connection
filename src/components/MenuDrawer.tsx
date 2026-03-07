@@ -105,7 +105,7 @@ export function MenuDrawer({ visible, onClose, onSettings, onNotifications, onBo
               <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search for people..."
+                placeholder="Search for Connections..."
                 placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}

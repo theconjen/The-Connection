@@ -532,7 +532,15 @@ export default function StartHereScreen() {
         } catch {}
       }
 
-      // Mark Start Here as completed
+      // Mark onboarding as completed on the server (prevents infinite onboarding loop)
+      try {
+        await apiClient.post('/api/user/onboarding', {
+          onboardingCompleted: true,
+          interests: selectedCategories.filter(c => c !== 'Men' && c !== 'Women'),
+        });
+      } catch {}
+
+      // Also save locally for instant UI state
       await setStartHereCompleted(true);
 
       // Navigate back to communities

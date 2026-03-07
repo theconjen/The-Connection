@@ -334,9 +334,9 @@ export default function RegisterScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Date of Birth - Optional (for birthday notifications) */}
+          {/* Date of Birth - Required for age verification */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth (optional)</Text>
+            <Text style={styles.label}>Date of Birth</Text>
             <TouchableOpacity
               style={styles.datePickerButton}
               onPress={() => setShowDatePicker(true)}

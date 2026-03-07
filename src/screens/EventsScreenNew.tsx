@@ -1006,7 +1006,7 @@ export default function EventsScreenNew({
   });
 
   // Personalized event recommendations (only shown when no filters/search active)
-  const hasActiveFilters = q.length > 0 || range !== 'all' || mode !== 'all' || distance !== 'all';
+  const hasActiveFilters = q.length > 0 || range !== 'all' || mode !== 'all' || distance !== 'all' || eventType !== 'all' || genderFilter !== 'all' || ageGroupFilter !== 'all';
   const { data: recommendedEvents } = useQuery({
     queryKey: ['events-recommended'],
     queryFn: async () => {

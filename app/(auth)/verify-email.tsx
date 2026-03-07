@@ -96,7 +96,7 @@ export default function VerifyEmailScreen() {
     setIsSending(true);
     setSentMessage(null);
     try {
-      await apiClient.post('/auth/send-verification', { email });
+      await apiClient.post('/api/auth/send-verification', { email });
       setSentMessage('Verification link sent!');
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Could not resend verification. Please try again soon.';

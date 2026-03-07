@@ -358,7 +358,7 @@ export default function ForgotPasswordScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.hint}>
-            Min 12 chars with uppercase, lowercase, number, and special character
+            Min 8 chars with uppercase, lowercase, number, and special character
           </Text>
         </View>
 

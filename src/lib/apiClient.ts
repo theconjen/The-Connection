@@ -92,16 +92,32 @@ apiClient.interceptors.response.use(
         }
       }
 
-      // Handle 401 (Unauthorized) - clear auth state
-      // Skip for login/register endpoints to allow proper error handling
-      if (error.response?.status === 401) {
-        const url = String(error.config?.url ?? '');
+      // Handle 401 (Unauthorized) - attempt refresh, then clear auth state
+      // Skip for login/register/refresh endpoints to allow proper error handling
+      if (error.response?.status === 401 && config) {
+        const url = String(config.url ?? '');
         const isAuthEndpoint = url.includes('/auth/login') ||
                                url.includes('/auth/register') ||
-                               url.includes('/auth/verify');
+                               url.includes('/auth/verify') ||
+                               url.includes('/auth/refresh');
 
-        if (!isAuthEndpoint) {
-          // Clear stored token - user needs to re-authenticate
+        if (!isAuthEndpoint && !config._retried401) {
+          // Try refreshing the token once before giving up
+          try {
+            const SecureStore = await import('expo-secure-store');
+            const refreshResponse = await apiClient.post('/api/auth/refresh');
+            if (refreshResponse.data?.token) {
+              await SecureStore.setItemAsync('auth_token', refreshResponse.data.token);
+              // Retry the original request with the new token
+              config._retried401 = true;
+              config.headers['Authorization'] = `Bearer ${refreshResponse.data.token}`;
+              return apiClient(config);
+            }
+          } catch {
+            // Refresh failed — clear auth state
+          }
+
+          // Refresh failed or no new token — clear stored credentials
           try {
             const SecureStore = await import('expo-secure-store');
             await SecureStore.deleteItemAsync('auth_token');

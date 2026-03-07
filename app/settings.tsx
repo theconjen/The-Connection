@@ -55,7 +55,7 @@ export default function SettingsScreen() {
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (isPrivate: boolean) => {
-      const response = await apiClient.patch('/user/profile-visibility', {
+      const response = await apiClient.patch('/api/user/profile-visibility', {
         visibility: isPrivate ? 'private' : 'public',
       });
       return response.data;
