@@ -218,7 +218,57 @@ export default function ApologeticsScreen({
   }
 
   const showSuggestedSearches = !query.trim() && posts.length === 0 && !postsQ.isLoading;
-  const suggestedSearches = SUGGESTED_SEARCHES[domain];
+
+  // Build personalized suggested searches based on user interests
+  const suggestedSearches = useMemo(() => {
+    const staticList = SUGGESTED_SEARCHES[domain];
+
+    // Map user interests/denomination to relevant search topics
+    const interestToSearches: Record<string, string[]> = {
+      'bible study': ['How to study the Bible', 'Interpreting Scripture', 'Historical reliability of the Bible'],
+      'prayer': ['Does God answer prayer?', 'How to pray effectively', 'Prayer in the Bible'],
+      'worship': ['What is worship?', 'Worship in the early church', 'Music in worship'],
+      'apologetics': ['Evidence for the Resurrection', 'Is faith rational?', 'Moral argument for God'],
+      'new to faith': ['Who is Jesus?', 'What does it mean to be saved?', 'Trinity explained'],
+      'mental health': ['Anxiety and faith', 'Depression and the Bible', 'God and suffering'],
+      'missions': ['Great Commission', 'Evangelism approaches', 'Christianity worldwide'],
+      'marriage': ['Biblical marriage', 'Christian dating', 'Divorce and the Bible'],
+      'parent': ['Raising children in faith', 'Teaching kids about God', 'Family devotions'],
+      'college': ['Faith in college', 'Intellectual doubts', 'Science and Christianity'],
+      'catholic': ['Catholic vs Protestant', 'Saints and Mary', 'Church authority'],
+      'baptist': ['Baptism explained', 'Once saved always saved', 'Baptist distinctives'],
+      'pentecostal': ['Gifts of the Spirit', 'Speaking in tongues', 'Holy Spirit baptism'],
+      'orthodox': ['Eastern Orthodox beliefs', 'Church tradition', 'Icons and worship'],
+      'non-denominational': ['Denominations explained', 'Unity in the church', 'Essential doctrines'],
+    };
+
+    // Gather personalized suggestions from user interests
+    const personalized: string[] = [];
+    const userInterests = user?.interests?.split(',').map((i: string) => i.trim().toLowerCase()) || [];
+    const userDenom = (user as any)?.denomination?.toLowerCase() || '';
+    const userLifeStage = (user as any)?.lifeStage?.replace(/_/g, ' ').toLowerCase() || '';
+
+    const allKeys = [...userInterests, userDenom, userLifeStage].filter(Boolean);
+    for (const key of allKeys) {
+      for (const [match, searches] of Object.entries(interestToSearches)) {
+        if (key.includes(match) || match.includes(key)) {
+          personalized.push(...searches);
+        }
+      }
+    }
+
+    // Dedupe and merge: personalized first, then fill with static
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const s of [...personalized, ...staticList]) {
+      const lower = s.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        merged.push(s);
+      }
+    }
+    return merged.slice(0, 12);
+  }, [domain, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -317,7 +367,9 @@ export default function ApologeticsScreen({
         {/* Suggested Searches (when search empty) */}
         {showSuggestedSearches && (
           <View style={styles.suggestedWrap}>
-            <Text style={styles.suggestedTitle}>Suggested Searches</Text>
+            <Text style={styles.suggestedTitle}>
+              {user?.interests || (user as any)?.denomination ? 'Suggested for You' : 'Suggested Searches'}
+            </Text>
             <View style={styles.suggestedGrid}>
               {suggestedSearches.slice(0, 12).map((term, idx) => (
                 <Pressable

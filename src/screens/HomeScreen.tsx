@@ -185,6 +185,13 @@ function useArticles() {
     queryKey: ['grow-faith-articles', user?.id],
     queryFn: async () => {
       try {
+        // Try personalized articles first (based on interests + behavior)
+        const res = await apiClient.get('/api/library/posts/for-you?limit=3');
+        const items = res.data?.posts?.items || [];
+        if (items.length > 0) return items;
+      } catch {}
+      try {
+        // Fallback to trending
         const res = await apiClient.get('/api/library/posts/trending?limit=3');
         return res.data?.posts?.items || [];
       } catch {
@@ -197,7 +204,7 @@ function useArticles() {
       }
     },
     enabled: !!user,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

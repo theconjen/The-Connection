@@ -1005,6 +1005,18 @@ export default function EventsScreenNew({
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
   });
 
+  // Personalized event recommendations (only shown when no filters/search active)
+  const hasActiveFilters = q.length > 0 || range !== 'all' || mode !== 'all' || distance !== 'all';
+  const { data: recommendedEvents } = useQuery({
+    queryKey: ['events-recommended'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/events/recommended?limit=5');
+      return (res.data?.events || []) as EventItem[];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !hasActiveFilters,
+  });
+
   // Initialize RSVP statuses from API response (persists across app reloads)
   useEffect(() => {
     if (rawData && rawData.length > 0) {
@@ -1518,6 +1530,60 @@ export default function EventsScreenNew({
             data={data ?? []}
             keyExtractor={(it) => String(it.id)}
             contentContainerStyle={{ paddingBottom: 18, flexGrow: 1 }}
+            ListHeaderComponent={
+              !hasActiveFilters && recommendedEvents && recommendedEvents.length > 0 ? (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 }}>
+                    Recommended for You
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                    {recommendedEvents.map((event) => {
+                      const dateStr = event.eventDate ? String(event.eventDate).split(' ')[0] : '';
+                      const eventDate = dateStr ? new Date(dateStr + 'T00:00:00') : null;
+                      const month = eventDate ? eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() : '';
+                      const day = eventDate ? eventDate.getDate() : '';
+                      return (
+                        <Pressable
+                          key={event.id}
+                          onPress={() => router.push({ pathname: '/events/[id]', params: { id: String(event.id) } })}
+                          style={{
+                            width: 200,
+                            backgroundColor: colors.surface,
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: colors.borderSubtle,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {event.imageUrl ? (
+                            <Image source={{ uri: event.imageUrl }} style={{ width: 200, height: 100 }} />
+                          ) : (
+                            <View style={{ width: 200, height: 60, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="calendar" size={24} color={colors.primary} />
+                            </View>
+                          )}
+                          <View style={{ padding: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <View style={{ backgroundColor: colors.primary + '15', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.primary }}>{month}</Text>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{day}</Text>
+                              </View>
+                              <Text numberOfLines={2} style={{ flex: 1, fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{event.title}</Text>
+                            </View>
+                            {event.location && (
+                              <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                                <Ionicons name="location-outline" size={10} color={colors.textMuted} /> {event.location}
+                              </Text>
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                  <View style={{ height: 1, backgroundColor: colors.borderSubtle, marginTop: 14 }} />
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
               <View
                 style={[
