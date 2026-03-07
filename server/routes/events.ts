@@ -1065,12 +1065,12 @@ router.post('/events/:id/rsvp', requireAuth, async (req, res) => {
     });
 
     // Notify event host about new RSVP (skip if self-RSVP or cancellation)
-    if (normalizedStatus !== 'not_going' && event.createdBy && event.createdBy !== userId) {
+    if (normalizedStatus !== 'not_going' && event.creatorId && event.creatorId !== userId) {
       const rsvpUser = await storage.getUser(userId);
       const rsvpName = getUserDisplayName(rsvpUser);
       const statusLabel = normalizedStatus === 'going' ? 'is going to' : 'is interested in';
 
-      notifyUserWithPreferences(event.createdBy, {
+      notifyUserWithPreferences(event.creatorId, {
         title: `New RSVP for ${truncateText(event.title, 40)}`,
         body: `${rsvpName} ${statusLabel} your event`,
         data: {

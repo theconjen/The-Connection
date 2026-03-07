@@ -15,8 +15,8 @@ import crypto from 'crypto';
 // In-memory Map: tokenHash -> expiresAt timestamp (ms)
 const blacklist = new Map<string, number>();
 
-// Token expiry time (should match max JWT expiry — 10 days for sliding sessions)
-const TOKEN_EXPIRY_MS = 10 * 24 * 60 * 60 * 1000;
+// Token expiry time (should match max JWT expiry — 30 days for sliding sessions)
+const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Cleanup interval (run every hour)
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -25,7 +25,7 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
  * Hash a token for storage (we don't store the actual token)
  */
 function hashToken(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex').substring(0, 32);
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**

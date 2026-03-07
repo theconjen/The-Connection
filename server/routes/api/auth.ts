@@ -9,6 +9,7 @@ import { buildErrorResponse } from '../../utils/errors';
 import { getSessionUserId, setSessionUserId } from '../../utils/session';
 import { generateVerificationToken, hashToken, createAndSendVerification } from '../../lib/emailVerification';
 import { logger } from '../../lib/logger';
+import { EMAIL_FROM } from '../../config/domain';
 import { magicCodes } from '@shared/schema';
 import { db } from '../../db';
 import { eq, and, lt, isNull } from 'drizzle-orm';
@@ -28,6 +29,33 @@ const magicVerifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // 10 verification attempts per 15 minutes
   message: 'Too many verification attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// SECURITY: Rate limiter for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 login attempts per 15 minutes per IP
+  message: 'Too many login attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// SECURITY: Rate limiter for registration
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 registration attempts per hour per IP
+  message: 'Too many registration attempts from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// SECURITY: Rate limiter for send-verification emails
+const sendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per 15 minutes per IP
+  message: 'Too many verification email requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -71,12 +99,84 @@ router.post('/auth/magic', magicCodeLimiter, async (req, res) => {
     try {
       await sendEmail({
         to: email,
-        from: process.env.EMAIL_FROM || 'no-reply@theconnection.app',
-        subject: 'Your The Connection login code',
-        text: `Your login code is: ${code}\n\nIt expires in 15 minutes.`,
+        from: EMAIL_FROM,
+        subject: 'Your login code - The Connection',
+        text: `Your login code is: ${code}\n\nIt expires in 15 minutes.\n\nIf you didn't request this, you can safely ignore this email.\n\n(c) 2026 The Connection Media Group L.L.C.`,
+        html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+</head>
+<body style="width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5">
+    <tbody>
+      <tr>
+        <td align="center" style="padding:40px 20px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <tbody>
+              <tr>
+                <td style="background-color:#1a2a4a;padding:32px 24px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:26px;font-weight:400;letter-spacing:0.5px;">The Connection</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px 32px 32px;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c1c1e;font-size:16px;line-height:1.6;">
+                    <tr>
+                      <td style="text-align:center;padding-bottom:8px;">
+                        <h2 style="margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:28px;font-weight:400;color:#1a2a4a;">Your Login Code</h2>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding-bottom:32px;color:#6b7280;font-size:15px;">
+                        Enter this code to sign in to The Connection.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding-bottom:32px;">
+                        <div style="display:inline-block;background-color:#f8f7f5;border:2px solid #e5e7eb;border-radius:12px;padding:20px 48px;">
+                          <span style="font-family:'Courier New',monospace;font-size:36px;font-weight:700;letter-spacing:8px;color:#1a2a4a;">${code}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding-bottom:24px;color:#9ca3af;font-size:13px;">
+                        This code expires in 15 minutes.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:24px;"><div style="height:1px;background-color:#e5e7eb;"></div></td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;color:#9ca3af;font-size:13px;">
+                        If you didn't request this code, you can safely ignore this email.
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:24px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;text-align:center;line-height:1.5;">
+                    <tr><td style="padding-bottom:8px;"><a href="mailto:support@theconnection.app" style="color:#1a2a4a;text-decoration:none;">support@theconnection.app</a></td></tr>
+                    <tr><td>&copy; 2026 The Connection Media Group L.L.C.</td></tr>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>`,
       });
     } catch (e) {
-      console.warn('[MAGIC] email send failed (mock ok):', e);
+      console.error('[MAGIC] email send failed:', e);
+      return res.status(500).json({ message: 'Failed to send login code. Please try again.' });
     }
 
     return res.json({ token, message: 'Magic code sent' });
@@ -117,7 +217,7 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
     }
 
     const { password: _, ...userData } = user;
-    const jwtToken = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: '7d' });
+    const jwtToken = jwt.sign({ sub: user.id, email: user.email, origIat: Math.floor(Date.now() / 1000) }, jwtSecret, { expiresIn: '30d' });
     return res.json({ token: jwtToken, user: userData });
   } catch (error) {
     console.error('Magic verify error:', error);
@@ -126,7 +226,7 @@ router.post('/auth/verify', magicVerifyLimiter, async (req, res) => {
 });
 
 // Regular login endpoint
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     logger.info('Login attempt', { username, ip: req.ip });
@@ -238,13 +338,13 @@ router.post('/auth/login', async (req, res) => {
     // Return user data (excluding password)
     const { password: _, ...userData } = user;
 
-    // Generate JWT token for mobile apps (10 days for sliding session)
+    // Generate JWT token for mobile apps (7 days, refreshable up to 30 days)
     const jwtSecret = process.env.JWT_SECRET;
     if (jwtSecret) {
       const token = jwt.sign(
-        { sub: user.id, email: user.email, username: user.username },
+        { sub: user.id, email: user.email, username: user.username, iat: Math.floor(Date.now() / 1000), origIat: Math.floor(Date.now() / 1000) },
         jwtSecret,
-        { expiresIn: '10d' }
+        { expiresIn: '30d' }
       );
 
       logger.info('Login successful', { userId: user.id, username: user.username, method: 'jwt' });
@@ -321,9 +421,19 @@ router.post('/auth/logout', async (req, res) => {
 //   - user.ts:32 (router.get('/', ...)) - returns user WITH permissions
 // Removing this endpoint allows the correct handlers to execute.
 
+// SECURITY: Rate limiter for token refresh
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 refresh attempts per 15 minutes per IP
+  message: 'Too many token refresh requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Token refresh endpoint - extends session for active users (sliding session)
 // Call this when app comes to foreground to keep users logged in
-router.post('/auth/refresh', async (req, res) => {
+// SECURITY: 30-day sliding window - tokens cannot be refreshed indefinitely
+router.post('/auth/refresh', refreshLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -337,19 +447,51 @@ router.post('/auth/refresh', async (req, res) => {
       return res.status(500).json({ message: 'Server configuration error' });
     }
 
-    // Verify the current token is valid
+    // Verify the token — allow recently-expired tokens to be refreshed
+    // This prevents users from being logged out just because they didn't open
+    // the app within the 7-day token window. The 30-day sliding window below
+    // is the real session boundary.
     let decoded: any;
     try {
       decoded = jwt.verify(oldToken, jwtSecret);
     } catch (error: any) {
-      // Token is invalid or expired
-      return res.status(401).json({ message: 'Invalid or expired token' });
+      if (error.name === 'TokenExpiredError') {
+        // Token structure is valid but expired — decode without verification
+        // to check if it's within the grace period
+        decoded = jwt.decode(oldToken);
+        if (!decoded) {
+          return res.status(401).json({ message: 'Invalid token' });
+        }
+        // Allow refresh up to 30 days after expiry (grace period)
+        const GRACE_PERIOD_SEC = 30 * 24 * 60 * 60;
+        const expiredAgo = Math.floor(Date.now() / 1000) - (decoded.exp || 0);
+        if (expiredAgo > GRACE_PERIOD_SEC) {
+          return res.status(401).json({ message: 'Token expired too long ago. Please log in again.' });
+        }
+      } else {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
     }
 
     // Check if token is blacklisted
-    const { isTokenBlacklisted } = await import('../../lib/tokenBlacklist');
+    const { isTokenBlacklisted, blacklistToken } = await import('../../lib/tokenBlacklist');
     if (isTokenBlacklisted(oldToken)) {
       return res.status(401).json({ message: 'Token has been revoked' });
+    }
+
+    // SECURITY: Enforce 30-day sliding window
+    // origIat tracks when the user originally authenticated (login/magic code)
+    // Tokens cannot be refreshed beyond 30 days from original auth
+    const MAX_SESSION_DAYS = 90;
+    const origIat = decoded.origIat || decoded.iat;
+    const now = Math.floor(Date.now() / 1000);
+    const sessionAgeDays = (now - origIat) / (60 * 60 * 24);
+
+    if (sessionAgeDays > MAX_SESSION_DAYS) {
+      return res.status(401).json({
+        message: 'Session expired. Please log in again.',
+        code: 'SESSION_EXPIRED',
+      });
     }
 
     // Get the user to ensure they still exist and are valid
@@ -363,16 +505,19 @@ router.post('/auth/refresh', async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // Issue a fresh token with new 10-day expiry
+    // Blacklist the old token to prevent reuse
+    const oldTtlSec = decoded.exp ? decoded.exp - now : 7 * 24 * 60 * 60;
+    blacklistToken(oldToken, oldTtlSec > 0 ? oldTtlSec * 1000 : 0);
+
+    // Issue a fresh token with 7-day expiry, preserving origIat
     const newToken = jwt.sign(
-      { sub: user.id, email: user.email, username: user.username },
+      { sub: user.id, email: user.email, username: user.username, origIat },
       jwtSecret,
-      { expiresIn: '10d' }
+      { expiresIn: '30d' }
     );
 
-    console.info(`[AUTH] Token refreshed for user ${user.id}`);
+    console.info(`[AUTH] Token refreshed for user ${user.id} (session age: ${sessionAgeDays.toFixed(1)}d)`);
 
-    // Return new token
     res.json({ token: newToken });
   } catch (error) {
     console.error('Token refresh error:', error);
@@ -382,7 +527,7 @@ router.post('/auth/refresh', async (req, res) => {
 
 // Send (or resend) verification email for a user's email address
 // SECURITY: Always returns 200 to prevent email enumeration
-router.post('/auth/send-verification', async (req, res) => {
+router.post('/auth/send-verification', sendVerificationLimiter, async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ message: 'email required' });
@@ -466,11 +611,14 @@ router.get('/auth/verify-email', async (req, res) => {
             <style>
               body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
               .error { color: #dc2626; }
+              .button { display: inline-block; margin-top: 20px; padding: 12px 30px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; }
             </style>
           </head>
           <body>
             <h1 class="error">❌ Invalid or Expired Link</h1>
-            <p>This verification link is invalid or has expired. Please request a new verification email.</p>
+            <p>This verification link is invalid or has expired.</p>
+            <p>Open The Connection app and tap <strong>Resend Verification Email</strong> to get a new link.</p>
+            <a href="theconnection://verify-email" class="button">Open The Connection</a>
           </body>
         </html>
       `);
@@ -583,7 +731,7 @@ function calculateAge(dob: Date): number {
 }
 
 // Registration endpoint
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', registerLimiter, async (req, res) => {
   try {
     const { email, username, password, firstName, lastName, dob, ageConfirmed } = req.body;
 

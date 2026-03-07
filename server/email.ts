@@ -687,37 +687,130 @@ export async function sendWelcomeEmail(email: string, displayName: string = ""):
       }
     });
   } else {
-    // Fall back to regular email
+    // Fall back to branded email template
     return sendEmail({
       to: email,
       from: from,
       subject: 'Welcome to The Connection!',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #0B132B; padding: 20px; text-align: center;">
-            <h1 style="color: white; margin: 0;">The Connection</h1>
-          </div>
-          <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
-            <h2>Welcome, ${name}!</h2>
-            <p>Thank you for joining The Connection, a Christian community platform for spiritual growth, apologetics, and Bible study.</p>
-            <p>Here's what you can do:</p>
-            <ul>
-              <li>Join communities based on your interests</li>
-              <li>Participate in discussions about faith</li>
-              <li>Access apologetics resources</li>
-              <li>Watch and participate in livestreams</li>
-              <li>Form or join private groups for Bible study</li>
-            </ul>
-            <p>If you have any questions, feel free to reach out to our support team.</p>
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="${BASE_URL}/auth" style="background-color: #0B132B; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Sign In Now</a>
-            </div>
-            <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
-              This email was sent to ${email}. If you did not create this account, please disregard this email.
-            </p>
-          </div>
-        </div>
-      `
+      text: [
+        'The Connection',
+        '',
+        `Welcome, ${name}!`,
+        '',
+        'Thank you for joining The Connection. Here is what you can do:',
+        '- Join communities based on your interests',
+        '- Participate in discussions about faith',
+        '- Access apologetics resources',
+        '- Attend events and connect with others',
+        '- Form or join groups for Bible study',
+        '',
+        'support@theconnection.app',
+        '(c) 2026 The Connection Media Group L.L.C.',
+      ].join('\n'),
+      html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+</head>
+<body style="width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5">
+    <tbody>
+      <tr>
+        <td align="center" style="padding:40px 20px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <tbody>
+              <tr>
+                <td style="background-color:#1a2a4a;padding:32px 24px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:26px;font-weight:400;letter-spacing:0.5px;">The Connection</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:40px 32px 32px;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c1c1e;font-size:16px;line-height:1.6;">
+                    <tr>
+                      <td style="text-align:center;padding-bottom:8px;">
+                        <h2 style="margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:28px;font-weight:400;color:#1a2a4a;">Welcome, ${name}!</h2>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding-bottom:32px;color:#6b7280;font-size:15px;">
+                        Thank you for joining The Connection. Your community is ready.
+                      </td>
+                    </tr>
+                    <!-- Feature list -->
+                    <tr>
+                      <td style="padding-bottom:32px;">
+                        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding:12px 16px;background-color:#f8f7f5;border-radius:8px 8px 0 0;border-bottom:1px solid #e5e7eb;">
+                              <span style="color:#1a2a4a;font-size:15px;">Join communities based on your interests</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:12px 16px;background-color:#f8f7f5;border-bottom:1px solid #e5e7eb;">
+                              <span style="color:#1a2a4a;font-size:15px;">Participate in discussions about faith</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:12px 16px;background-color:#f8f7f5;border-bottom:1px solid #e5e7eb;">
+                              <span style="color:#1a2a4a;font-size:15px;">Access apologetics resources</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:12px 16px;background-color:#f8f7f5;border-bottom:1px solid #e5e7eb;">
+                              <span style="color:#1a2a4a;font-size:15px;">Attend events and connect with others</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:12px 16px;background-color:#f8f7f5;border-radius:0 0 8px 8px;">
+                              <span style="color:#1a2a4a;font-size:15px;">Form or join groups for Bible study</span>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <!-- CTA -->
+                    <tr>
+                      <td style="text-align:center;padding-bottom:32px;">
+                        <a href="theconnection://home" style="display:inline-block;background-color:#1a2a4a;color:#ffffff;padding:16px 40px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;letter-spacing:0.3px;">Open The Connection</a>
+                      </td>
+                    </tr>
+                    <!-- Mission -->
+                    <tr>
+                      <td style="padding:0;">
+                        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f8f7f5;border-radius:8px;">
+                          <tr>
+                            <td style="padding:24px;text-align:center;">
+                              <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;padding-bottom:8px;">Our Mission</div>
+                              <div style="color:#4b5563;font-size:14px;font-family:Georgia,'Times New Roman',Times,serif;line-height:1.6;font-style:italic;">
+                                A world where believers live with clarity, conviction, and courage because they are connected to the truth and connected to each other.
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:24px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;text-align:center;line-height:1.5;">
+                    <tr><td style="padding-bottom:8px;"><a href="mailto:support@theconnection.app" style="color:#1a2a4a;text-decoration:none;">support@theconnection.app</a></td></tr>
+                    <tr><td>&copy; 2026 The Connection Media Group L.L.C.</td></tr>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>`
     });
   }
 }
@@ -767,77 +860,96 @@ export async function sendPasswordResetEmail(email: string, displayName: string 
       to: email,
       from: from,
       subject: 'Reset Your Password - The Connection',
-      text: `We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
-
-To reset your password, tap this link:
-${resetLink}
-
-This link will open The Connection app if installed, or the website if not.
-
-This link will expire in 1 hour.
-
-For security reasons, please do not share this link with anyone.
-
-If you did not request a password reset, please contact our support team immediately at support@theconnection.app
-
-© The Connection Media Group 2026. All rights reserved.`,
+      text: [
+        'The Connection',
+        '',
+        'Reset Your Password',
+        '',
+        `Hi ${name},`,
+        '',
+        'We received a request to reset your password. Tap the link below to choose a new one.',
+        '',
+        resetLink,
+        '',
+        'This link expires in 1 hour.',
+        '',
+        "If you didn't request this, you can safely ignore this email. Your password won't change.",
+        '',
+        'support@theconnection.app',
+        '(c) 2026 The Connection Media Group L.L.C.',
+      ].join('\n'),
       html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <meta name="x-apple-disable-message-reformatting">
 </head>
-<body style="width:100%;-webkit-text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0">
-  <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5">
+<body style="width:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;background-color:#f0f1f5;margin:0;padding:0">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f0f1f5" style="background-color:#f0f1f5">
     <tbody>
       <tr>
-        <td>
-          <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#f2eeea">
+        <td align="center" style="padding:40px 20px;">
+          <table width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
             <tbody>
-              <!-- Header with logo placeholder -->
+              <!-- Header -->
               <tr>
-                <td style="background-color:#1a2a4a;padding:20px;text-align:center;">
-                  <h1 style="color:white;margin:0;font-family:Helvetica,Arial,sans-serif;">The Connection</h1>
+                <td style="background-color:#1a2a4a;padding:32px 24px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:26px;font-weight:400;letter-spacing:0.5px;">The Connection</h1>
                 </td>
               </tr>
               <!-- Main content -->
               <tr>
-                <td style="padding:30px 20px;">
-                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;color:#1c1c1e;font-size:16px;line-height:1.5;text-align:center;">
+                <td style="padding:40px 32px 32px;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c1c1e;font-size:16px;line-height:1.6;">
+                    <!-- Headline -->
                     <tr>
-                      <td style="padding-bottom:16px;">
-                        We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
+                      <td style="text-align:center;padding-bottom:8px;">
+                        <h2 style="margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:28px;font-weight:400;color:#1a2a4a;line-height:1.3;">Reset Your Password</h2>
                       </td>
                     </tr>
+                    <!-- Greeting -->
                     <tr>
-                      <td style="padding-bottom:16px;">
-                        <strong>Tap the button below to reset your password in the app:</strong>
+                      <td style="text-align:center;padding-bottom:32px;color:#6b7280;font-size:15px;">
+                        Hi ${name}, we received a request to reset your password. Tap below to choose a new one.
                       </td>
                     </tr>
+                    <!-- CTA Button -->
                     <tr>
-                      <td style="padding:20px 0;">
-                        <a href="${resetLink}" style="display:inline-block;background-color:#1a2a4a;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Reset Password</a>
+                      <td style="text-align:center;padding-bottom:32px;">
+                        <a href="${resetLink}" style="display:inline-block;background-color:#1a2a4a;color:#ffffff;padding:16px 40px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;letter-spacing:0.3px;">Reset Password</a>
                       </td>
                     </tr>
+                    <!-- Expiry notice -->
                     <tr>
-                      <td style="padding:16px 0;color:#666;font-size:14px;">
-                        This link will open The Connection app if installed, or the website if not.
+                      <td style="text-align:center;padding-bottom:24px;color:#9ca3af;font-size:13px;">
+                        This link expires in 1 hour.
                       </td>
                     </tr>
+                    <!-- Divider -->
                     <tr>
-                      <td style="padding:12px 0 20px 0;color:#888;font-size:12px;">
-                        Or copy your reset token manually:<br>
-                        <code style="background:#e8e8e8;padding:4px 8px;border-radius:4px;font-family:monospace;font-size:11px;word-break:break-all;">${resetToken}</code>
+                      <td style="padding-bottom:24px;">
+                        <div style="height:1px;background-color:#e5e7eb;"></div>
                       </td>
                     </tr>
+                    <!-- Fallback link -->
                     <tr>
-                      <td style="padding-bottom:16px;color:#d9534f;">
-                        ⏱ This link will expire in <strong>1 hour</strong>.
+                      <td style="padding-bottom:24px;color:#9ca3af;font-size:13px;text-align:center;">
+                        If the button doesn't work, copy and paste this link into your browser:<br>
+                        <a href="${resetLink}" style="color:#1a2a4a;word-break:break-all;font-size:12px;">${resetLink}</a>
                       </td>
                     </tr>
+                    <!-- Security note -->
                     <tr>
-                      <td style="padding-top:16px;font-weight:bold;">
-                        For security reasons, please do not share this link with anyone.
+                      <td style="padding:0;">
+                        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f8f7f5;border-radius:8px;">
+                          <tr>
+                            <td style="padding:20px 24px;text-align:center;color:#6b7280;font-size:13px;line-height:1.5;">
+                              If you didn't request this, you can safely ignore this email. Your password won't change.
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
                   </table>
@@ -845,17 +957,16 @@ If you did not request a password reset, please contact our support team immedia
               </tr>
               <!-- Footer -->
               <tr>
-                <td style="padding:20px;background-color:#f2eeea;border-top:1px solid #ddd;">
-                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#666;text-align:center;line-height:1.4;">
+                <td style="padding:24px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
+                  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;color:#9ca3af;text-align:center;line-height:1.5;">
                     <tr>
                       <td style="padding-bottom:8px;">
-                        If you did not request a password reset, please contact our support team immediately.
-                        <a href="mailto:support@theconnection.app" style="color:#1a2477;text-decoration:none;">support@theconnection.app</a>
+                        <a href="mailto:support@theconnection.app" style="color:#1a2a4a;text-decoration:none;">support@theconnection.app</a>
                       </td>
                     </tr>
                     <tr>
                       <td>
-                        © The Connection Media Group 2026. All rights reserved.
+                        &copy; 2026 The Connection Media Group L.L.C.
                       </td>
                     </tr>
                   </table>
