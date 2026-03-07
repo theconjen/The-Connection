@@ -3059,6 +3059,7 @@ export class DbStorage implements IStorage {
    */
   async getRecommendedCommunities(userId: number, limit: number = 10): Promise<Community[]> {
     const { sortCommunitiesByRecommendation } = await import('./personalization/communityRecommender');
+    const { getAdaptiveInterests } = await import('./services/interestSignals');
 
     // Get user data
     const user = await this.getUser(userId);
@@ -3086,8 +3087,16 @@ export class DbStorage implements IStorage {
       c => !memberCommunityIds.has(c.id)
     );
 
-    // Sort by recommendation score
-    const recommended = sortCommunitiesByRecommendation(user, availableCommunities);
+    // Fetch adaptive behavioral signals (last 60 days)
+    let adaptiveInterests: Record<string, number> = {};
+    try {
+      adaptiveInterests = await getAdaptiveInterests(userId, 60);
+    } catch {
+      // Graceful fallback — static scoring only
+    }
+
+    // Sort by recommendation score (blended static + adaptive)
+    const recommended = sortCommunitiesByRecommendation(user, availableCommunities, adaptiveInterests);
 
     // Return top N recommendations
     return recommended.slice(0, limit);

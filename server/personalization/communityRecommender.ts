@@ -251,8 +251,60 @@ export function calculateRecoverySupportScore(user: User, community: Community):
 }
 
 /**
+ * Calculate adaptive behavior score (0-100)
+ * Uses recent user signals to boost communities matching evolving interests.
+ * This is the key to the algorithm "learning" over time.
+ */
+export function calculateAdaptiveScore(
+  community: Community,
+  adaptiveInterests: Record<string, number>
+): number {
+  if (Object.keys(adaptiveInterests).length === 0) return 50; // Neutral if no signals
+
+  // Get community's categories
+  const communityTags = [
+    ...(community.interestTags || []),
+    ...(community.ministryTypes || []),
+    ...(community.activities || []),
+    ...(community.lifeStages || []),
+    ...(community.professions || []),
+    ...(community.recoverySupport || []),
+  ].map(tag => tag.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''));
+
+  if (communityTags.length === 0) return 50;
+
+  // Sum up matching signal scores
+  let matchScore = 0;
+  let matchCount = 0;
+
+  for (const tag of communityTags) {
+    // Direct match
+    if (adaptiveInterests[tag] !== undefined) {
+      matchScore += adaptiveInterests[tag];
+      matchCount++;
+      continue;
+    }
+    // Partial match (e.g. "bible_study" matches "bible")
+    for (const [interestKey, interestScore] of Object.entries(adaptiveInterests)) {
+      if (tag.includes(interestKey) || interestKey.includes(tag)) {
+        matchScore += interestScore * 0.6; // Partial match = 60% credit
+        matchCount++;
+        break;
+      }
+    }
+  }
+
+  if (matchCount === 0) return 40; // No match — slightly below neutral
+
+  // Normalize: positive signals boost, negative signals (from leaves) penalize
+  // Clamp to 0-100 range
+  const normalized = 50 + (matchScore / matchCount) * 15;
+  return Math.max(0, Math.min(100, normalized));
+}
+
+/**
  * Calculate overall recommendation score for a community
- * Combines all factors with weighted importance
+ * Combines static profile factors with adaptive behavioral signals
  */
 export interface RecommendationScore {
   totalScore: number;
@@ -264,12 +316,14 @@ export interface RecommendationScore {
     denomination: number;
     popularity: number;
     recovery: number;
+    adaptive: number;
   };
 }
 
 export function calculateCommunityRecommendationScore(
   user: User,
-  community: Community
+  community: Community,
+  adaptiveInterests?: Record<string, number>
 ): RecommendationScore {
   const interestScore = calculateInterestScore(user, community);
   const locationScore = calculateLocationScore(user, community);
@@ -278,16 +332,36 @@ export function calculateCommunityRecommendationScore(
   const denominationScore = calculateDenominationScore(user, community);
   const popularityScore = calculatePopularityScore(community);
   const recoveryScore = calculateRecoverySupportScore(user, community);
+  const adaptiveScore = adaptiveInterests
+    ? calculateAdaptiveScore(community, adaptiveInterests)
+    : 50;
 
-  // Weighted scoring (total = 100%)
-  const totalScore =
-    interestScore * 0.30 +        // 30% - Most important: shared interests
-    locationScore * 0.25 +         // 25% - Location matters for in-person
-    demographicScore * 0.15 +      // 15% - Age/gender/life stage fit
-    denominationScore * 0.10 +     // 10% - Denomination alignment
-    popularityScore * 0.10 +       // 10% - Community health
-    professionScore * 0.05 +       // 5%  - Profession/activity match
-    recoveryScore * 0.05;          // 5%  - Recovery support relevance
+  // If we have adaptive signals, shift weight from static interests toward adaptive
+  const hasAdaptiveData = adaptiveInterests && Object.keys(adaptiveInterests).length > 0;
+
+  let totalScore: number;
+  if (hasAdaptiveData) {
+    // Blend: adaptive signals get 20% weight, taken from interests and profession
+    totalScore =
+      interestScore * 0.20 +        // 20% (was 30%) - Static interests
+      adaptiveScore * 0.20 +         // 20% (NEW) - Behavioral signals
+      locationScore * 0.25 +         // 25% - Location
+      demographicScore * 0.15 +      // 15% - Demographics
+      denominationScore * 0.10 +     // 10% - Denomination
+      popularityScore * 0.05 +       // 5% (was 10%) - Community health
+      professionScore * 0.03 +       // 3% (was 5%) - Profession
+      recoveryScore * 0.02;          // 2% (was 5%) - Recovery
+  } else {
+    // No adaptive data — use original static weights
+    totalScore =
+      interestScore * 0.30 +
+      locationScore * 0.25 +
+      demographicScore * 0.15 +
+      denominationScore * 0.10 +
+      popularityScore * 0.10 +
+      professionScore * 0.05 +
+      recoveryScore * 0.05;
+  }
 
   return {
     totalScore,
@@ -299,20 +373,22 @@ export function calculateCommunityRecommendationScore(
       denomination: denominationScore,
       popularity: popularityScore,
       recovery: recoveryScore,
+      adaptive: adaptiveScore,
     },
   };
 }
 
 /**
- * Sort communities by recommendation score
+ * Sort communities by recommendation score (with optional adaptive signals)
  */
 export function sortCommunitiesByRecommendation(
   user: User,
-  communities: Community[]
+  communities: Community[],
+  adaptiveInterests?: Record<string, number>
 ): Array<Community & { recommendationScore?: number }> {
   return communities
     .map(community => {
-      const { totalScore } = calculateCommunityRecommendationScore(user, community);
+      const { totalScore } = calculateCommunityRecommendationScore(user, community, adaptiveInterests);
       return {
         ...community,
         recommendationScore: totalScore,

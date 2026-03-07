@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { storage } from '../storage-optimized';
 import { requireAuth } from '../middleware/auth';
 import { buildErrorResponse } from '../utils/errors';
+import { logSignal } from '../services/interestSignals';
+import { requireSessionUserId } from '../utils/session';
 
 const router = Router();
 
@@ -149,6 +151,19 @@ router.get('/', requireAuth, async (req, res) => {
 
       return bExact - aExact;
     });
+
+    // Log search signal for adaptive recommendations (fire-and-forget)
+    try {
+      const userId = requireSessionUserId(req);
+      if (searchQuery.length >= 3) {
+        logSignal({
+          userId,
+          signalType: 'search',
+          entityType: 'search',
+          searchQuery,
+        });
+      }
+    } catch {}
 
     res.json(sortedResults.slice(0, 50)); // Return top 50 results
   } catch (error) {

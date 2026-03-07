@@ -17,6 +17,7 @@ import {
   getPendingRequests,
   resolveMembership,
 } from '../services/communityMembership';
+import { logSignal } from '../services/interestSignals';
 
 const router = Router();
 
@@ -551,6 +552,10 @@ router.post('/communities/:id/join', requireAuth, async (req, res) => {
     }
 
     console.error(`[JOIN] Successfully added user ${userId} to community ${communityId} as ${role}`);
+
+    // Log interest signal for adaptive recommendations
+    logSignal({ userId, signalType: 'join', entityType: 'community', entityId: communityId, entity: community });
+
     res.json({
       success: true,
       message: role === 'owner' ? 'Joined community as owner' : 'Joined community successfully',
@@ -623,6 +628,9 @@ router.post('/communities/:id/leave', requireAuth, async (req, res) => {
         category: 'community'
       });
     }
+
+    // Log negative interest signal for adaptive recommendations
+    logSignal({ userId, signalType: 'leave', entityType: 'community', entityId: communityId, entity: community });
 
     res.json({
       success: true,
@@ -1673,6 +1681,12 @@ router.post('/communities/:id/wall/:postId/like', requireAuth, async (req, res) 
     // Toggle like (create or delete)
     const result = await storage.toggleCommunityWallPostLike(postId, userId);
 
+    // Log like signal (only when liking, not unliking)
+    if (result.liked) {
+      const community = await storage.getCommunity(communityId);
+      if (community) logSignal({ userId, signalType: 'like', entityType: 'community', entityId: communityId, entity: community });
+    }
+
     res.json({
       success: true,
       liked: result.liked,
@@ -1758,6 +1772,10 @@ router.post('/communities/:id/wall/:postId/comments', requireAuth, async (req, r
       content: content.trim(),
       parentId: parentId || null
     });
+
+    // Log comment signal for adaptive recommendations
+    const community = await storage.getCommunity(communityId);
+    if (community) logSignal({ userId, signalType: 'comment', entityType: 'community', entityId: communityId, entity: community });
 
     res.status(201).json(comment);
   } catch (error) {
@@ -1948,6 +1966,10 @@ router.post('/communities/:id/prayer-requests/:prayerId/pray', requireAuth, asyn
       userId,
     });
 
+    // Log pray signal for adaptive recommendations
+    const community = await storage.getCommunity(communityId);
+    if (community) logSignal({ userId, signalType: 'pray', entityType: 'community', entityId: communityId, entity: community });
+
     // Broadcast for real-time sync
     broadcastEngagementUpdate({
       type: 'prayer',
@@ -2063,6 +2085,13 @@ router.post('/communities/:id/join/v2', requireAuth, async (req, res) => {
   }
 
   const result = await requestJoin(communityId, userId, requestId);
+
+  // Log join signal if successful
+  if (result.success) {
+    const community = await storage.getCommunity(communityId);
+    if (community) logSignal({ userId, signalType: 'join', entityType: 'community', entityId: communityId, entity: community });
+  }
+
   res.setHeader('x-request-id', requestId);
   res.status(mapStatusToHttpCode(result.status)).json(result);
 });
@@ -2084,6 +2113,13 @@ router.post('/communities/:id/leave/v2', requireAuth, async (req, res) => {
   }
 
   const result = await leaveCommunity(communityId, userId, requestId);
+
+  // Log leave signal if successful
+  if (result.success) {
+    const community = await storage.getCommunity(communityId);
+    if (community) logSignal({ userId, signalType: 'leave', entityType: 'community', entityId: communityId, entity: community });
+  }
+
   res.setHeader('x-request-id', requestId);
   res.status(mapStatusToHttpCode(result.status)).json(result);
 });

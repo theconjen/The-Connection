@@ -3046,3 +3046,23 @@ export const eventTemplates = pgTable("event_templates", {
 
 export type EventTemplate = typeof eventTemplates.$inferSelect;
 export type InsertEventTemplate = typeof eventTemplates.$inferInsert;
+
+// Adaptive interest signals — tracks user behavior to evolve recommendations over time
+export const userInterestSignals = pgTable("user_interest_signals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  signalType: text("signal_type").notNull(), // "search", "join", "leave", "rsvp", "like", "comment", "pray", "view"
+  signalCategory: text("signal_category"), // normalized category: "bible_study", "worship", "fitness", etc.
+  entityType: text("entity_type"), // "community", "event", "post", "prayer_request"
+  entityId: integer("entity_id"), // ID of the community/event/post
+  metadata: jsonb("metadata"), // flexible: { query, communityTags, eventCategory, etc. }
+  weight: decimal("weight", { precision: 4, scale: 2 }).default('1.0'), // signal strength
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_interest_signals_user").on(table.userId),
+  index("idx_interest_signals_user_type").on(table.userId, table.signalType),
+  index("idx_interest_signals_created").on(table.createdAt),
+]);
+
+export type UserInterestSignal = typeof userInterestSignals.$inferSelect;
+export type InsertUserInterestSignal = typeof userInterestSignals.$inferInsert;

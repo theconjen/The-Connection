@@ -14,6 +14,7 @@ import {
   listEvents as listEventsService,
   resolveEventAccess,
 } from '../services/events';
+import { logSignal } from '../services/interestSignals';
 
 const router = Router();
 
@@ -936,6 +937,13 @@ router.post('/events/:id/rsvp', requireAuth, async (req, res) => {
     const attendingCountAfter = rsvpsAfter.filter(
       r => r.status === 'going' || r.status === 'maybe' || r.status === 'interested'
     ).length;
+
+    // Log interest signal for adaptive recommendations
+    if (normalizedStatus === 'going' || normalizedStatus === 'maybe') {
+      logSignal({ userId, signalType: 'rsvp', entityType: 'event', entityId: eventId, entity: event });
+    } else if (normalizedStatus === 'not_going') {
+      logSignal({ userId, signalType: 'rsvp_cancel', entityType: 'event', entityId: eventId, entity: event });
+    }
 
     // Broadcast engagement update for real-time RSVP count sync
     broadcastEngagementUpdate({
