@@ -227,6 +227,115 @@ router.get('/events', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/events/recommended
+ * Personalized event recommendations based on user profile and behavior signals
+ */
+router.get('/events/recommended', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 30);
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.json({ events: [] });
+
+    // Get all future public events
+    const allEvents = await storage.getAllEvents();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureEvents = allEvents.filter((e: any) => {
+      if (!e.isPublic) return false;
+      if (!e.eventDate) return true;
+      const dateStr = String(e.eventDate).split(' ')[0];
+      const eventDate = new Date(dateStr + 'T00:00:00');
+      return !isNaN(eventDate.getTime()) && eventDate >= today;
+    });
+
+    // Get events user already RSVP'd to (exclude them)
+    const userRsvps = await storage.getUserRSVPs(userId);
+    const rsvpEventIds = new Set(userRsvps.map((r: any) => r.eventId));
+
+    // Get adaptive interests
+    const { getAdaptiveInterests: getSignals } = await import('../services/interestSignals');
+    let adaptiveInterests: Record<string, number> = {};
+    try { adaptiveInterests = await getSignals(userId, 60); } catch {}
+
+    // Build keywords from profile + signals
+    const keywords: string[] = [];
+    if (user.interests) keywords.push(...user.interests.split(',').map(i => i.trim().toLowerCase()));
+    if (user.denomination) keywords.push(user.denomination.toLowerCase());
+    if ((user as any).lifeStage) keywords.push((user as any).lifeStage.replace(/_/g, ' ').toLowerCase());
+    if ((user as any).culturalBackground) keywords.push((user as any).culturalBackground.toLowerCase());
+
+    const topAdaptive = Object.entries(adaptiveInterests)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([key]) => key.replace(/_/g, ' '));
+    keywords.push(...topAdaptive);
+
+    // Score each event
+    const scored = futureEvents
+      .filter((e: any) => !rsvpEventIds.has(e.id))
+      .map((event: any) => {
+        let score = 0;
+        const eventText = `${event.title || ''} ${event.description || ''} ${event.category || ''}`.toLowerCase();
+
+        // Keyword matching
+        for (const kw of keywords) {
+          if (kw && eventText.includes(kw)) score += 10;
+        }
+
+        // Gender match
+        const userGender = (user as any).gender;
+        if (event.targetGender && userGender) {
+          if ((event.targetGender === 'men' && userGender === 'male') ||
+              (event.targetGender === 'women' && userGender === 'female')) {
+            score += 15; // Strong match
+          } else if ((event.targetGender === 'men' && userGender === 'female') ||
+                     (event.targetGender === 'women' && userGender === 'male')) {
+            score -= 20; // Mismatch penalty
+          }
+        }
+
+        // Location proximity
+        const userLat = parseFloat(user.latitude || '0');
+        const userLon = parseFloat(user.longitude || '0');
+        const eventLat = parseFloat(String(event.latitude || '0'));
+        const eventLon = parseFloat(String(event.longitude || '0'));
+        if (userLat && userLon && eventLat && eventLon) {
+          const toRad = (d: number) => (d * Math.PI) / 180;
+          const dLat = toRad(eventLat - userLat);
+          const dLon = toRad(eventLon - userLon);
+          const a = Math.sin(dLat/2)**2 + Math.cos(toRad(userLat)) * Math.cos(toRad(eventLat)) * Math.sin(dLon/2)**2;
+          const miles = 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          if (miles <= 10) score += 20;
+          else if (miles <= 25) score += 10;
+          else if (miles <= 50) score += 5;
+        }
+
+        // Virtual events get a baseline accessibility boost
+        if (event.isVirtual) score += 5;
+
+        // Sooner events get slight boost
+        if (event.eventDate) {
+          const daysUntil = (new Date(String(event.eventDate).split(' ')[0] + 'T00:00:00').getTime() - Date.now()) / (24*60*60*1000);
+          if (daysUntil <= 7) score += 5;
+          else if (daysUntil <= 14) score += 3;
+        }
+
+        return { event, score };
+      });
+
+    scored.sort((a, b) => b.score - a.score);
+
+    res.json({ events: scored.slice(0, limit).map(s => s.event) });
+  } catch (error) {
+    console.error('Error fetching recommended events:', error);
+    res.status(500).json(buildErrorResponse('Error fetching recommended events', error));
+  }
+});
+
 router.get('/events/public', async (_req, res) => {
   try {
     const allEvents = await storage.getAllEvents();

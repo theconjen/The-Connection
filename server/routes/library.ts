@@ -28,6 +28,7 @@ import { z } from 'zod';
 import { evaluatePost, generateAutoFix } from '../services/rubricEvaluation';
 import { RUBRIC_CONFIG } from '@shared/rubricConfig';
 import { createAuditLog } from '../audit-logger';
+import { getAdaptiveInterests } from '../services/interestSignals';
 
 const router = Router();
 
@@ -167,6 +168,77 @@ router.get('/posts/trending', async (req, res) => {
   } catch (error) {
     console.error('Error fetching trending library posts:', error);
     res.status(500).json(buildErrorResponse('Error fetching trending library posts', error));
+  }
+});
+
+/**
+ * GET /api/library/posts/for-you
+ * Personalized articles based on user's interests, denomination, and behavior signals
+ */
+router.get('/posts/for-you', requireAuth, async (req, res) => {
+  try {
+    const userId = requireSessionUserId(req);
+    const limit = Math.min(parseInt(req.query.limit as string) || 5, 20);
+
+    const user = await storage.getUser(userId);
+    if (!user) return res.json({ posts: { items: [], total: 0 } });
+
+    // Get all published posts
+    const allPosts = await storage.listLibraryPosts({
+      status: 'published',
+      limit: 100,
+      offset: 0,
+    });
+
+    // Get adaptive interests
+    let adaptiveInterests: Record<string, number> = {};
+    try { adaptiveInterests = await getAdaptiveInterests(userId, 60); } catch {}
+
+    // Build keyword set from user profile + adaptive signals
+    const keywords: string[] = [];
+    if (user.interests) keywords.push(...user.interests.split(',').map(i => i.trim().toLowerCase()));
+    if (user.denomination) keywords.push(user.denomination.toLowerCase());
+    if ((user as any).lifeStage) keywords.push((user as any).lifeStage.toLowerCase().replace(/_/g, ' '));
+
+    // Add top adaptive interest categories
+    const topAdaptive = Object.entries(adaptiveInterests)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([key]) => key.replace(/_/g, ' '));
+    keywords.push(...topAdaptive);
+
+    // Score each post by relevance
+    const scored = allPosts.map(post => {
+      const postText = `${post.title} ${post.summary || ''} ${post.tldr || ''}`.toLowerCase();
+      let score = 0;
+
+      for (const kw of keywords) {
+        if (kw && postText.includes(kw)) score += 10;
+      }
+
+      // Recency boost (newer articles get slight bump)
+      if (post.publishedAt) {
+        const ageDays = (Date.now() - new Date(post.publishedAt).getTime()) / (24 * 60 * 60 * 1000);
+        score += Math.max(0, 5 - ageDays * 0.1);
+      }
+
+      // View count diversity (avoid always showing most-viewed)
+      score += Math.min((post.viewCount || 0) * 0.1, 3);
+
+      return { post, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+
+    res.json({
+      posts: {
+        items: scored.slice(0, limit).map(s => s.post),
+        total: scored.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching personalized library posts:', error);
+    res.status(500).json(buildErrorResponse('Error fetching personalized library posts', error));
   }
 });
 
