@@ -1235,7 +1235,9 @@ router.get('/analytics/overview', async (req, res, next) => {
       totalMicroblogs: Number(totalMicroblogs[0]?.count ?? 0),
       totalPrayers: Number(totalPrayers[0]?.count ?? 0),
       pendingReports: Number(recentReports[0]?.count ?? 0),
-      activeUsers,
+      dailyActiveUsers: activeUsers.dau,
+      weeklyActiveUsers: activeUsers.wau,
+      monthlyActiveUsers: activeUsers.mau,
     });
   } catch (error) {
     next(error);
