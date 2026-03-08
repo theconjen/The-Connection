@@ -200,24 +200,24 @@ export default function AnalyticsPage() {
               <div className="grid gap-4 md:grid-cols-4">
                 <StatCard
                   title="Total Users"
-                  value={overview.totalUsers.toLocaleString()}
+                  value={(overview.totalUsers ?? 0).toLocaleString()}
                   description="All registered accounts"
                 />
                 <StatCard
                   title="Daily Active Users"
-                  value={overview.dailyActiveUsers.toLocaleString()}
+                  value={(overview.dailyActiveUsers ?? 0).toLocaleString()}
                   description="Active in last 24 hours"
                   colorClass="text-green-600"
                 />
                 <StatCard
                   title="Weekly Active Users"
-                  value={overview.weeklyActiveUsers.toLocaleString()}
+                  value={(overview.weeklyActiveUsers ?? 0).toLocaleString()}
                   description="Active in last 7 days"
                   colorClass="text-blue-600"
                 />
                 <StatCard
                   title="Monthly Active Users"
-                  value={overview.monthlyActiveUsers.toLocaleString()}
+                  value={(overview.monthlyActiveUsers ?? 0).toLocaleString()}
                   description="Active in last 30 days"
                   colorClass="text-purple-600"
                 />
@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
               <TrendingUp className="h-5 w-5 text-primary" />
               Signup Trend (Last 30 Days)
             </h2>
-            {signupError || !signupData || signupData.signupsByDay.length === 0 ? (
+            {signupError || !signupData?.signupsByDay?.length ? (
               <DataUnavailableCard title="Signup Trend" />
             ) : (
               <Card>
@@ -275,7 +275,7 @@ export default function AnalyticsPage() {
               <Activity className="h-5 w-5 text-primary" />
               Content Creation (Last 30 Days)
             </h2>
-            {contentError || !contentData || contentData.contentByDay.length === 0 ? (
+            {contentError || !contentData?.contentByDay?.length ? (
               <DataUnavailableCard title="Content Creation" />
             ) : (
               <Card>
@@ -330,19 +330,19 @@ export default function AnalyticsPage() {
                   <div className="grid gap-4 md:grid-cols-3">
                     <StatCard
                       title="Pending Reports"
-                      value={moderationData.reportsByStatus.pending}
+                      value={moderationData.reportsByStatus?.pending ?? 0}
                       description="Awaiting moderator review"
                       colorClass="text-amber-600"
                     />
                     <StatCard
                       title="Reviewed Reports"
-                      value={moderationData.reportsByStatus.reviewed}
+                      value={moderationData.reportsByStatus?.reviewed ?? 0}
                       description="Action taken by moderator"
                       colorClass="text-green-600"
                     />
                     <StatCard
                       title="Dismissed Reports"
-                      value={moderationData.reportsByStatus.dismissed}
+                      value={moderationData.reportsByStatus?.dismissed ?? 0}
                       description="No action required"
                       colorClass="text-gray-600"
                     />
@@ -355,19 +355,19 @@ export default function AnalyticsPage() {
                   <div className="grid gap-4 md:grid-cols-3">
                     <StatCard
                       title="Warnings"
-                      value={moderationData.suspensionsByType.warning}
+                      value={moderationData.suspensionsByType?.warning ?? 0}
                       description="Users warned"
                       colorClass="text-yellow-600"
                     />
                     <StatCard
                       title="Suspensions"
-                      value={moderationData.suspensionsByType.suspension}
+                      value={moderationData.suspensionsByType?.suspension ?? 0}
                       description="Temporary suspensions"
                       colorClass="text-orange-600"
                     />
                     <StatCard
                       title="Bans"
-                      value={moderationData.suspensionsByType.ban}
+                      value={moderationData.suspensionsByType?.ban ?? 0}
                       description="Permanent bans"
                       colorClass="text-red-600"
                     />

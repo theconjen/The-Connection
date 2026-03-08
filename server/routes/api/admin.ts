@@ -1207,7 +1207,6 @@ router.get('/analytics/overview', async (req, res, next) => {
       totalEvents,
       totalMicroblogs,
       totalPrayers,
-      recentReports,
     ] = await Promise.all([
       db.select({ count: count() }).from(users),
       db.select({ count: count() }).from(users).where(gte(users.createdAt, thirtyDaysAgo)),
@@ -1215,8 +1214,15 @@ router.get('/analytics/overview', async (req, res, next) => {
       db.select({ count: count() }).from(events),
       db.select({ count: count() }).from(microblogs),
       db.select({ count: count() }).from(prayerRequests),
-      db.select({ count: count() }).from(contentReports).where(eq(contentReports.status, 'pending')),
     ]);
+
+    // Query content_reports separately — table may not exist yet
+    let recentReports = [{ count: 0 }];
+    try {
+      recentReports = await db.select({ count: count() }).from(contentReports).where(eq(contentReports.status, 'pending'));
+    } catch {
+      // Table doesn't exist yet
+    }
 
     // Try to get active user counts from analytics events
     let activeUsers = { dau: 0, wau: 0, mau: 0 };
