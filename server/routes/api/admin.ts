@@ -1259,7 +1259,7 @@ router.get('/analytics/users', async (req, res, next) => {
       .orderBy(sql`date_trunc('day', ${users.createdAt})`);
 
     res.json({
-      signupTrend: signupTrend.map(r => ({ date: r.date, count: Number(r.count) })),
+      signupsByDay: signupTrend.map(r => ({ date: r.date, count: Number(r.count) })),
     });
   } catch (error) {
     next(error);
@@ -1292,9 +1292,16 @@ router.get('/analytics/content', async (req, res, next) => {
       .orderBy(sql`date_trunc('day', ${events.createdAt})`),
     ]);
 
+    // Merge microblog and event trends into a single contentByDay array
+    const microblogMap = new Map(microblogTrend.map(r => [r.date, Number(r.count)]));
+    const eventMap = new Map(eventTrend.map(r => [r.date, Number(r.count)]));
+    const allDates = [...new Set([...microblogMap.keys(), ...eventMap.keys()])].sort();
     res.json({
-      microblogTrend: microblogTrend.map(r => ({ date: r.date, count: Number(r.count) })),
-      eventTrend: eventTrend.map(r => ({ date: r.date, count: Number(r.count) })),
+      contentByDay: allDates.map(date => ({
+        date,
+        microblogs: microblogMap.get(date) || 0,
+        events: eventMap.get(date) || 0,
+      })),
     });
   } catch (error) {
     next(error);
@@ -1333,10 +1340,19 @@ router.get('/analytics/moderation', async (req, res, next) => {
       .groupBy(userSuspensions.type),
     ]);
 
+    // Convert arrays to objects keyed by status/type for the client
+    const statusObj: Record<string, number> = { pending: 0, reviewed: 0, dismissed: 0 };
+    for (const r of reportsByStatus) {
+      if (r.status) statusObj[r.status] = Number(r.count);
+    }
+    const typeObj: Record<string, number> = { warning: 0, suspension: 0, ban: 0 };
+    for (const r of suspensionsByType) {
+      if (r.type) typeObj[r.type] = Number(r.count);
+    }
     res.json({
-      reportsByStatus: reportsByStatus.map(r => ({ status: r.status, count: Number(r.count) })),
+      reportsByStatus: statusObj,
       reportsByReason: reportsByReason.map(r => ({ reason: r.reason, count: Number(r.count) })),
-      suspensionsByType: suspensionsByType.map(r => ({ type: r.type, count: Number(r.count) })),
+      suspensionsByType: typeObj,
     });
   } catch (error) {
     next(error);
