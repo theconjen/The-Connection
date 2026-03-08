@@ -1,8 +1,12 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
-// Create a new Expo SDK client (access token required for production push delivery)
+// Create a new Expo SDK client
+const hasAccessToken = !!process.env.EXPO_ACCESS_TOKEN;
+if (!hasAccessToken) {
+  console.warn('[PushService] EXPO_ACCESS_TOKEN not set — push notifications may be rate-limited or fail');
+}
 const expo = new Expo({
-  accessToken: process.env.EXPO_ACCESS_TOKEN,
+  accessToken: process.env.EXPO_ACCESS_TOKEN || undefined,
 });
 
 export interface PushNotificationPayload {
