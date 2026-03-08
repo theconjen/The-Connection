@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import apiClient from '../lib/apiClient';
 import { router } from 'expo-router';
@@ -18,9 +19,10 @@ import { router } from 'expo-router';
 // Configure how notifications should be handled when app is foregrounded
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -124,10 +126,13 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
 
-    // Get the Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'c11dcfad-026c-4c8d-8dca-bec9e2bc049a', // From app.json extra.eas.projectId
-    });
+    // Get the Expo push token using projectId from app config
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    if (!projectId) {
+      console.error('[Notifications] EAS projectId not found in app config');
+      return null;
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
 
     const token = tokenData.data;
     return token;
@@ -342,9 +347,9 @@ export function cleanupNotifications(
  */
 export async function getCurrentToken(): Promise<string | null> {
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'c11dcfad-026c-4c8d-8dca-bec9e2bc049a',
-    });
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    if (!projectId) return null;
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     return tokenData.data;
   } catch (error) {
     return null;
