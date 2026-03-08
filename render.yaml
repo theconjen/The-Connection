@@ -8,8 +8,6 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
       bash scripts/render-build.sh
     startCommand: >-
       bash -lc "if [ ! -f dist-server/index.cjs ]; then pnpm run build:server; fi; node dist-server/index.cjs"
@@ -41,9 +39,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: pnpm bots:scheduler
     envVars:
       - key: NODE_VERSION
@@ -63,9 +60,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=2
     envVars:
       - key: NODE_VERSION
@@ -83,9 +79,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=1
     envVars:
       - key: NODE_VERSION
@@ -103,9 +98,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/daily-advice-bot.ts --questions=2
     envVars:
       - key: NODE_VERSION
@@ -123,9 +117,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/engagement-notifications.ts --personal --spiritual
     envVars:
       - key: NODE_VERSION
@@ -143,9 +136,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/engagement-notifications.ts --group --events
     envVars:
       - key: NODE_VERSION
@@ -163,9 +155,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/engagement-notifications.ts --reengagement
     envVars:
       - key: NODE_VERSION
@@ -183,9 +174,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/engagement-notifications.ts --admin
     envVars:
       - key: NODE_VERSION
@@ -203,9 +193,8 @@ services:
     repo: https://github.com/theconjen/The-Connection
     branch: main
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.24.0 --activate &&
-      pnpm install
+      npm i -g pnpm@10.24.0 &&
+      pnpm install --no-frozen-lockfile
     startCommand: npx tsx server/scripts/engagement-notifications.ts --social
     envVars:
       - key: NODE_VERSION
