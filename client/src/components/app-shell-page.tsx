@@ -105,19 +105,6 @@ export default function AppShellPage({
                     App Store
                   </a>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                >
-                  <a
-                    href="https://play.google.com/store/apps/details?id=app.theconnection"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Google Play
-                  </a>
-                </Button>
               </div>
             </div>
           )}

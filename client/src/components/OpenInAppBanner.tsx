@@ -36,10 +36,8 @@ function getPlatform(): 'ios' | 'android' | 'other' {
  * Get the appropriate store URL based on platform
  */
 function getStoreUrl(): string {
-  const platform = getPlatform();
-  if (platform === 'ios') return APP_STORE_URL;
-  if (platform === 'android') return PLAY_STORE_URL;
-  return APP_STORE_URL; // Default to iOS
+  // Only iOS App Store available for now (not yet on Google Play)
+  return APP_STORE_URL;
 }
 
 /**

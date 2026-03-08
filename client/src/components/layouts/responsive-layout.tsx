@@ -108,7 +108,7 @@ export default function ResponsiveLayout({ children }: ResponsiveLayoutProps) {
         {!isMobile && !location.startsWith('/admin') && (
           <button
             onClick={toggleSidebar}
-            className={`hidden md:flex absolute ${sidebarCollapsed ? 'left-14' : 'left-[252px]'} top-24 w-7 h-7 bg-primary text-primary-foreground rounded-full items-center justify-center shadow-md hover:bg-primary/90 transition-all z-30`}
+            className={`hidden md:flex absolute ${sidebarCollapsed ? 'left-14' : 'left-[252px]'} top-1/2 -translate-y-1/2 w-7 h-7 bg-primary text-primary-foreground rounded-full items-center justify-center shadow-md hover:bg-primary/90 transition-all z-30`}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {sidebarCollapsed ? (
