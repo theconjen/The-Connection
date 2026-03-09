@@ -784,7 +784,7 @@ export default function BibleChallengeScreen() {
                         onPress={() => handleChapterChange(ch === currentChapter ? ch - 1 : ch)}
                         activeOpacity={0.6}
                       >
-                        <Text style={[styles.chapterDotText, { color: isRead ? (isDark ? '#0F0F12' : '#fff') : (isDark ? '#9A968E' : '#a09888') }]}>
+                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#9A968E' : '#a09888') }]}>
                           {ch}
                         </Text>
                       </TouchableOpacity>
