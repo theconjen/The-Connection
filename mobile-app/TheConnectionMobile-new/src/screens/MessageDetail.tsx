@@ -19,50 +19,78 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Avatar } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { useConversationMessages, useSendMessage, useMarkAsRead } from '../queries/messages';
+import { useConversationMessages, useSendMessage, useMarkAsRead, useDeleteMessage } from '../queries/messages';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
-import apiClient, { communitiesAPI, eventsAPI } from '../lib/apiClient';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
+import apiClient, { messagesAPI } from '../lib/apiClient';
+import { GIF_CONFIG } from '../config';
 
 // ============================================================================
-// INVITATION MESSAGE TYPES
+// SHARED LINK DETECTION
 // ============================================================================
 
-interface CommunityInviteData {
-  type: 'community_invite';
-  communityId: number;
-  communityName: string;
-  inviterName: string;
-  invitationId: number;
+interface SharedLink {
+  type: 'apologetics' | 'advice' | 'post' | 'event' | 'question';
+  id: string;
+  label: string;
+  icon: string; // Ionicons name
+  route: string;
 }
 
-interface EventInviteData {
-  type: 'event_invite';
-  eventId: number;
-  eventName: string;
-  eventDate: string;
-  eventTime?: string;
-  location?: string;
-  inviterName: string;
-  invitationId: number;
-}
+function detectSharedLink(content: string): { link: SharedLink | null; textContent: string } {
+  const urlMatch = content.match(/https?:\/\/theconnection\.app\/(a|advice|p|e|events|questions)\/(\d+)/);
+  if (!urlMatch) return { link: null, textContent: content };
 
-type InviteData = CommunityInviteData | EventInviteData;
+  const [fullUrl, pathType, id] = urlMatch;
+  const textContent = content.replace(fullUrl, '').trim();
 
-function parseInvitationMessage(content: string): InviteData | null {
-  if (!content.startsWith('{')) return null;
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed.type === 'community_invite' || parsed.type === 'event_invite') {
-      return parsed as InviteData;
-    }
-  } catch {
-    // Not valid JSON
-  }
-  return null;
+  const typeMap: Record<string, SharedLink['type']> = {
+    'a': 'apologetics',
+    'advice': 'advice',
+    'p': 'post',
+    'e': 'event',
+    'events': 'event',
+    'questions': 'question',
+  };
+
+  const labelMap: Record<SharedLink['type'], string> = {
+    apologetics: 'Apologetics Answer',
+    advice: 'Advice Post',
+    post: 'Post',
+    event: 'Event',
+    question: 'Question',
+  };
+
+  const iconMap: Record<SharedLink['type'], string> = {
+    apologetics: 'library',
+    advice: 'chatbubble-ellipses',
+    post: 'document-text',
+    event: 'calendar',
+    question: 'help-circle',
+  };
+
+  const routeMap: Record<SharedLink['type'], string> = {
+    apologetics: `/a/${id}`,
+    advice: `/advice/${id}`,
+    post: `/post/${id}`,
+    event: `/events/${id}`,
+    question: `/questions/${id}`,
+  };
+
+  const type = typeMap[pathType] || 'post';
+
+  return {
+    link: {
+      type,
+      id,
+      label: labelMap[type],
+      icon: iconMap[type],
+      route: routeMap[type],
+    },
+    textContent,
+  };
 }
 
 // ============================================================================
@@ -88,7 +116,7 @@ interface MessageItem {
   content: string;
   createdAt: string;
   isRead: boolean;
-  type?: 'text' | 'gif' | 'image' | 'video';
+  type?: 'text' | 'gif' | 'image';
   gifUrl?: string;
   imageUrl?: string;
   sender?: {
@@ -178,243 +206,6 @@ function ChatHeader({ otherUser, onBack, onProfilePress, onMenuPress, colors }: 
 }
 
 // ============================================================================
-// INVITATION MESSAGE CARD COMPONENT
-// ============================================================================
-
-interface InvitationCardProps {
-  inviteData: InviteData;
-  isMe: boolean;
-  colors: any;
-  messageTime: string;
-}
-
-function InvitationMessageCard({ inviteData, isMe, colors, messageTime }: InvitationCardProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState<'pending' | 'accepted' | 'declined'>('pending');
-
-  const acceptCommunityMutation = useMutation({
-    mutationFn: (invitationId: number) => communitiesAPI.acceptInvitation(invitationId),
-    onSuccess: () => {
-      setStatus('accepted');
-      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['user-communities'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to accept invitation');
-    },
-  });
-
-  const declineCommunityMutation = useMutation({
-    mutationFn: (invitationId: number) => communitiesAPI.declineInvitation(invitationId),
-    onSuccess: () => {
-      setStatus('declined');
-      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to decline invitation');
-    },
-  });
-
-  const acceptEventMutation = useMutation({
-    mutationFn: (invitationId: number) => eventsAPI.acceptInvitation(invitationId),
-    onSuccess: () => {
-      setStatus('accepted');
-      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['my-events'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to accept invitation');
-    },
-  });
-
-  const declineEventMutation = useMutation({
-    mutationFn: (invitationId: number) => eventsAPI.declineInvitation(invitationId),
-    onSuccess: () => {
-      setStatus('declined');
-      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error.message || 'Failed to decline invitation');
-    },
-  });
-
-  const isCommunityInvite = inviteData.type === 'community_invite';
-  const isProcessing = acceptCommunityMutation.isPending || declineCommunityMutation.isPending ||
-                       acceptEventMutation.isPending || declineEventMutation.isPending;
-
-  const handleAccept = () => {
-    if (isCommunityInvite) {
-      acceptCommunityMutation.mutate((inviteData as CommunityInviteData).invitationId);
-    } else {
-      acceptEventMutation.mutate((inviteData as EventInviteData).invitationId);
-    }
-  };
-
-  const handleDecline = () => {
-    if (isCommunityInvite) {
-      declineCommunityMutation.mutate((inviteData as CommunityInviteData).invitationId);
-    } else {
-      declineEventMutation.mutate((inviteData as EventInviteData).invitationId);
-    }
-  };
-
-  const handleCardPress = () => {
-    if (isCommunityInvite) {
-      router.push(`/communities/${(inviteData as CommunityInviteData).communityId}`);
-    } else {
-      router.push(`/events/${(inviteData as EventInviteData).eventId}`);
-    }
-  };
-
-  return (
-    <View style={[
-      styles.messageRow,
-      isMe ? styles.messageRowRight : styles.messageRowLeft
-    ]}>
-      <View style={{
-        backgroundColor: colors.surface,
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: colors.borderSubtle,
-        maxWidth: '85%',
-        minWidth: 220,
-      }}>
-        <Pressable onPress={handleCardPress}>
-          {/* Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <View style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: isCommunityInvite ? colors.primary : colors.accent,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Ionicons
-                name={isCommunityInvite ? 'people' : 'calendar'}
-                size={18}
-                color="#fff"
-              />
-            </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', fontWeight: '600' }}>
-                {isCommunityInvite ? 'Community Invitation' : 'Event Invitation'}
-              </Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={2}>
-                {isCommunityInvite
-                  ? (inviteData as CommunityInviteData).communityName
-                  : (inviteData as EventInviteData).eventName
-                }
-              </Text>
-            </View>
-          </View>
-
-          {/* Event Details */}
-          {!isCommunityInvite && (
-            <View style={{ marginBottom: 8 }}>
-              {(inviteData as EventInviteData).eventDate && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                  <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }}>
-                    {new Date((inviteData as EventInviteData).eventDate).toLocaleDateString()}
-                    {(inviteData as EventInviteData).eventTime && ` at ${(inviteData as EventInviteData).eventTime}`}
-                  </Text>
-                </View>
-              )}
-              {(inviteData as EventInviteData).location && (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }} numberOfLines={1}>
-                    {(inviteData as EventInviteData).location}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </Pressable>
-
-        {/* Action Buttons - Only show if not sender and pending */}
-        {!isMe && status === 'pending' && (
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Pressable
-              onPress={handleAccept}
-              disabled={isProcessing}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.primary,
-                paddingVertical: 8,
-                borderRadius: 8,
-                opacity: isProcessing ? 0.6 : 1,
-              }}
-            >
-              {isProcessing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4, fontSize: 13 }}>
-                    {isCommunityInvite ? 'Join' : 'Accept'}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-            <Pressable
-              onPress={handleDecline}
-              disabled={isProcessing}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.textMuted,
-                paddingVertical: 8,
-                borderRadius: 8,
-                opacity: isProcessing ? 0.6 : 1,
-              }}
-            >
-              <Ionicons name="close" size={16} color={colors.textSecondary} />
-              <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4, fontSize: 13 }}>
-                Decline
-              </Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Status indicator */}
-        {status !== 'pending' && (
-          <View style={{
-            marginTop: 8,
-            paddingVertical: 6,
-            borderRadius: 6,
-            backgroundColor: status === 'accepted' ? colors.successMuted : colors.errorMuted,
-            alignItems: 'center',
-          }}>
-            <Text style={{
-              color: status === 'accepted' ? colors.success : colors.error,
-              fontWeight: '600',
-              fontSize: 13,
-            }}>
-              {status === 'accepted' ? 'Accepted' : 'Declined'}
-            </Text>
-          </View>
-        )}
-
-        {/* Time */}
-        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 6, alignSelf: 'flex-end' }}>
-          {messageTime}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-// ============================================================================
 // MESSAGE BUBBLE COMPONENT
 // ============================================================================
 
@@ -428,9 +219,10 @@ interface MessageBubbleProps {
   onLongPress: () => void;
   onDoubleTap: () => void;
   hasReaction?: boolean;
+  router: any;
 }
 
-function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, radii, onLongPress, onDoubleTap, hasReaction }: MessageBubbleProps) {
+function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, radii, onLongPress, onDoubleTap, hasReaction, router }: MessageBubbleProps) {
   const lastTapRef = useRef<number>(0);
   const DOUBLE_TAP_DELAY = 300; // ms
 
@@ -510,19 +302,6 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
     return { type: null, url: null };
   };
 
-  // Check for invitation message first
-  const inviteData = parseInvitationMessage(message.content);
-  if (inviteData) {
-    return (
-      <InvitationMessageCard
-        inviteData={inviteData}
-        isMe={isMe}
-        colors={colors}
-        messageTime={formatMessageTime(message.createdAt)}
-      />
-    );
-  }
-
   // Detect media from content URL
   const detectedMedia = detectMediaUrl(message.content);
 
@@ -596,11 +375,56 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
                 <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
               </View>
             </View>
-          ) : (
-            <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15 }}>
-              {message.content}
-            </Text>
-          )}
+          ) : (() => {
+            const { link, textContent } = detectSharedLink(message.content);
+            if (link) {
+              return (
+                <View>
+                  {textContent ? (
+                    <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15, marginBottom: 8 }}>
+                      {textContent}
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    onPress={() => router.push(link.route)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: isMe ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)',
+                      borderRadius: 10,
+                      padding: 12,
+                      gap: 10,
+                    }}
+                  >
+                    <View style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : colors.primary + '18',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Ionicons name={link.icon as any} size={18} color={isMe ? '#fff' : colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }}>
+                        {link.label}
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: isMe ? '#fff' : colors.textPrimary }} numberOfLines={1}>
+                        Tap to view
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={isMe ? 'rgba(255,255,255,0.6)' : colors.textMuted} />
+                  </Pressable>
+                </View>
+              );
+            }
+            return (
+              <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15 }}>
+                {message.content}
+              </Text>
+            );
+          })()}
           <Text style={[
             styles.messageTime,
             { color: isMe ? colors.textMuted : colors.textMuted }
@@ -776,17 +600,15 @@ function GifPicker({ visible, onClose, onSelectGif, colors }: GifPickerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tenor API key (Google's GIF service - more reliable than Giphy public key)
-  const TENOR_API_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'; // Public/demo key
-
   const searchGifs = useCallback(async (query: string) => {
     setLoading(true);
     setError(null);
 
     try {
+      const { apiKey, baseUrl } = GIF_CONFIG.tenor;
       const endpoint = query.trim()
-        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_API_KEY}&limit=30&media_filter=gif`
-        : `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=30&media_filter=gif`;
+        ? `${baseUrl}/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=30&media_filter=gif`
+        : `${baseUrl}/featured?key=${apiKey}&limit=30&media_filter=gif`;
 
       const response = await fetch(endpoint);
 
@@ -802,7 +624,6 @@ function GifPicker({ visible, onClose, onSelectGif, colors }: GifPickerProps) {
         setGifs([]);
       }
     } catch (err) {
-      console.error('Error loading GIFs:', err);
       setError('Failed to load GIFs. Please try again.');
       setGifs([]);
     }
@@ -1058,6 +879,7 @@ export function MessageDetail({
 }: MessageDetailProps) {
   const { colors, spacing, radii } = useTheme();
   const { user: currentUser } = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [messageText, setMessageText] = useState('');
@@ -1073,6 +895,7 @@ export function MessageDetail({
   const { data: messages, isLoading, isError, refetch } = useConversationMessages(conversationId);
   const sendMessageMutation = useSendMessage();
   const markAsReadMutation = useMarkAsRead();
+  const deleteMessageMutation = useDeleteMessage();
 
   // Extract otherUser from messages if not provided as prop
   const otherUser = React.useMemo(() => {
@@ -1101,20 +924,6 @@ export function MessageDetail({
       markAsReadMutation.mutate(conversationId);
     }
   }, [conversationId]);
-
-  // Load muted state when other user is known
-  useEffect(() => {
-    const loadMuteStatus = async () => {
-      if (!otherUser?.id) return;
-      try {
-        const response = await apiClient.get(`/api/dm/mute/${otherUser.id}`);
-        setIsMuted(response.data?.isMuted || false);
-      } catch (error) {
-        console.error('Error loading mute status:', error);
-      }
-    };
-    loadMuteStatus();
-  }, [otherUser?.id]);
 
   // Load existing reactions when messages load
   useEffect(() => {
@@ -1149,9 +958,10 @@ export function MessageDetail({
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messages && messages.length > 0) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      return () => clearTimeout(timer);
     }
   }, [messages]);
 
@@ -1189,21 +999,28 @@ export function MessageDetail({
 
     try {
       if (isMuted) {
-        // Unmute
-        await apiClient.delete(`/api/dm/mute/${otherUser.id}`);
-        setIsMuted(false);
-        Alert.alert('Unmuted', 'You will receive notifications from this conversation.');
+        await messagesAPI.unmuteConversation(otherUser.id);
       } else {
-        // Mute
-        await apiClient.post(`/api/dm/mute/${otherUser.id}`);
-        setIsMuted(true);
-        Alert.alert('Muted', 'You will not receive notifications from this conversation.');
+        await messagesAPI.muteConversation(otherUser.id);
       }
-    } catch (error: any) {
-      console.error('Error toggling mute:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update notification settings.');
+      setIsMuted(!isMuted);
+      Alert.alert(
+        isMuted ? 'Unmuted' : 'Muted',
+        isMuted ? 'You will receive notifications from this conversation.' : 'You will not receive notifications from this conversation.'
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update notification settings.');
     }
   };
+
+  // Check if conversation is muted on mount
+  useEffect(() => {
+    if (otherUser?.id) {
+      messagesAPI.isMuted(otherUser.id)
+        .then(data => setIsMuted(data.isMuted || false))
+        .catch(() => {}); // Silently fail
+    }
+  }, [otherUser?.id]);
 
   const handleBlock = () => {
     Alert.alert(
@@ -1264,36 +1081,9 @@ export function MessageDetail({
         return newSet;
       });
     } catch (error) {
-      console.error('Error toggling reaction:', error);
       // Optionally show a toast or alert
     }
   }, []);
-
-  const handleDeleteMessage = async (messageId: number | string) => {
-    try {
-      await apiClient.delete(`/api/dm/messages/${messageId}`);
-      refetch();
-      Alert.alert('Deleted', 'Message deleted successfully');
-    } catch (error: any) {
-      console.error('Error deleting message:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to delete message');
-    }
-  };
-
-  const confirmDeleteMessage = (message: MessageItem) => {
-    Alert.alert(
-      'Delete Message',
-      'Are you sure you want to delete this message? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => handleDeleteMessage(message.id),
-        },
-      ]
-    );
-  };
 
   const handleMessageLongPress = (message: MessageItem) => {
     const isMyMessage = message.senderId === currentUser?.id;
@@ -1318,7 +1108,22 @@ export function MessageDetail({
             Clipboard.setString(message.content);
             Alert.alert('Copied', 'Message copied to clipboard');
           } else if (buttonIndex === 1 && isMyMessage) {
-            confirmDeleteMessage(message);
+            Alert.alert(
+              'Delete Message',
+              'Are you sure you want to delete this message?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => {
+                    if (typeof message.id === 'number') {
+                      deleteMessageMutation.mutate(message.id);
+                    }
+                  },
+                },
+              ]
+            );
           } else if (buttonIndex === 1 && !isMyMessage) {
             setShowReportModal(true);
           }
@@ -1334,7 +1139,28 @@ export function MessageDetail({
             Alert.alert('Copied', 'Message copied to clipboard');
           }},
           ...(isMyMessage
-            ? [{ text: 'Delete Message', style: 'destructive' as const, onPress: () => confirmDeleteMessage(message) }]
+            ? [{
+                text: 'Delete Message',
+                style: 'destructive' as const,
+                onPress: () => {
+                  Alert.alert(
+                    'Delete Message',
+                    'Are you sure you want to delete this message?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          if (typeof message.id === 'number') {
+                            deleteMessageMutation.mutate(message.id);
+                          }
+                        },
+                      },
+                    ]
+                  );
+                },
+              }]
             : [{ text: 'Report Message', onPress: () => setShowReportModal(true) }]
           ),
           { text: 'Cancel', style: 'cancel' as const },
@@ -1357,6 +1183,7 @@ export function MessageDetail({
         onLongPress={() => handleMessageLongPress(item)}
         onDoubleTap={() => handleToggleReaction(item.id)}
         hasReaction={myReactions.has(item.id)}
+        router={router}
       />
     );
   };
