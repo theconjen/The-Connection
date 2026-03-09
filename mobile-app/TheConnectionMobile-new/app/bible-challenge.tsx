@@ -636,10 +636,10 @@ export default function BibleChallengeScreen() {
               {filteredBooks.ot.map(name => {
                 const done = completedBooks.has(name);
                 return (
-                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
+                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? (isDark ? accentFill + '25' : colors.primary + '18') : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? accentFill : done ? '#1B6B3A' + '40' : (isDark ? '#3D3B44' : 'transparent') }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
-                      {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
-                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
+                      {done && <Check size={10} color={isDark ? '#4CAF50' : '#1B6B3A'} strokeWidth={3} />}
+                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? accentFill : done ? (isDark ? '#4CAF50' : '#1B6B3A') : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -654,10 +654,10 @@ export default function BibleChallengeScreen() {
               {filteredBooks.nt.map(name => {
                 const done = completedBooks.has(name);
                 return (
-                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
+                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? (isDark ? accentFill + '25' : colors.primary + '18') : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? accentFill : done ? '#1B6B3A' + '40' : (isDark ? '#3D3B44' : 'transparent') }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
-                      {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
-                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
+                      {done && <Check size={10} color={isDark ? '#4CAF50' : '#1B6B3A'} strokeWidth={3} />}
+                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? accentFill : done ? (isDark ? '#4CAF50' : '#1B6B3A') : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
                     </View>
                   </TouchableOpacity>
                 );
