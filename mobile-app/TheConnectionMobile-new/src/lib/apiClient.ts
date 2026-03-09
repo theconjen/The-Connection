@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import 'react-native-get-random-values'; // Required for uuid in React Native
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './logger';
 
 // Get API URL from app config (exclusive to Render backend)
 // Always uses Render backend URL from app.json extra config
@@ -13,7 +14,7 @@ const getApiBaseUrl = () => {
     return configApiBase;
   }
 
-  // Hardcoded fallback to Render backend
+  // Hardcoded fallback to Render backend (never localhost)
   return 'https://api.theconnection.app';
 };
 
@@ -25,7 +26,7 @@ export const getApiBase = getApiBaseUrl;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000, // 30 seconds - production server can be slow on cold start
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -49,20 +50,13 @@ apiClient.interceptors.request.use(
       // Mobile apps use JWT token ONLY (no session cookies)
       const authToken = await SecureStore.getItemAsync('auth_token');
       if (authToken) {
-        // Validate token format (JWT has 3 parts: header.payload.signature)
-        const tokenParts = authToken.split('.');
-        if (tokenParts.length !== 3) {
-          console.error('[API] Malformed JWT token - expected 3 parts, got:', tokenParts.length);
-        }
-
         config.headers['Authorization'] = `Bearer ${authToken}`;
       }
 
-      if (__DEV__) {
-        console.info('[API Request]', config.method?.toUpperCase(), config.url);
-      }
+      // Do NOT send session cookies - mobile apps use JWT tokens exclusively
+      // Session cookies cause the backend to ignore JWT tokens
     } catch (error) {
-      console.error('Error reading auth credentials:', error);
+      // Silent fail - auth will fail server-side if needed
     }
     return config;
   },
@@ -72,12 +66,10 @@ apiClient.interceptors.request.use(
 // Helper function to delay execution
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 
-// Response interceptor for logging, error handling, and retry logic
+// Response interceptor for error handling and retry logic
 apiClient.interceptors.response.use(
   async (response) => {
-    if (__DEV__) {
-      console.info('[API Response]', response.status, response.config.url);
-    }
+    // Mobile apps use JWT tokens only - do NOT capture session cookies
     return response;
   },
   async (error) => {
@@ -94,10 +86,45 @@ apiClient.interceptors.response.use(
         if (config._retryCount < maxRetries) {
           config._retryCount += 1;
           const backoffDelay = Math.pow(2, config._retryCount) * 1000; // 2s, 4s, 8s
-          console.warn(`[API] Rate limited. Retrying in ${backoffDelay/1000}s... (attempt ${config._retryCount}/${maxRetries})`);
 
           await delay(backoffDelay);
           return apiClient(config);
+        }
+      }
+
+      // Handle 401 (Unauthorized) - attempt refresh, then clear auth state
+      // Skip for login/register/refresh endpoints to allow proper error handling
+      if (error.response?.status === 401 && config) {
+        const url = String(config.url ?? '');
+        const isAuthEndpoint = url.includes('/auth/login') ||
+                               url.includes('/auth/register') ||
+                               url.includes('/auth/verify') ||
+                               url.includes('/auth/refresh');
+
+        if (!isAuthEndpoint && !config._retried401) {
+          // Try refreshing the token once before giving up
+          try {
+            const SecureStore = await import('expo-secure-store');
+            const refreshResponse = await apiClient.post('/api/auth/refresh');
+            if (refreshResponse.data?.token) {
+              await SecureStore.setItemAsync('auth_token', refreshResponse.data.token);
+              // Retry the original request with the new token
+              config._retried401 = true;
+              config.headers['Authorization'] = `Bearer ${refreshResponse.data.token}`;
+              return apiClient(config);
+            }
+          } catch {
+            // Refresh failed — clear auth state
+          }
+
+          // Refresh failed or no new token — clear stored credentials
+          try {
+            const SecureStore = await import('expo-secure-store');
+            await SecureStore.deleteItemAsync('auth_token');
+            await SecureStore.deleteItemAsync('cached_user');
+          } catch {
+            // Silent fail - auth context will handle this
+          }
         }
       }
 
@@ -147,15 +174,19 @@ apiClient.interceptors.response.use(
           }
         );
 
+        // Log non-suppressed API errors to Sentry
         if (!shouldSuppress) {
-          console.error('[API Error]', status, url, error.response.data);
+          const requestId = (error.config as any)?._requestId;
+          logger.warn('API error', {
+            status,
+            url,
+            message,
+            requestId,
+          });
         }
-      } else {
-        console.error('[API Error]', error.message);
       }
     } catch (interceptorError) {
-      // Log but don't throw - interceptor must be stable
-      console.error('[API Interceptor Error]', interceptorError);
+      // Interceptor must be stable - silent fail
     }
     return Promise.reject(error);
   }
@@ -204,13 +235,47 @@ export const microblogsAPI = {
     topic?: MicroblogTopic;
     postType?: MicroblogType;
     sourceUrl?: string;
+    anonymousNickname?: string;
+    anonymousCity?: string;
+    imageUris?: string[]; // local file URIs from image picker
     poll?: {
       question: string;
       options: string[];
       endsAt?: string;
       allowMultiple?: boolean;
     };
-  }) => apiClient.post('/api/microblogs', data),
+  }) => {
+    const { imageUris, ...jsonFields } = data;
+
+    // If images are attached, use FormData so multer can process them
+    if (imageUris && imageUris.length > 0) {
+      const formData = new FormData();
+      formData.append('content', jsonFields.content);
+      if (jsonFields.topic) formData.append('topic', jsonFields.topic);
+      if (jsonFields.postType) formData.append('postType', jsonFields.postType);
+      if (jsonFields.sourceUrl) formData.append('sourceUrl', jsonFields.sourceUrl);
+      if (jsonFields.anonymousNickname) formData.append('anonymousNickname', jsonFields.anonymousNickname);
+      if (jsonFields.anonymousCity) formData.append('anonymousCity', jsonFields.anonymousCity);
+      if (jsonFields.poll) formData.append('poll', JSON.stringify(jsonFields.poll));
+
+      imageUris.forEach((uri, index) => {
+        const extension = uri.split('.').pop()?.toLowerCase() || 'jpeg';
+        const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+        formData.append('images', {
+          uri,
+          name: `image-${index}.${extension}`,
+          type: mimeType,
+        } as any);
+      });
+
+      return apiClient.post('/api/microblogs', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    // No images — send as regular JSON
+    return apiClient.post('/api/microblogs', jsonFields);
+  },
   getAll: () => apiClient.get('/api/microblogs'),
   getById: (id: number) => apiClient.get(`/api/microblogs/${id}`),
   like: (id: number) => apiClient.post(`/api/microblogs/${id}/like`),
@@ -256,6 +321,7 @@ export const pollsAPI = {
 // Communities API
 export const communitiesAPI = {
   getAll: () => apiClient.get('/api/communities').then(res => res.data),
+  getRecommended: (limit: number = 15) => apiClient.get(`/api/communities/recommended?limit=${limit}`).then(res => res.data),
   getById: (id: number) => apiClient.get(`/api/communities/${id}`, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -273,14 +339,7 @@ export const communitiesAPI = {
     location?: string;
     latitude?: number;
     longitude?: number;
-  }) => {
-    return apiClient.post('/api/communities', data).then(res => {
-      return res.data;
-    }).catch(err => {
-      console.error('API: Create community failed:', err.response?.status, err.response?.data);
-      throw err;
-    });
-  },
+  }) => apiClient.post('/api/communities', data).then(res => res.data),
   join: (id: number) => apiClient.post(`/api/communities/${id}/join`).then(res => res.data),
   leave: (id: number) => apiClient.post(`/api/communities/${id}/leave`).then(res => res.data),
   getMembers: (id: number) => apiClient.get(`/api/communities/${id}/members`).then(res => res.data),
@@ -289,6 +348,12 @@ export const communitiesAPI = {
     apiClient.post(`/api/communities/${id}/wall`, { content, imageUrl }).then(res => res.data),
   deleteWallPost: (communityId: number, postId: number) =>
     apiClient.delete(`/api/communities/${communityId}/wall/${postId}`).then(res => res.data),
+  getWallPostComments: (communityId: number, postId: number) =>
+    apiClient.get(`/api/communities/${communityId}/wall/${postId}/comments`).then(res => res.data),
+  createWallPostComment: (communityId: number, postId: number, content: string) =>
+    apiClient.post(`/api/communities/${communityId}/wall/${postId}/comments`, { content }).then(res => res.data),
+  toggleWallPostLike: (communityId: number, postId: number) =>
+    apiClient.post(`/api/communities/${communityId}/wall/${postId}/like`).then(res => res.data),
   updateMemberRole: (communityId: number, userId: number, role: 'member' | 'moderator') =>
     apiClient.put(`/api/communities/${communityId}/members/${userId}`, { role }).then(res => res.data),
   removeMember: (communityId: number, userId: number) =>
@@ -312,6 +377,16 @@ export const communitiesAPI = {
   requestToJoin: (communityId: number) =>
     apiClient.post(`/api/communities/${communityId}/request-join`).then(res => res.data),
 
+  // Invite codes
+  generateInviteCode: (communityId: number) =>
+    apiClient.post(`/api/communities/${communityId}/invite-code`).then(res => res.data),
+  getInviteCode: (communityId: number) =>
+    apiClient.get(`/api/communities/${communityId}/invite-code`).then(res => res.data),
+
+  // Bible Reading - Community Readers
+  getReaders: (communityId: number) =>
+    apiClient.get(`/api/communities/${communityId}/readers`).then(res => res.data),
+
   // Community Invitations
   inviteUser: (communityId: number, inviteeId: number, sendDm: boolean = true) =>
     apiClient.post(`/api/communities/${communityId}/invite-user`, { inviteeId, sendDm }).then(res => res.data),
@@ -321,10 +396,6 @@ export const communitiesAPI = {
     apiClient.post(`/api/community-invitations/${invitationId}/accept`).then(res => res.data),
   declineInvitation: (invitationId: number) =>
     apiClient.post(`/api/community-invitations/${invitationId}/decline`).then(res => res.data),
-
-  // Active communities (most recent activity)
-  getActive: (limit: number = 8) =>
-    apiClient.get('/api/communities', { params: { sort: 'active', limit } }).then(res => res.data),
 };
 
 // Direct Messages API
@@ -336,6 +407,14 @@ export const messagesAPI = {
   markConversationRead: (otherUserId: number) =>
     apiClient.post(`/api/messages/mark-conversation-read/${otherUserId}`).then(res => res.data),
   getUnreadCount: () => apiClient.get('/api/messages/unread-count').then(res => res.data),
+  deleteMessage: (messageId: number) =>
+    apiClient.delete(`/api/messages/${messageId}`).then(res => res.data),
+  muteConversation: (userId: number) =>
+    apiClient.post(`/api/messages/mute/${userId}`).then(res => res.data),
+  unmuteConversation: (userId: number) =>
+    apiClient.delete(`/api/messages/mute/${userId}`).then(res => res.data),
+  isMuted: (userId: number) =>
+    apiClient.get(`/api/messages/mute/${userId}`).then(res => res.data),
 };
 
 // Community Chat API
@@ -371,6 +450,11 @@ export const searchAPI = {
 // Events API
 export const eventsAPI = {
   getAll: () => apiClient.get('/api/events').then(res => res.data),
+  getByCommunity: (communityId: number) =>
+    apiClient.get('/api/events', { params: { communityId } }).then(res => {
+      const data = res.data;
+      return data?.events ?? data ?? [];
+    }),
   getById: (id: number) => apiClient.get(`/api/events/${id}`).then(res => res.data),
   create: (data: {
     title: string;
@@ -387,13 +471,18 @@ export const eventsAPI = {
   update: (id: number, data: Partial<{
     title: string;
     description: string;
+    category: string;
     location?: string;
     latitude?: number;
     longitude?: number;
     eventDate: string;
     startTime: string;
     endTime: string;
-    imageUrl: string | null;
+    imageUrl?: string | null;
+    imagePosition?: string | null;
+    targetGender?: string | null;
+    targetAgeGroup?: string | null;
+    isPublic?: boolean;
   }>) => apiClient.patch(`/api/events/${id}`, data).then(res => res.data),
   delete: (id: number) => apiClient.delete(`/api/events/${id}`).then(res => res.data),
   rsvp: (id: number, status: string) =>
@@ -403,10 +492,6 @@ export const eventsAPI = {
   // Send announcement to all RSVPed attendees (host only)
   announce: (id: number, message: string) =>
     apiClient.post(`/api/events/${id}/announce`, { message }).then(res => res.data),
-
-  // Attendance confirmations (post-event check-in)
-  getPendingConfirmations: () =>
-    apiClient.get('/api/events/pending-confirmations').then(res => res.data),
 
   // Event Invitations
   inviteUsers: (eventId: number, inviteeIds: number[], sendDm: boolean = true) =>
@@ -423,97 +508,6 @@ export const eventsAPI = {
     apiClient.get(`/api/events/${eventId}/nearby-users-count`, { params: { radius: radiusMiles } }).then(res => res.data),
   inviteNearbyUsers: (eventId: number, radiusMiles: number = 30, sendNotifications: boolean = true) =>
     apiClient.post(`/api/events/${eventId}/invite-nearby`, { radiusMiles, sendNotifications }).then(res => res.data),
-
-  // RSVP management (host view)
-  getRsvpsManage: (id: number) =>
-    apiClient.get(`/api/events/${id}/rsvps/manage`).then(res => res.data),
-
-  // Post-event attendance confirmation
-  confirmAttendance: (eventId: number) =>
-    apiClient.post(`/api/events/${eventId}/confirm-attendance`).then(res => res.data),
-
-  // Cancel event
-  cancel: (id: number) =>
-    apiClient.delete(`/api/events/${id}`).then(res => res.data),
-
-  // Get my events (created by current user)
-  getMy: () =>
-    apiClient.get('/api/events/my').then(res => res.data),
-};
-
-// Organizations/Churches API (Commons)
-export const orgsAPI = {
-  // Public directory (cursor-paginated)
-  getDirectory: (options?: {
-    cursor?: string;
-    q?: string;
-    state?: string;
-    denomination?: string;
-    limit?: number;
-  }) => {
-    const params = new URLSearchParams();
-    if (options?.cursor) params.append('cursor', options.cursor);
-    if (options?.q) params.append('q', options.q);
-    if (options?.state) params.append('state', options.state);
-    if (options?.denomination) params.append('denomination', options.denomination);
-    if (options?.limit) params.append('limit', options.limit.toString());
-    const queryString = params.toString();
-    return apiClient.get(`/api/orgs/directory${queryString ? `?${queryString}` : ''}`).then(res => res.data);
-  },
-  // Public profile with capabilities
-  getBySlug: (slug: string) =>
-    apiClient.get(`/api/orgs/${slug}`).then(res => res.data),
-  // Search organizations
-  search: (query: string) =>
-    apiClient.get(`/api/orgs/search?q=${encodeURIComponent(query)}`).then(res => res.data),
-  // Request membership
-  requestMembership: (slug: string) =>
-    apiClient.post(`/api/orgs/${slug}/request-membership`).then(res => res.data),
-  // Request meeting
-  requestMeeting: (slug: string, reason: string) =>
-    apiClient.post(`/api/orgs/${slug}/request-meeting`, { reason }).then(res => res.data),
-};
-
-// My Churches API (Soft affiliations)
-export const myChurchesAPI = {
-  // Get user's affiliated churches
-  getAll: () =>
-    apiClient.get('/api/me/churches').then(res => res.data),
-  // Add a church to my list
-  add: (data: { organizationId?: number; freeTextName?: string }) =>
-    apiClient.post('/api/me/churches', data).then(res => res.data),
-  // Remove a church from my list
-  remove: (affiliationId: number) =>
-    apiClient.delete(`/api/me/churches/${affiliationId}`).then(res => res.data),
-};
-
-// Sermons API (Video playback)
-export const sermonsAPI = {
-  // Get playback data for a sermon
-  getPlayback: (sermonId: number) =>
-    apiClient.get(`/api/sermons/${sermonId}/playback`).then(res => res.data),
-};
-
-// Leader Inbox API
-export const leaderInboxAPI = {
-  // Get entitlements (determines what user sees)
-  getEntitlements: () =>
-    apiClient.get('/api/me/inbox-entitlements').then(res => res.data),
-  // Get pending membership requests
-  getMembershipRequests: () =>
-    apiClient.get('/api/leader-inbox/memberships').then(res => res.data),
-  // Approve membership request
-  approveMembership: (requestId: number) =>
-    apiClient.post(`/api/leader-inbox/memberships/${requestId}/approve`).then(res => res.data),
-  // Decline membership request
-  declineMembership: (requestId: number) =>
-    apiClient.post(`/api/leader-inbox/memberships/${requestId}/decline`).then(res => res.data),
-  // Get meeting requests
-  getMeetingRequests: () =>
-    apiClient.get('/api/leader-inbox/meetings').then(res => res.data),
-  // Update meeting request status
-  updateMeetingStatus: (requestId: number, status: 'in_progress' | 'closed', notes?: string) =>
-    apiClient.patch(`/api/leader-inbox/meetings/${requestId}`, { status, notes }).then(res => res.data),
 };
 
 // Safety & Moderation API
@@ -546,6 +540,66 @@ export const safetyAPI = {
   // Get list of blocked users
   getBlockedUsers: () =>
     apiClient.get('/api/blocked-users').then(res => res.data),
+};
+
+// Sermons API (Video playback with MUX + JW Player)
+export const sermonsAPI = {
+  // Get playback data for a sermon (includes HLS URL and ads config)
+  getPlayback: (sermonId: number) =>
+    apiClient.get(`/api/sermons/${sermonId}/playback`).then(res => res.data),
+};
+
+// Upload API for profile pictures, event images, etc.
+export const uploadAPI = {
+  // Upload profile picture - returns the URL of the uploaded image
+  uploadProfilePicture: async (imageUri: string, fileName?: string): Promise<{ url: string }> => {
+    const formData = new FormData();
+
+    // Get file extension from URI
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1] || 'jpg';
+    const mimeType = `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
+    const name = fileName || `profile-${Date.now()}.${fileType}`;
+
+    // Append file as form data
+    formData.append('image', {
+      uri: imageUri,
+      name,
+      type: mimeType,
+    } as any);
+
+    const response = await apiClient.post('/api/upload/profile-picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  },
+
+  // Upload event image
+  uploadEventImage: async (imageUri: string, fileName?: string): Promise<{ url: string }> => {
+    const formData = new FormData();
+
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1] || 'jpg';
+    const mimeType = `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
+    const name = fileName || `event-${Date.now()}.${fileType}`;
+
+    formData.append('image', {
+      uri: imageUri,
+      name,
+      type: mimeType,
+    } as any);
+
+    const response = await apiClient.post('/api/upload/event-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data;
+  },
 };
 
 export default apiClient;

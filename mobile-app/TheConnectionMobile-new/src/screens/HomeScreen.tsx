@@ -15,6 +15,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   RefreshControl,
   ActivityIndicator,
   StyleSheet,
@@ -35,6 +36,10 @@ import { AppHeader } from './AppHeader';
 import { PostCard } from './PostCard';
 import { formatDistanceToNow } from 'date-fns';
 import { shareAdvice, shareApologetics } from '../lib/shareUrls';
+import { churchesAPI, ChurchBulletinData } from '../queries/churches';
+import { ChurchBulletinSection } from '../components/ChurchBulletinSection';
+import DailyVerseBanner from '../components/DailyVerseBanner';
+import BibleChallengeCard from '../components/BibleChallengeCard';
 
 // ============================================================================
 // TYPES
@@ -91,8 +96,8 @@ interface AdvicePost {
 }
 
 interface HomeFeedItem {
-  type: 'community_post' | 'apologetics_article' | 'advice_post' | 'section_header';
-  data: CommunityPost | ApologeticsArticle | AdvicePost | { title: string };
+  type: 'community_post' | 'apologetics_article' | 'advice_post' | 'section_header' | 'church_bulletin';
+  data: CommunityPost | ApologeticsArticle | AdvicePost | { title: string } | ChurchBulletinData;
   id: string;
 }
 
@@ -182,6 +187,13 @@ function useArticles() {
     queryKey: ['grow-faith-articles', user?.id],
     queryFn: async () => {
       try {
+        // Try personalized articles first (based on interests + behavior)
+        const res = await apiClient.get('/api/library/posts/for-you?limit=3');
+        const items = res.data?.posts?.items || [];
+        if (items.length > 0) return items;
+      } catch {}
+      try {
+        // Fallback to trending
         const res = await apiClient.get('/api/library/posts/trending?limit=3');
         return res.data?.posts?.items || [];
       } catch {
@@ -194,23 +206,48 @@ function useArticles() {
       }
     },
     enabled: !!user,
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Calculate hot score for advice posts
+// Reddit-style hot score for advice posts
+// Gives new posts a fair chance while rewarding engagement logarithmically
+// Formula: score = log10(engagement) + (post_time / 45000)
+// - First 10 upvotes matter as much as going from 10→100 or 100→1000
+// - Every 12.5 hours, a new post gains +1 point just for being newer
+// - A 0-vote post from now ranks equal to a 10-vote post from 12.5 hours ago
 function calculateHotScore(post: AdvicePost): number {
   const upvotes = post.likeCount || 0;
   const replies = post.replyCount || post.commentCount || 0;
-  const createdAt = new Date(post.createdAt).getTime();
-  const now = Date.now();
-  const ageInHours = (now - createdAt) / (1000 * 60 * 60);
+  const createdAtSeconds = new Date(post.createdAt).getTime() / 1000;
 
-  const engagementScore = (upvotes * 2) + (replies * 3);
-  const recencyBoost = Math.max(0, 48 - ageInHours) / 48;
-  const timeDecay = 1 / Math.pow(ageInHours + 2, 0.5);
+  // Epoch: Jan 1, 2024 - keeps numbers manageable
+  const EPOCH = new Date('2024-01-01T00:00:00Z').getTime() / 1000;
 
-  return (engagementScore + 1) * (0.5 + recencyBoost) * timeDecay;
+  // Combined engagement (replies worth 2x for advice questions - they represent actual help)
+  const engagement = Math.max(1, upvotes + (replies * 2));
+
+  // Logarithmic engagement: 1-10 = 10-100 = 100-1000 (equal weight)
+  // This prevents high-engagement posts from dominating indefinitely
+  const engagementScore = Math.log10(engagement);
+
+  // Time bonus: every 12.5 hours = +1 point for being newer
+  // This gives new posts a fair chance to be seen
+  const timeScore = (createdAtSeconds - EPOCH) / 45000;
+
+  // Wilson-inspired penalty for low-engagement posts (prevents 1-vote posts from gaming)
+  // Posts with <5 total engagement get a confidence penalty
+  let score = engagementScore + timeScore;
+
+  const totalEngagement = upvotes + replies;
+  if (totalEngagement < 5) {
+    const confidence = totalEngagement > 0
+      ? Math.min(1, totalEngagement / 5)
+      : 0.1;
+    score *= (0.5 + (confidence * 0.5));
+  }
+
+  return score;
 }
 
 function useJoinedCommunities() {
@@ -228,9 +265,18 @@ function useJoinedCommunities() {
 
 // Combined hook to build the feed items with infinite scroll support
 function useHomeFeed() {
+  const { user } = useAuth();
   const adviceQuery = useAdviceFeed();
   const communityQuery = useCommunityFeed();
   const articlesQuery = useArticles();
+
+  // Church bulletin query - for users with church affiliation
+  const bulletinQuery = useQuery({
+    queryKey: ['church-bulletin', user?.id],
+    queryFn: () => churchesAPI.getMyChurchBulletin(),
+    enabled: !!user,
+    staleTime: 60000, // 1 minute
+  });
 
   const isLoading = adviceQuery.isLoading || communityQuery.isLoading || articlesQuery.isLoading;
   const isRefetching = adviceQuery.isRefetching || communityQuery.isRefetching || articlesQuery.isRefetching;
@@ -242,8 +288,9 @@ function useHomeFeed() {
       adviceQuery.refetch(),
       communityQuery.refetch(),
       articlesQuery.refetch(),
+      bulletinQuery.refetch(),
     ]);
-  }, [adviceQuery, communityQuery, articlesQuery]);
+  }, [adviceQuery, communityQuery, articlesQuery, bulletinQuery]);
 
   const fetchNextPage = useCallback(() => {
     // First load more advice, then community posts
@@ -268,7 +315,11 @@ function useHomeFeed() {
   // Articles (max 3)
   const articles = articlesQuery.data || [];
 
-  // Build vertical feed items (Your Communities + Grow Your Faith)
+  // Church bulletin data
+  const bulletinData = bulletinQuery.data;
+  const showBulletin = bulletinData?.hasBulletin === true;
+
+  // Build vertical feed items (Your Communities + conditional bottom section)
   const verticalFeedItems = useMemo(() => {
     const items: HomeFeedItem[] = [];
 
@@ -289,8 +340,21 @@ function useHomeFeed() {
       });
     }
 
-    // Grow Your Faith section (limited to 3 articles, no infinite scroll)
-    if (articles.length > 0) {
+    // Conditional bottom section: My Church OR Grow Your Faith
+    if (showBulletin && bulletinData) {
+      // Show church bulletin
+      items.push({
+        type: 'section_header',
+        data: { title: 'My Church' },
+        id: 'header-bulletin',
+      });
+      items.push({
+        type: 'church_bulletin',
+        data: bulletinData,
+        id: 'church-bulletin',
+      });
+    } else if (articles.length > 0) {
+      // Fallback: Grow Your Faith section (limited to 3 articles)
       items.push({
         type: 'section_header',
         data: { title: 'Grow Your Faith' },
@@ -307,11 +371,12 @@ function useHomeFeed() {
     }
 
     return items;
-  }, [communityPosts, articles]);
+  }, [communityPosts, articles, showBulletin, bulletinData]);
 
   return {
     advicePosts,       // For horizontal carousel
     verticalFeedItems, // For vertical list
+    bulletinData,      // For rendering church bulletin
     isLoading,
     isRefetching,
     isFetchingNextPage,
@@ -583,9 +648,48 @@ function AdvicePostCard({
   );
 }
 
-function EmptyState({ colors, onExplore }: { colors: any; onExplore: () => void }) {
+interface OfficialPost {
+  id: number;
+  content: string;
+  createdAt: string;
+  author?: { displayName?: string; avatarUrl?: string };
+}
+
+function EmptyState({ colors, onExplore, officialPosts = [] }: { colors: any; onExplore: () => void; officialPosts?: OfficialPost[] }) {
   return (
-    <View style={styles.emptyState}>
+    <ScrollView contentContainerStyle={styles.emptyState}>
+      {/* Show official account posts if available */}
+      {officialPosts.length > 0 && (
+        <View style={{ width: '100%', marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Ionicons name="megaphone-outline" size={18} color={colors.primary} />
+            <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>
+              From The Connection Team
+            </Text>
+          </View>
+          {officialPosts.slice(0, 3).map((post) => (
+            <View
+              key={post.id}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: colors.borderSubtle,
+              }}
+            >
+              <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textPrimary }}>
+                {post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 6 }}>
+                {new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceMuted }]}>
         <Ionicons name="people-outline" size={48} color={colors.textMuted} />
       </View>
@@ -601,7 +705,7 @@ function EmptyState({ colors, onExplore }: { colors: any; onExplore: () => void 
       >
         <Text style={styles.emptyButtonText}>Explore Communities</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -656,7 +760,7 @@ export default function HomeScreen({
   const [reportedAdvicePosts, setReportedAdvicePosts] = useState<Set<number>>(new Set());
   const [reportedArticles, setReportedArticles] = useState<Set<number>>(new Set());
 
-  // Upvote mutation
+  // Upvote mutation with optimistic count update
   const upvoteMutation = useMutation({
     mutationFn: async ({ postId, isCurrentlyLiked }: { postId: number; isCurrentlyLiked: boolean }) => {
       if (isCurrentlyLiked) {
@@ -666,7 +770,23 @@ export default function HomeScreen({
       }
     },
     onMutate: async ({ postId, isCurrentlyLiked }) => {
-      // Optimistic update - track both additions and removals
+      await queryClient.cancelQueries({ queryKey: ['advice-feed'] });
+      const previous = queryClient.getQueryData(['advice-feed', user?.id]);
+      // Optimistically update count in cache
+      queryClient.setQueryData(['advice-feed', user?.id], (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            items: page.items.map((item: any) =>
+              item.id === postId
+                ? { ...item, isLiked: !isCurrentlyLiked, likeCount: Math.max(0, (item.likeCount || 0) + (isCurrentlyLiked ? -1 : 1)) }
+                : item
+            ),
+          })),
+        };
+      });
       if (isCurrentlyLiked) {
         setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
@@ -674,19 +794,16 @@ export default function HomeScreen({
         setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
         setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
       }
+      return { previous };
     },
-    onError: (error, { postId, isCurrentlyLiked }) => {
-      // Revert on error
-      if (isCurrentlyLiked) {
-        setUpvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
-        setUnupvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-      } else {
-        setUpvotedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-        setUnupvotedPosts(prev => { const next = new Set(prev); next.add(postId); return next; });
+    onError: (_error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['advice-feed', user?.id], context.previous);
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['advice-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['advice-list'] });
     },
   });
 
@@ -777,7 +894,6 @@ export default function HomeScreen({
               reason: 'inappropriate_content',
             });
           } catch (error) {
-            console.error('Error reporting content:', error);
           }
         }},
       ]
@@ -824,7 +940,6 @@ export default function HomeScreen({
               reason: 'inappropriate_content',
             });
           } catch (error) {
-            console.error('Error reporting content:', error);
           }
         }},
       ]
@@ -841,6 +956,17 @@ export default function HomeScreen({
 
   const hasJoinedCommunities = joinedCommunities.length > 0;
   const hasFeedItems = verticalFeedItems.length > 0 || advicePosts.length > 0;
+
+  // Fetch official account posts for users with no feed content
+  const { data: officialPosts = [] } = useQuery<OfficialPost[]>({
+    queryKey: ['official-posts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/microblogs?username=theconnectionteam&limit=5');
+      return res.data?.items || res.data || [];
+    },
+    enabled: !isLoading && !hasFeedItems,
+    staleTime: 1000 * 60 * 30,
+  });
 
   // Handle infinite scroll for vertical content
   const handleEndReached = useCallback(() => {
@@ -969,6 +1095,9 @@ export default function HomeScreen({
     if (advicePosts.length === 0) return null;
 
     return (
+      <>
+      <DailyVerseBanner />
+      <BibleChallengeCard />
       <View style={styles.horizontalSection}>
         <View style={[styles.sectionHeaderRow, { borderBottomColor: colors.borderSubtle }]}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Global Community</Text>
@@ -989,6 +1118,11 @@ export default function HomeScreen({
           contentContainerStyle={styles.horizontalListContent}
           onEndReached={handleAdviceEndReached}
           onEndReachedThreshold={0.5}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={3}
+          initialNumToRender={5}
           ListFooterComponent={
             isFetchingNextAdvicePage ? (
               <View style={styles.horizontalLoader}>
@@ -998,6 +1132,7 @@ export default function HomeScreen({
           }
         />
       </View>
+      </>
     );
   }, [advicePosts, colors, renderAdviceCard, handleAdviceEndReached, isFetchingNextAdvicePage]);
 
@@ -1027,6 +1162,18 @@ export default function HomeScreen({
             onMenuPress={(e) => showArticleMenu(article, e)}
             isReported={reportedArticles.has(article.id)}
             onUndoReport={() => handleUndoReportArticle(article.id)}
+          />
+        );
+
+      case 'church_bulletin':
+        const bulletin = item.data as ChurchBulletinData;
+        return (
+          <ChurchBulletinSection
+            bulletin={bulletin}
+            colors={colors}
+            onChurchPress={() => router.push(`/churches/${bulletin.church?.slug}` as any)}
+            onEventPress={(eventId) => router.push({ pathname: '/events/[id]' as any, params: { id: eventId.toString() } })}
+            onSermonPress={(sermonId) => router.push({ pathname: '/sermons/[id]' as any, params: { id: sermonId.toString() } })}
           />
         );
 
@@ -1060,6 +1207,7 @@ export default function HomeScreen({
         <EmptyState
           colors={colors}
           onExplore={() => router.push('/(tabs)/communities' as any)}
+          officialPosts={officialPosts}
         />
       ) : (
         <FlatList
@@ -1079,6 +1227,11 @@ export default function HomeScreen({
           onEndReachedThreshold={0.5}
           ListHeaderComponent={ListHeaderComponent}
           ListFooterComponent={ListFooterComponent}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
         />
       )}
 
@@ -1089,19 +1242,25 @@ export default function HomeScreen({
         animationType="fade"
         onRequestClose={() => setAdviceMenuPost(null)}
       >
-        <Pressable style={styles.menuOverlay} onPress={() => setAdviceMenuPost(null)}>
-          <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: adviceMenuPosition.top, right: adviceMenuPosition.right }]}>
-            <Pressable style={styles.dropdownItem} onPress={handleShareAdvice}>
-              <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-              <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
-            </Pressable>
-            <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
-            <Pressable style={styles.dropdownItem} onPress={handleReportAdvice}>
-              <Ionicons name="flag-outline" size={18} color="#EF4444" />
-              <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
-            </Pressable>
+        <TouchableWithoutFeedback onPress={() => setAdviceMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: adviceMenuPosition.top, right: adviceMenuPosition.right }]}
+              >
+                <Pressable style={styles.dropdownItem} onPress={handleShareAdvice}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReportAdvice}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </Pressable>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Article Dropdown Menu */}
@@ -1111,19 +1270,25 @@ export default function HomeScreen({
         animationType="fade"
         onRequestClose={() => setArticleMenuPost(null)}
       >
-        <Pressable style={styles.menuOverlay} onPress={() => setArticleMenuPost(null)}>
-          <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: articleMenuPosition.top, right: articleMenuPosition.right }]}>
-            <Pressable style={styles.dropdownItem} onPress={handleShareArticle}>
-              <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
-              <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
-            </Pressable>
-            <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
-            <Pressable style={styles.dropdownItem} onPress={handleReportArticle}>
-              <Ionicons name="flag-outline" size={18} color="#EF4444" />
-              <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
-            </Pressable>
+        <TouchableWithoutFeedback onPress={() => setArticleMenuPost(null)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[styles.dropdownMenu, { backgroundColor: colors.surface, top: articleMenuPosition.top, right: articleMenuPosition.right }]}
+              >
+                <Pressable style={styles.dropdownItem} onPress={handleShareArticle}>
+                  <Ionicons name="share-outline" size={18} color={colors.textPrimary} />
+                  <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>Share</Text>
+                </Pressable>
+                <View style={[styles.dropdownDivider, { backgroundColor: colors.borderSubtle }]} />
+                <Pressable style={styles.dropdownItem} onPress={handleReportArticle}>
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text style={[styles.dropdownItemText, { color: '#EF4444' }]}>Report</Text>
+                </Pressable>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </Pressable>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -1143,27 +1308,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
 
   // Section Header
   sectionHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    marginTop: 8,
+    marginTop: 6,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    marginTop: 8,
+    marginTop: 6,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -1173,191 +1338,191 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   seeAllText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
   // Post Card
   postCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
   communityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   communityName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   postMeta: {
     flex: 1,
   },
   authorName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   timestamp: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
   },
   postTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 12,
-    lineHeight: 22,
+    marginTop: 8,
+    lineHeight: 19,
   },
   postContent: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
   },
   engagement: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
-    paddingTop: 12,
+    gap: 14,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.1)',
   },
   engagementItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   engagementText: {
-    fontSize: 13,
+    fontSize: 12,
   },
 
   // Article Card
   articleCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
   articleHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   articleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
   },
   articleBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   articleArea: {
-    fontSize: 12,
+    fontSize: 11,
   },
   articleTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 22,
+    lineHeight: 19,
   },
   articleTldr: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
   },
   articleFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 8,
   },
   articleAuthor: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
 
   // Advice Card
   adviceCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
   adviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   adviceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
   },
   adviceBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   adviceNickname: {
-    fontSize: 12,
+    fontSize: 11,
     fontStyle: 'italic',
   },
   adviceTime: {
-    fontSize: 12,
+    fontSize: 11,
   },
   adviceContent: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 19,
   },
   adviceFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 8,
   },
   adviceStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   adviceStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   adviceStatText: {
-    fontSize: 13,
+    fontSize: 12,
   },
   adviceCta: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
 
@@ -1366,36 +1531,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
   },
   emptyIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 19,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   emptyButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   emptyButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
   },
   footerLoader: {
@@ -1405,36 +1570,36 @@ const styles = StyleSheet.create({
 
   // Horizontal Section (Global Community)
   horizontalSection: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
   horizontalListContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   horizontalAdviceCard: {
-    width: 280,
-    padding: 14,
-    borderRadius: 12,
+    width: 240,
+    padding: 10,
+    borderRadius: 10,
     borderWidth: 1,
   },
   horizontalAdviceNickname: {
-    fontSize: 12,
+    fontSize: 11,
     fontStyle: 'italic',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   horizontalAdviceContent: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     flex: 1,
   },
   horizontalAdviceFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 8,
   },
   horizontalAdviceTime: {
-    fontSize: 11,
+    fontSize: 10,
   },
   horizontalLoader: {
     width: 50,
@@ -1466,7 +1631,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dropdownItemText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
   dropdownDivider: {
