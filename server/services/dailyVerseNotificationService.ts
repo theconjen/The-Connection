@@ -3,27 +3,15 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { notifyMultipleUsers } from './notificationHelper';
 import { wasNotificationSent } from './notificationDedup';
+import { DAILY_VERSE_REFERENCES } from '../../shared/dailyVerses';
 
 /**
  * Daily Verse Push Notification Service
  *
  * Sends a daily Bible verse as a push notification to all users
  * who have feed notifications enabled. Runs once per day (morning).
+ * 365 unique verses — one for each day of the year.
  */
-
-const VERSE_REFERENCES = [
-  'John 3:16', 'Philippians 4:13', 'Jeremiah 29:11', 'Romans 8:28',
-  'Proverbs 3:5-6', 'Psalm 23:1-4', 'Isaiah 41:10', 'Matthew 28:20',
-  'Psalm 46:1', 'Romans 8:38-39', 'Joshua 1:9', 'Psalm 119:105',
-  'Matthew 6:33', 'Proverbs 18:10', '2 Timothy 1:7', 'Psalm 91:1-2',
-  '1 Corinthians 13:4-7', 'Galatians 5:22-23', 'Ephesians 2:8-9',
-  'Romans 12:2', 'James 1:2-4', 'Colossians 3:23', 'Hebrews 11:1',
-  'Matthew 5:14-16', 'Psalm 27:1', '1 John 4:19', 'Isaiah 40:31',
-  'Proverbs 16:3', 'Psalm 37:4', 'Romans 5:8', 'Lamentations 3:22-23',
-  'Psalm 139:14', '2 Corinthians 5:17', 'Philippians 4:6-7',
-  'Matthew 11:28-30', '1 Peter 5:7', 'Psalm 34:18', 'Proverbs 27:17',
-  'Micah 6:8', 'Romans 15:13', 'Isaiah 43:2', 'Psalm 121:1-2',
-];
 
 async function fetchVerse(reference: string): Promise<{ reference: string; text: string } | null> {
   try {
@@ -51,7 +39,7 @@ function getDailyVerseIndex(): number {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
   );
-  return dayOfYear % VERSE_REFERENCES.length;
+  return dayOfYear % DAILY_VERSE_REFERENCES.length;
 }
 
 export async function sendDailyVerseNotification(): Promise<void> {
@@ -66,7 +54,7 @@ export async function sendDailyVerseNotification(): Promise<void> {
     return;
   }
 
-  const reference = VERSE_REFERENCES[getDailyVerseIndex()];
+  const reference = DAILY_VERSE_REFERENCES[getDailyVerseIndex()];
   const verse = await fetchVerse(reference);
 
   if (!verse) {

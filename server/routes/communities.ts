@@ -2577,4 +2577,56 @@ router.delete('/communities/:id/mute', requireAuth, async (req, res) => {
   }
 });
 
+// GET /communities/:id/readers - Get community members currently reading Bible books
+router.get('/:id/readers', requireAuth, async (req, res) => {
+  try {
+    const communityId = parseInt(req.params.id);
+    if (isNaN(communityId)) {
+      return res.status(400).json({ error: 'Invalid community ID' });
+    }
+
+    const userId = requireSessionUserId(req);
+
+    // Verify user is a member
+    const member = await storage.getCommunityMember(communityId, userId);
+    if (!member) {
+      return res.status(403).json({ error: 'Not a member of this community' });
+    }
+
+    const { db } = await import('../db');
+    const { sql } = await import('drizzle-orm');
+
+    if (!db) {
+      return res.json({ readers: [] });
+    }
+
+    const result = await db.execute(sql`
+      SELECT u.id, u.username, u.display_name, u.profile_image_url,
+             u.current_bible_book, u.current_bible_chapter, u.bible_book_started_at
+      FROM users u
+      INNER JOIN community_members cm ON cm.user_id = u.id
+      WHERE cm.community_id = ${communityId}
+        AND cm.status = 'approved'
+        AND u.deleted_at IS NULL
+        AND u.current_bible_book IS NOT NULL
+      ORDER BY u.bible_book_started_at DESC NULLS LAST
+    `);
+
+    const readers = (result.rows || []).map((r: any) => ({
+      id: r.id,
+      username: r.username,
+      displayName: r.display_name,
+      profileImageUrl: r.profile_image_url,
+      currentBibleBook: r.current_bible_book,
+      currentBibleChapter: r.current_bible_chapter,
+      startedAt: r.bible_book_started_at,
+    }));
+
+    res.json({ readers });
+  } catch (error) {
+    console.error('Error fetching community readers:', error);
+    res.status(500).json(buildErrorResponse('Error fetching readers', error));
+  }
+});
+
 export default router;

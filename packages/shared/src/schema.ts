@@ -84,6 +84,10 @@ export const users = pgTable("users", {
   notifyCommunities: boolean("notify_communities").default(true),
   notifyForums: boolean("notify_forums").default(true),
   notifyFeed: boolean("notify_feed").default(true),
+  bibleChallengeMonth: integer("bible_challenge_month"), // null = not enrolled, 1-12 = active month
+  currentBibleBook: text("current_bible_book"),       // e.g. "Romans"
+  currentBibleChapter: integer("current_bible_chapter"), // e.g. 5 (user's current chapter)
+  bibleBookStartedAt: timestamp("bible_book_started_at"), // when they started this book
   dmPrivacy: text("dm_privacy").default("everyone"),
   emailVerified: boolean("email_verified").default(false),
   smsVerified: boolean("sms_verified").default(false),

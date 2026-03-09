@@ -25,6 +25,7 @@ import { startInactivityNudgeScheduler } from "./services/inactivityNudgeService
 import { startApologeticsNotificationScheduler } from "./services/apologeticsNotificationService";
 import { startDailyVerseScheduler } from "./services/dailyVerseNotificationService";
 import { startMilestoneScheduler } from "./services/communityMilestoneService";
+import { startBibleChallengeScheduler } from "./services/bibleChallengeNotificationService";
 import compression from "compression";
 
 // Hold a module-level reference to the Sentry SDK when initialized so
@@ -379,6 +380,10 @@ async function bootstrap() {
     // Start community milestone notifications (every 6 hours)
     startMilestoneScheduler();
     console.info('✅ Community milestone scheduler started');
+
+    // Start Bible Challenge daily reminder (8-9 AM UTC)
+    startBibleChallengeScheduler();
+    console.info('✅ Bible Challenge notification scheduler started');
   });
 }
 

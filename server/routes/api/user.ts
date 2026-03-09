@@ -106,8 +106,9 @@ router.patch('/profile', async (req, res, next) => {
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
-      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age, gender, culturalBackground, lifeStage
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests, activities,
+      birthday, age, gender, culturalBackground, lifeStage, bibleChallengeMonth,
+      currentBibleBook, currentBibleChapter
     } = req.body;
 
     // Only allow updating specific fields
@@ -125,6 +126,28 @@ router.patch('/profile', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (activities !== undefined) updateData.activities = activities;
+    if (bibleChallengeMonth !== undefined) {
+      const m = bibleChallengeMonth === null ? null : Number(bibleChallengeMonth);
+      if (m === null || (Number.isInteger(m) && m >= 1 && m <= 12)) {
+        updateData.bibleChallengeMonth = m;
+      }
+    }
+    if (currentBibleBook !== undefined) {
+      updateData.currentBibleBook = currentBibleBook || null;
+      if (currentBibleBook) {
+        updateData.bibleBookStartedAt = new Date();
+      } else {
+        updateData.currentBibleChapter = null;
+        updateData.bibleBookStartedAt = null;
+      }
+    }
+    if (currentBibleChapter !== undefined) {
+      const ch = currentBibleChapter === null ? null : Number(currentBibleChapter);
+      if (ch === null || (Number.isInteger(ch) && ch >= 1)) {
+        updateData.currentBibleChapter = ch;
+      }
+    }
     if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
       updateData.gender = gender;
     }
@@ -209,8 +232,9 @@ router.patch('/:id', async (req, res, next) => {
     const {
       displayName, bio, avatarUrl, email, city, state, zipCode,
       profileVisibility, showLocation, showInterests,
-      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests,
-      birthday, age, gender, culturalBackground, lifeStage
+      location, denomination, homeChurch, favoriteBibleVerse, testimony, interests, activities,
+      birthday, age, gender, culturalBackground, lifeStage, bibleChallengeMonth,
+      currentBibleBook, currentBibleChapter
     } = req.body;
 
     // Only allow updating specific fields
@@ -228,6 +252,28 @@ router.patch('/:id', async (req, res, next) => {
     if (favoriteBibleVerse !== undefined) updateData.favoriteBibleVerse = favoriteBibleVerse;
     if (testimony !== undefined) updateData.testimony = testimony;
     if (interests !== undefined) updateData.interests = interests;
+    if (activities !== undefined) updateData.activities = activities;
+    if (bibleChallengeMonth !== undefined) {
+      const m = bibleChallengeMonth === null ? null : Number(bibleChallengeMonth);
+      if (m === null || (Number.isInteger(m) && m >= 1 && m <= 12)) {
+        updateData.bibleChallengeMonth = m;
+      }
+    }
+    if (currentBibleBook !== undefined) {
+      updateData.currentBibleBook = currentBibleBook || null;
+      if (currentBibleBook) {
+        updateData.bibleBookStartedAt = new Date();
+      } else {
+        updateData.currentBibleChapter = null;
+        updateData.bibleBookStartedAt = null;
+      }
+    }
+    if (currentBibleChapter !== undefined) {
+      const ch = currentBibleChapter === null ? null : Number(currentBibleChapter);
+      if (ch === null || (Number.isInteger(ch) && ch >= 1)) {
+        updateData.currentBibleChapter = ch;
+      }
+    }
     if (gender !== undefined && (gender === null || gender === 'male' || gender === 'female')) {
       updateData.gender = gender;
     }
