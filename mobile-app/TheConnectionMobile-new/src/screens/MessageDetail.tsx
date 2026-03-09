@@ -141,7 +141,8 @@ function useSharedLinkPreview(link: SharedLink | null) {
 }
 
 // Shared link preview card component
-function SharedLinkPreviewCard({ link, isMe, colors, router }: { link: SharedLink; isMe: boolean; colors: any; router: any }) {
+function SharedLinkPreviewCard({ link, isMe, colors }: { link: SharedLink; isMe: boolean; colors: any }) {
+  const router = useRouter();
   const preview = useSharedLinkPreview(link);
   const title = preview?.title || link.label;
   const snippet = preview?.snippet || '';
@@ -316,10 +317,9 @@ interface MessageBubbleProps {
   onLongPress: () => void;
   onDoubleTap: () => void;
   hasReaction?: boolean;
-  router: any;
 }
 
-function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, radii, onLongPress, onDoubleTap, hasReaction, router }: MessageBubbleProps) {
+function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, radii, onLongPress, onDoubleTap, hasReaction }: MessageBubbleProps) {
   const lastTapRef = useRef<number>(0);
   const DOUBLE_TAP_DELAY = 300; // ms
 
@@ -482,7 +482,7 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
                       {textContent}
                     </Text>
                   ) : null}
-                  <SharedLinkPreviewCard link={link} isMe={isMe} colors={colors} router={router} />
+                  <SharedLinkPreviewCard link={link} isMe={isMe} colors={colors} />
                 </View>
               );
             }
@@ -946,7 +946,6 @@ export function MessageDetail({
 }: MessageDetailProps) {
   const { colors, spacing, radii } = useTheme();
   const { user: currentUser } = useAuth();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [messageText, setMessageText] = useState('');
@@ -1250,7 +1249,6 @@ export function MessageDetail({
         onLongPress={() => handleMessageLongPress(item)}
         onDoubleTap={() => handleToggleReaction(item.id)}
         hasReaction={myReactions.has(item.id)}
-        router={router}
       />
     );
   };
