@@ -93,6 +93,103 @@ function detectSharedLink(content: string): { link: SharedLink | null; textConte
   };
 }
 
+// Fetch preview data for a shared link
+function useSharedLinkPreview(link: SharedLink | null) {
+  const [preview, setPreview] = useState<{ title: string; snippet: string } | null>(null);
+
+  useEffect(() => {
+    if (!link) return;
+
+    const fetchMap: Record<SharedLink['type'], string> = {
+      apologetics: `/api/apologetics/answers/${link.id}`,
+      advice: `/api/microblogs/${link.id}`,
+      post: `/api/posts/${link.id}`,
+      event: `/api/events/${link.id}`,
+      question: `/api/apologetics/questions/${link.id}`,
+    };
+
+    const url = fetchMap[link.type];
+    if (!url) return;
+
+    apiClient.get(url).then(res => {
+      const data = res.data;
+      let title = '';
+      let snippet = '';
+
+      if (link.type === 'apologetics') {
+        title = data.question?.title || data.title || 'Apologetics Answer';
+        snippet = (data.content || data.answer || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      } else if (link.type === 'advice') {
+        title = 'Advice Post';
+        snippet = (data.content || '').slice(0, 120);
+      } else if (link.type === 'post') {
+        title = data.title || 'Post';
+        snippet = (data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      } else if (link.type === 'event') {
+        title = data.title || 'Event';
+        snippet = data.description ? data.description.slice(0, 120) : (data.location || '');
+      } else if (link.type === 'question') {
+        title = data.title || 'Question';
+        snippet = (data.content || data.body || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      }
+
+      setPreview({ title, snippet: snippet ? (snippet.length >= 120 ? snippet + '…' : snippet) : '' });
+    }).catch(() => {});
+  }, [link?.type, link?.id]);
+
+  return preview;
+}
+
+// Shared link preview card component
+function SharedLinkPreviewCard({ link, isMe, colors, router }: { link: SharedLink; isMe: boolean; colors: any; router: any }) {
+  const preview = useSharedLinkPreview(link);
+  const title = preview?.title || link.label;
+  const snippet = preview?.snippet || '';
+
+  return (
+    <Pressable
+      onPress={() => router.push(link.route)}
+      style={{
+        backgroundColor: isMe ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)',
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Accent bar at top */}
+      <View style={{
+        height: 3,
+        backgroundColor: isMe ? 'rgba(255,255,255,0.3)' : colors.primary,
+      }} />
+      <View style={{ padding: 12, gap: 6 }}>
+        {/* Type label */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name={link.icon as any} size={14} color={isMe ? 'rgba(255,255,255,0.6)' : colors.primary} />
+          <Text style={{ fontSize: 11, fontWeight: '600', color: isMe ? 'rgba(255,255,255,0.6)' : colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            {link.label}
+          </Text>
+        </View>
+        {/* Title */}
+        <Text style={{ fontSize: 15, fontWeight: '700', color: isMe ? '#fff' : colors.textPrimary }} numberOfLines={2}>
+          {title}
+        </Text>
+        {/* Snippet */}
+        {snippet ? (
+          <Text style={{ fontSize: 13, color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary, lineHeight: 18 }} numberOfLines={3}>
+            {snippet}
+          </Text>
+        ) : null}
+        {/* Tap hint */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: isMe ? 'rgba(255,255,255,0.5)' : colors.textMuted }}>
+            Tap to read more
+          </Text>
+          <Ionicons name="chevron-forward" size={12} color={isMe ? 'rgba(255,255,255,0.4)' : colors.textMuted} style={{ marginLeft: 2 }} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -381,41 +478,11 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
               return (
                 <View>
                   {textContent ? (
-                    <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15, marginBottom: 8 }}>
+                    <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15, marginBottom: 10 }}>
                       {textContent}
                     </Text>
                   ) : null}
-                  <Pressable
-                    onPress={() => router.push(link.route)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: isMe ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)',
-                      borderRadius: 10,
-                      padding: 12,
-                      gap: 10,
-                    }}
-                  >
-                    <View style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : colors.primary + '18',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Ionicons name={link.icon as any} size={18} color={isMe ? '#fff' : colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '500', color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }}>
-                        {link.label}
-                      </Text>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: isMe ? '#fff' : colors.textPrimary }} numberOfLines={1}>
-                        Tap to view
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={isMe ? 'rgba(255,255,255,0.6)' : colors.textMuted} />
-                  </Pressable>
+                  <SharedLinkPreviewCard link={link} isMe={isMe} colors={colors} router={router} />
                 </View>
               );
             }
