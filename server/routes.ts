@@ -2883,16 +2883,17 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
   // Error handling middleware
   app.use((error: any, req: any, res: any, next: any) => {
     console.error('API Error:', error);
-    
+
     if (error.name === 'ZodError') {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: error.issues 
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: error.issues
       });
     }
-    
-    res.status(500).json({ 
-      message: 'Internal server error',
+
+    const statusCode = error.status || error.statusCode || 500;
+    res.status(statusCode).json({
+      message: error.message || 'Internal server error',
       ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     });
   });
