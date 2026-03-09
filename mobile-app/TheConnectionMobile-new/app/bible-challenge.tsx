@@ -24,6 +24,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CircleHelp, Clock, Hash, Info, Lock, Search, Trophy, Users, X } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useAuth } from '../src/contexts/AuthContext';
@@ -389,6 +390,17 @@ export default function BibleChallengeScreen() {
   const serverBook = (user as any)?.currentBibleBook || null;
   const currentBook = localBook !== undefined ? localBook : serverBook;
 
+  // Social reading data (friends & communities)
+  const [friendsReading, setFriendsReading] = useState<any[]>([]);
+  const [communityReading, setCommunityReading] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiClient.get('/api/bible/social-reading').then(res => {
+      setFriendsReading(res.data?.friendsReading || []);
+      setCommunityReading(res.data?.communityReading || []);
+    }).catch(() => {});
+  }, []);
+
   // Load completed books from storage
   useEffect(() => {
     AsyncStorage.getItem(COMPLETED_BOOKS_KEY).then(raw => {
@@ -719,15 +731,33 @@ export default function BibleChallengeScreen() {
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        {/* Header — outside ScrollView so it's flush with SafeArea */}
+        <View style={[styles.readingHeader, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.heroBack}>
+            <ArrowLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={[styles.readingHeaderTitle, { color: colors.textPrimary }]}>My Bible Reading</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={[styles.readingHeader, { backgroundColor: colors.surface, borderBottomColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.heroBack}>
-              <ArrowLeft size={22} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={[styles.readingHeaderTitle, { color: colors.textPrimary }]}>My Bible Reading</Text>
-            <View style={{ width: 40 }} />
-          </View>
+          {/* Bible Challenge toggle */}
+          <TouchableOpacity
+            style={[styles.challengeToggle, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}
+            onPress={() => setShowChallenge(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.challengeToggleIcon, { backgroundColor: '#FFD700' + '20' }]}>
+              <Trophy size={18} color="#FFD700" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.challengeToggleTitle, { color: colors.textPrimary }]}>Bible Challenge</Text>
+              <Text style={[styles.challengeToggleSub, { color: colors.textSecondary }]}>
+                Month {activeMonth}: {plan.title} · {Math.round(progressPct * 100)}% complete
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
 
           {/* Main card — everything in one connected container */}
           <View style={[styles.mainReadingCard, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
@@ -858,23 +888,139 @@ export default function BibleChallengeScreen() {
             </View>
           )}
 
-          {/* Bible Challenge toggle */}
-          <TouchableOpacity
-            style={[styles.challengeToggle, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}
-            onPress={() => setShowChallenge(true)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.challengeToggleIcon, { backgroundColor: '#FFD700' + '20' }]}>
-              <Trophy size={18} color="#FFD700" />
+          {/* Friends Reading Section */}
+          <View style={{ marginHorizontal: 16, marginTop: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Users size={16} color={colors.textSecondary} />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>Friends Are Reading</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.challengeToggleTitle, { color: colors.textPrimary }]}>Bible Challenge</Text>
-              <Text style={[styles.challengeToggleSub, { color: colors.textSecondary }]}>
-                Month {activeMonth}: {plan.title} · {Math.round(progressPct * 100)}% complete
-              </Text>
+            {friendsReading.length > 0 ? friendsReading.map((friend: any) => (
+              <View
+                key={friend.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  backgroundColor: isDark ? '#1E1D22' : '#f8f5f0',
+                  borderRadius: 12,
+                  marginBottom: 8,
+                  gap: 12,
+                }}
+              >
+                {friend.avatarUrl ? (
+                  <Image source={{ uri: friend.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                ) : (
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#3D3B44' : '#e0d8cc', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#D4D0C8' : '#6E6A62' }}>
+                      {(friend.displayName || friend.username || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>
+                    {friend.displayName || friend.username}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                    {friend.currentBibleBook}{friend.currentBibleChapter ? ` · Ch. ${friend.currentBibleChapter}` : ''}
+                  </Text>
+                </View>
+                <BookOpen size={16} color={accentFill} />
+              </View>
+            )) : (
+              <View style={{ paddingVertical: 16, paddingHorizontal: 14, backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center' }}>
+                  When your friends set what they're reading, you'll see it here.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Community Reading Section */}
+          <View style={{ marginHorizontal: 16, marginTop: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <BookOpen size={16} color={colors.textSecondary} />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>Community Reading</Text>
             </View>
-            <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+            {communityReading.length > 0 ? communityReading.map((community: any) => (
+              <View key={community.communityId} style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, marginLeft: 2 }}>
+                  {community.communityName}
+                </Text>
+                {/* Community-set book (by organizer) */}
+                {community.communityBook && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      backgroundColor: isDark ? 'rgba(232, 196, 118, 0.08)' : 'rgba(232, 196, 118, 0.12)',
+                      borderRadius: 12,
+                      marginBottom: 8,
+                      gap: 12,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(232, 196, 118, 0.2)' : 'rgba(232, 196, 118, 0.3)',
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#8B6914' : '#E8C476', alignItems: 'center', justifyContent: 'center' }}>
+                      <BookOpen size={16} color={isDark ? '#E8C476' : '#fff'} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: accentFill, marginBottom: 1 }}>
+                        Reading Together
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>
+                        {community.communityBook}{community.communityChapter ? ` ${community.communityChapter}` : ''}
+                      </Text>
+                    </View>
+                    <BookOpen size={16} color={accentFill} />
+                  </View>
+                )}
+                {/* Individual member reading */}
+                {community.readers.map((reader: any) => (
+                  <View
+                    key={reader.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                      backgroundColor: isDark ? '#1E1D22' : '#f8f5f0',
+                      borderRadius: 12,
+                      marginBottom: 8,
+                      gap: 12,
+                    }}
+                  >
+                    {reader.avatarUrl ? (
+                      <Image source={{ uri: reader.avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                    ) : (
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#3D3B44' : '#e0d8cc', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#D4D0C8' : '#6E6A62' }}>
+                          {(reader.displayName || reader.username || '?').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>
+                        {reader.displayName || reader.username}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                        {reader.currentBibleBook}{reader.currentBibleChapter ? ` · Ch. ${reader.currentBibleChapter}` : ''}
+                      </Text>
+                    </View>
+                    <BookOpen size={16} color={accentFill} />
+                  </View>
+                ))}
+              </View>
+            )) : (
+              <View style={{ paddingVertical: 16, paddingHorizontal: 14, backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center' }}>
+                  When community members set what they're reading, you'll see it here.
+                </Text>
+              </View>
+            )}
+          </View>
 
           <View style={{ height: 30 }} />
         </ScrollView>
@@ -1304,8 +1450,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
+    height: 48,
   },
   readingHeaderTitle: {
     fontSize: 18,

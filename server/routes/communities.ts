@@ -1619,7 +1619,9 @@ router.patch('/communities/:id', requireAuth, async (req, res) => {
       hasPrivateWall,
       hasPublicWall,
       bannerUrl,
-      avatarUrl
+      avatarUrl,
+      currentBibleBook,
+      currentBibleChapter,
     } = req.body;
 
     const updateData: any = {};
@@ -1637,6 +1639,8 @@ router.patch('/communities/:id', requireAuth, async (req, res) => {
     if (hasPublicWall !== undefined) updateData.hasPublicWall = hasPublicWall;
     if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (currentBibleBook !== undefined) updateData.currentBibleBook = currentBibleBook;
+    if (currentBibleChapter !== undefined) updateData.currentBibleChapter = currentBibleChapter;
 
     const updatedCommunity = await storage.updateCommunity(communityId, updateData);
 

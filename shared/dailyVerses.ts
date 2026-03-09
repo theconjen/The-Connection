@@ -83,7 +83,7 @@ export const DAILY_VERSE_REFERENCES: string[] = [
   'Colossians 3:2',          // 66
   'James 4:8',               // 67
   'Psalm 19:14',             // 68
-  'Proverbs 11:25',          // 69
+  'James 4:6',               // 69
   'Ephesians 4:32',          // 70
   'Mark 10:27',              // 71
   'Psalm 62:1-2',            // 72

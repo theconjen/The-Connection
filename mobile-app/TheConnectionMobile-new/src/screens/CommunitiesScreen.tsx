@@ -23,7 +23,8 @@ import { ChannelCard, AddChannelCard, Channel } from './ChannelCard';
 import { fetchCommunities } from '../services/communitiesService';
 import { getCurrentLocation, formatDistance, hasLocationPermission } from '../services/locationService';
 import { useQuery } from '@tanstack/react-query';
-import { communitiesAPI } from '../lib/apiClient';
+import apiClient, { communitiesAPI } from '../lib/apiClient';
+import { useAuth } from '../contexts/AuthContext';
 import { getLocationPermissionGranted, getLastKnownCoords } from '../utils/onboardingPrefs';
 
 // Helper to create a light/pastel background from a hex color
@@ -764,6 +765,7 @@ export function CommunitiesScreen({
   onStartHerePress,
 }: CommunitiesScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
+  const { user: currentUser } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -774,11 +776,19 @@ export function CommunitiesScreen({
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [hasLocationPerm, setHasLocationPerm] = useState(false);
 
-  // Fetch user's communities for "Your Communities" section
+  // Fetch all communities (for discovery / recommendations)
   const { data: userCommunities = [], refetch: refetchCommunities } = useQuery({
     queryKey: ['/api/communities'],
     queryFn: communitiesAPI.getAll,
-    staleTime: 0, // Always fetch fresh data to ensure membership status is current
+    staleTime: 0,
+  });
+
+  // Fetch the current user's own communities directly — guarantees private communities appear
+  const { data: myCommunities = [] } = useQuery({
+    queryKey: ['my-communities', currentUser?.id],
+    queryFn: () => apiClient.get(`/api/users/${currentUser!.id}/communities`).then(res => res.data),
+    enabled: !!currentUser?.id,
+    staleTime: 0,
   });
 
   // Fetch personalized recommendations (interests, location, demographics, denomination)
@@ -789,27 +799,54 @@ export function CommunitiesScreen({
   });
 
   // Map communities to channels format for the horizontal scroll
+  // Merge: use myCommunities (always accurate) plus any isMember from the main list
   const userChannels: Channel[] = React.useMemo(() => {
-    // Ensure userCommunities is an array before filtering
-    if (!userCommunities || !Array.isArray(userCommunities)) {
-      return [];
+    const channelMap = new Map<number, Channel>();
+
+    // First, add communities from the dedicated "my communities" endpoint
+    if (Array.isArray(myCommunities)) {
+      myCommunities.forEach((community: any) => {
+        channelMap.set(community.id, {
+          id: community.id,
+          name: community.name,
+          members: community.memberCount >= 1000
+            ? `${(community.memberCount / 1000).toFixed(1)}k`
+            : `${community.memberCount || 0}`,
+          icon: community.name.charAt(0).toUpperCase(),
+          iconName: community.iconName || undefined,
+          isJoined: true,
+          communityId: community.id,
+          slug: community.slug,
+          color: community.iconColor,
+        });
+      });
     }
-    return userCommunities
-      .filter((community: any) => community.isMember)
-      .slice(0, 10)
-      .map((community: any) => ({
-        id: community.id,
-        name: community.name,
-        members: community.memberCount >= 1000
-          ? `${(community.memberCount / 1000).toFixed(1)}k`
-          : `${community.memberCount || 0}`,
-        icon: community.name.charAt(0).toUpperCase(),
-        isJoined: true,
-        communityId: community.id,
-        slug: community.slug,
-        color: community.iconColor, // Use community's brand color
-      }));
-  }, [userCommunities]);
+
+    // Then, add any isMember communities from the main list (deduped)
+    if (Array.isArray(userCommunities)) {
+      userCommunities
+        .filter((community: any) => community.isMember)
+        .forEach((community: any) => {
+          if (!channelMap.has(community.id)) {
+            channelMap.set(community.id, {
+              id: community.id,
+              name: community.name,
+              members: community.memberCount >= 1000
+                ? `${(community.memberCount / 1000).toFixed(1)}k`
+                : `${community.memberCount || 0}`,
+              icon: community.name.charAt(0).toUpperCase(),
+              iconName: community.iconName || undefined,
+              isJoined: true,
+              communityId: community.id,
+              slug: community.slug,
+              color: community.iconColor,
+            });
+          }
+        });
+    }
+
+    return Array.from(channelMap.values()).slice(0, 10);
+  }, [userCommunities, myCommunities]);
 
   const getActiveFilterCount = () => {
     // Exclude distance filters from the count (they're location-based, not user selections)

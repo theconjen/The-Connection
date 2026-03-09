@@ -184,11 +184,12 @@ router.get('/posts/for-you', requireAuth, async (req, res) => {
     if (!user) return res.json({ posts: { items: [], total: 0 } });
 
     // Get all published posts
-    const allPosts = await storage.listLibraryPosts({
+    const allPostsResult = await storage.listLibraryPosts({
       status: 'published',
       limit: 100,
       offset: 0,
     });
+    const allPosts = allPostsResult.items;
 
     // Get adaptive interests
     let adaptiveInterests: Record<string, number> = {};

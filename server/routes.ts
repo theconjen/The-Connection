@@ -115,6 +115,7 @@ import messagesRoutes from './routes/messages';
 import notificationsRoutes from './routes/notifications';
 import publicRoutes from './routes/public';
 import wellKnownRoutes from './routes/well-known';
+import bibleRoutes from './routes/bible';
 import clergyVerificationRoutes from './routes/clergy-verification';
 import { ogMetaMiddleware } from './middleware/og-meta';
 
@@ -643,6 +644,7 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
     app.use('/api', moderationRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api', followRoutes);
+    app.use('/api', bibleRoutes); // Bible social reading routes
     app.use('/api', uploadRoutes); // File upload routes (GCS)
   }
 

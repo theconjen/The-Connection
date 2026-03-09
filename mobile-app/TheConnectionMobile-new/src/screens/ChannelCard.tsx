@@ -3,8 +3,9 @@
  * Displays community/channel cards in horizontal scroll
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text,  } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -17,6 +18,7 @@ export interface Channel {
   name: string;
   members: string;
   icon: string;
+  iconName?: string; // Ionicons icon name chosen by the community
   isJoined: boolean;
   communityId?: number; // Link to community for navigation
   slug?: string; // Community slug
@@ -49,7 +51,7 @@ interface ChannelCardProps {
   onPress?: (channel: Channel) => void; // Navigate to channel/community
 }
 
-export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps) {
+export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps) {
   const { colors, spacing, radii, shadows } = useTheme();
   const [isJoined, setIsJoined] = useState(channel.isJoined);
 
@@ -69,40 +71,48 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
       onPress={handlePress}
       style={({ pressed }) => [
         {
-          width: 96,
-          height: 96,
+          width: 90,
+          height: 90,
           backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: pressed ? colors.accent : colors.borderSubtle,
           borderRadius: radii.lg,
-          padding: spacing.sm,
+          paddingTop: 12,
+          paddingBottom: 8,
+          paddingHorizontal: spacing.xs,
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.xs,
         },
       ]}
     >
-      {/* Channel Icon */}
-      <View style={{ position: 'relative' }}>
+      {/* Channel Icon — fixed position at top */}
+      <View style={{ position: 'relative', marginBottom: 6 }}>
         <View
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
+            width: 34,
+            height: 34,
+            borderRadius: 17,
             backgroundColor: channel.color || colors.secondary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text
-            style={{
-              color: channel.color ? getContrastColor(channel.color) : colors.secondaryForeground,
-              fontSize: 16,
-              fontWeight: '600',
-            }}
-          >
-            {channel.icon}
-          </Text>
+          {channel.iconName ? (
+            <Ionicons
+              name={channel.iconName as any}
+              size={16}
+              color={channel.color ? getContrastColor(channel.color) : colors.secondaryForeground}
+            />
+          ) : (
+            <Text
+              style={{
+                color: channel.color ? getContrastColor(channel.color) : colors.secondaryForeground,
+                fontSize: 14,
+                fontWeight: '600',
+              }}
+            >
+              {channel.icon}
+            </Text>
+          )}
         </View>
 
         {/* Joined Checkmark */}
@@ -125,25 +135,20 @@ export function ChannelCard({ channel, onToggleJoin, onPress }: ChannelCardProps
         )}
       </View>
 
-      {/* Channel Name */}
+      {/* Channel Name — fills remaining space */}
       <Text
         variant="caption"
-        numberOfLines={1}
+        numberOfLines={2}
         style={{ textAlign: 'center', width: '100%' }}
       >
         {channel.name}
       </Text>
-
-      {/* Member Count */}
-      <Text variant="caption" color="textMuted">
-        {channel.members}
-      </Text>
     </Pressable>
   );
-}
+});
 
-// Add Channel Button - for discovering new communities (opens filters)
-export function AddChannelCard({
+// Find Communities Button - for discovering new communities (opens filters)
+export const AddChannelCard = memo(function AddChannelCard({
   onPress,
   activeFilterCount = 0
 }: {
@@ -157,56 +162,57 @@ export function AddChannelCard({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          width: 96,
-          height: 96,
-          borderWidth: 2,
-          borderColor: colors.primary,
+          width: 90,
+          height: 90,
+          borderWidth: 1,
+          borderColor: colors.borderSubtle,
           borderRadius: radii.lg,
+          paddingTop: 14,
+          paddingBottom: 8,
+          paddingHorizontal: spacing.xs,
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.xs,
-          backgroundColor: pressed ? colors.primary + '15' : colors.primary + '08',
+          backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
         },
       ]}
     >
-      <View style={{ position: 'relative' }}>
+      <View style={{ position: 'relative', marginBottom: 6 }}>
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.primary,
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            backgroundColor: colors.surfaceMuted,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={{ fontSize: 22, color: colors.primaryForeground, fontWeight: '300' }}>+</Text>
+          <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
         </View>
-        {/* Filter count badge */}
+        {/* Filter count badge - subtle neutral style */}
         {activeFilterCount > 0 && (
           <View
             style={{
               position: 'absolute',
-              top: -6,
-              right: -6,
-              minWidth: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: colors.destructive || '#EF4444',
+              top: -4,
+              right: -4,
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              backgroundColor: colors.textMuted,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingHorizontal: 4,
+              paddingHorizontal: 3,
             }}
           >
-            <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}>
+            <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '600' }}>
               {activeFilterCount}
             </Text>
           </View>
         )}
       </View>
-      <Text variant="caption" style={{ color: colors.primary, fontWeight: '600' }}>
-        Discover
+      <Text variant="caption" style={{ color: colors.textSecondary, fontWeight: '500', textAlign: 'center', lineHeight: 13 }}>
+        Find{'\n'}Communities
       </Text>
     </Pressable>
   );
-}
+});

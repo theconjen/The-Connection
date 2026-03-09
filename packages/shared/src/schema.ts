@@ -353,6 +353,9 @@ export const communities = pgTable("communities", {
   // Sub-communities
   parentCommunityId: integer("parent_community_id"), // Self-reference for sub-communities
   inviteCode: text("invite_code").unique(),
+  // Community Bible reading (set by organizer)
+  currentBibleBook: text("current_bible_book"),
+  currentBibleChapter: integer("current_bible_chapter"),
   createdAt: timestamp("created_at").defaultNow(),
   deletedAt: timestamp("deleted_at"),
   createdBy: integer("created_by").references(() => users.id),
