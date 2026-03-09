@@ -207,7 +207,7 @@ class StorageSafety {
     'getBibleReadingProgress', 'createBibleReadingProgress', 'markDayCompleted',
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
     'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
-    'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount',
+    'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount', 'isConversationMuted',
     'updateUserPreferences', 'getUserPreferences', 'bookmarkPost', 'unbookmarkPost',
     'getUserBookmarkedPosts', 'hasUserBookmarkedPost', 'togglePostVote', 'toggleCommentVote',
     'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock',
@@ -546,6 +546,7 @@ export interface IStorage {
   markMessageAsRead(messageId: string, userId: number): Promise<boolean>;
   markConversationAsRead(userId: number, otherUserId: number): Promise<number>;
   getUnreadMessageCount(userId: number): Promise<number>;
+  isConversationMuted(userId: number, mutedUserId: number): Promise<boolean>;
   // Push notification methods
   savePushToken(token: { userId: number; token: string; platform?: string; lastUsed?: Date }): Promise<any>;
   getUserPushTokens(userId: number): Promise<any[]>;
@@ -5984,6 +5985,18 @@ export class DbStorage implements IStorage {
       );
 
     return result[0]?.count || 0;
+  }
+
+  async isConversationMuted(userId: number, mutedUserId: number): Promise<boolean> {
+    const { mutedConversations } = await import('@shared/schema');
+    const result = await db.select({ id: mutedConversations.id })
+      .from(mutedConversations)
+      .where(and(
+        eq(mutedConversations.userId, userId),
+        eq(mutedConversations.mutedUserId, mutedUserId),
+      ))
+      .limit(1);
+    return result.length > 0;
   }
 
   // Get a single message by ID
