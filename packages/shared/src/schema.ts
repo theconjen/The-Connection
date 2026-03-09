@@ -126,6 +126,10 @@ export const users = pgTable("users", {
   deletedAt: timestamp("deleted_at"),
   updatedAt: timestamp("updated_at").defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
+  isSuspended: boolean("is_suspended").default(false),
+  suspendedAt: timestamp("suspended_at"),
+  suspensionReason: text("suspension_reason"),
+  reportCount: integer("report_count").default(0),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -539,6 +543,25 @@ export const insertCommunityWallPostSchema = createInsertSchema(communityWallPos
   content: true,
   imageUrl: true,
   isPrivate: true,
+} as any);
+
+export const communityWallPostLikes = pgTable("community_wall_post_likes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => communityWallPosts.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueLike: uniqueIndex("wall_post_likes_unique_idx").on(table.postId, table.userId),
+}));
+
+export const communityWallPostComments = pgTable("community_wall_post_comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => communityWallPosts.id, { onDelete: 'cascade' }),
+  authorId: integer("author_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  parentId: integer("parent_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 } as any);
 
 // Groups table schema (private groups)

@@ -208,6 +208,11 @@ class StorageSafety {
     'getBibleStudyNotes', 'getBibleStudyNote', 'createBibleStudyNote',
     'updateBibleStudyNote', 'deleteBibleStudyNote', 'getDirectMessages', 'createDirectMessage',
     'getUserConversations', 'markMessageAsRead', 'markConversationAsRead', 'getUnreadMessageCount', 'isConversationMuted',
+    'muteConversation', 'unmuteConversation', 'getMutedConversations', 'deleteDirectMessage',
+    'toggleCommunityWallPostLike', 'getCommunityWallPostComments', 'createCommunityWallPostComment', 'getCommunityMemberCount',
+    'createUserReport', 'getUserReportByReporterAndReported', 'getUserReportCount', 'incrementUserReportCount', 'getUserReports',
+    'suspendUser', 'unsuspendUser', 'getSuspendedUsers',
+    'confirmEventAttendance', 'getPendingAttendanceConfirmations', 'getConfirmedAttendedEvents',
     'updateUserPreferences', 'getUserPreferences', 'bookmarkPost', 'unbookmarkPost',
     'getUserBookmarkedPosts', 'hasUserBookmarkedPost', 'togglePostVote', 'toggleCommentVote',
     'createContentReport', 'createUserBlock', 'getBlockedUserIdsFor', 'removeUserBlock',
@@ -547,6 +552,28 @@ export interface IStorage {
   markConversationAsRead(userId: number, otherUserId: number): Promise<number>;
   getUnreadMessageCount(userId: number): Promise<number>;
   isConversationMuted(userId: number, mutedUserId: number): Promise<boolean>;
+  muteConversation(userId: number, mutedUserId: number): Promise<boolean>;
+  unmuteConversation(userId: number, mutedUserId: number): Promise<boolean>;
+  getMutedConversations(userId: number): Promise<number[]>;
+  deleteDirectMessage(messageId: number, userId: number): Promise<boolean>;
+  // Community wall post methods
+  toggleCommunityWallPostLike(postId: number, userId: number): Promise<{ liked: boolean; likeCount: number }>;
+  getCommunityWallPostComments(postId: number): Promise<any[]>;
+  createCommunityWallPostComment(data: { postId: number; authorId: number; content: string; parentId?: number | null }): Promise<any>;
+  getCommunityMemberCount(communityId: number): Promise<number>;
+  // User reporting & safety methods
+  createUserReport(data: any): Promise<any>;
+  getUserReportByReporterAndReported(reporterId: number, reportedUserId: number): Promise<any | null>;
+  getUserReportCount(userId: number): Promise<number>;
+  incrementUserReportCount(userId: number): Promise<void>;
+  getUserReports(userId: number): Promise<any[]>;
+  suspendUser(userId: number, reason: string): Promise<void>;
+  unsuspendUser(userId: number): Promise<void>;
+  getSuspendedUsers(): Promise<any[]>;
+  // Event attendance confirmation methods
+  confirmEventAttendance(eventId: number, userId: number): Promise<any>;
+  getPendingAttendanceConfirmations(userId: number): Promise<any[]>;
+  getConfirmedAttendedEvents(userId: number): Promise<any[]>;
   // Push notification methods
   savePushToken(token: { userId: number; token: string; platform?: string; lastUsed?: Date }): Promise<any>;
   getUserPushTokens(userId: number): Promise<any[]>;
@@ -5997,6 +6024,235 @@ export class DbStorage implements IStorage {
       ))
       .limit(1);
     return result.length > 0;
+  }
+
+  async muteConversation(userId: number, mutedUserId: number): Promise<boolean> {
+    const { mutedConversations } = await import('@shared/schema');
+    try {
+      await db.insert(mutedConversations).values({ userId, mutedUserId });
+      return true;
+    } catch {
+      return false; // Already muted (unique constraint)
+    }
+  }
+
+  async unmuteConversation(userId: number, mutedUserId: number): Promise<boolean> {
+    const { mutedConversations } = await import('@shared/schema');
+    const result = await db.delete(mutedConversations)
+      .where(and(
+        eq(mutedConversations.userId, userId),
+        eq(mutedConversations.mutedUserId, mutedUserId),
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getMutedConversations(userId: number): Promise<number[]> {
+    const { mutedConversations } = await import('@shared/schema');
+    const result = await db.select({ mutedUserId: mutedConversations.mutedUserId })
+      .from(mutedConversations)
+      .where(eq(mutedConversations.userId, userId));
+    return result.map(r => r.mutedUserId);
+  }
+
+  async deleteDirectMessage(messageId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(messages)
+      .where(and(
+        eq(messages.id, messageId.toString()),
+        eq(messages.senderId, userId),
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  async toggleCommunityWallPostLike(postId: number, userId: number): Promise<{ liked: boolean; likeCount: number }> {
+    const { communityWallPostLikes, communityWallPosts } = await import('@shared/schema');
+
+    // Check if already liked
+    const existing = await db.select({ id: communityWallPostLikes.id })
+      .from(communityWallPostLikes)
+      .where(and(
+        eq(communityWallPostLikes.postId, postId),
+        eq(communityWallPostLikes.userId, userId),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Unlike
+      await db.delete(communityWallPostLikes).where(eq(communityWallPostLikes.id, existing[0].id));
+      await db.update(communityWallPosts)
+        .set({ likeCount: sql`GREATEST(0, COALESCE(${communityWallPosts.likeCount}, 0) - 1)` })
+        .where(eq(communityWallPosts.id, postId));
+      const post = await db.select({ likeCount: communityWallPosts.likeCount }).from(communityWallPosts).where(eq(communityWallPosts.id, postId));
+      return { liked: false, likeCount: post[0]?.likeCount || 0 };
+    } else {
+      // Like
+      await db.insert(communityWallPostLikes).values({ postId, userId });
+      await db.update(communityWallPosts)
+        .set({ likeCount: sql`COALESCE(${communityWallPosts.likeCount}, 0) + 1` })
+        .where(eq(communityWallPosts.id, postId));
+      const post = await db.select({ likeCount: communityWallPosts.likeCount }).from(communityWallPosts).where(eq(communityWallPosts.id, postId));
+      return { liked: true, likeCount: post[0]?.likeCount || 0 };
+    }
+  }
+
+  async getCommunityWallPostComments(postId: number): Promise<any[]> {
+    const { communityWallPostComments } = await import('@shared/schema');
+    const result = await db.select({
+      comment: communityWallPostComments,
+      author: {
+        id: users.id,
+        displayName: users.displayName,
+        username: users.username,
+        avatarUrl: users.avatarUrl,
+      },
+    })
+      .from(communityWallPostComments)
+      .leftJoin(users, eq(communityWallPostComments.authorId, users.id))
+      .where(and(
+        eq(communityWallPostComments.postId, postId),
+        isNull(communityWallPostComments.deletedAt),
+      ))
+      .orderBy(asc(communityWallPostComments.createdAt));
+    return result.map(r => ({ ...r.comment, author: r.author }));
+  }
+
+  async createCommunityWallPostComment(data: { postId: number; authorId: number; content: string; parentId?: number | null }): Promise<any> {
+    const { communityWallPostComments, communityWallPosts } = await import('@shared/schema');
+    const [comment] = await db.insert(communityWallPostComments).values(data).returning();
+    // Increment comment count
+    await db.update(communityWallPosts)
+      .set({ commentCount: sql`COALESCE(${communityWallPosts.commentCount}, 0) + 1` })
+      .where(eq(communityWallPosts.id, data.postId));
+    // Return with author info
+    const author = await this.getUser(data.authorId);
+    return {
+      ...comment,
+      author: author ? { id: author.id, displayName: author.displayName, username: author.username, avatarUrl: author.avatarUrl } : null,
+    };
+  }
+
+  async getCommunityMemberCount(communityId: number): Promise<number> {
+    const { communityMembers } = await import('@shared/schema');
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(communityMembers)
+      .where(eq(communityMembers.communityId, communityId));
+    return result[0]?.count || 0;
+  }
+
+  async createUserReport(data: any): Promise<any> {
+    const { userReports } = await import('@shared/schema');
+    const [report] = await db.insert(userReports).values(data).returning();
+    return report;
+  }
+
+  async getUserReportByReporterAndReported(reporterId: number, reportedUserId: number): Promise<any | null> {
+    const { userReports } = await import('@shared/schema');
+    const result = await db.select()
+      .from(userReports)
+      .where(and(
+        eq(userReports.reporterId, reporterId),
+        eq(userReports.reportedUserId, reportedUserId),
+      ))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getUserReportCount(userId: number): Promise<number> {
+    const result = await db.select({ reportCount: users.reportCount })
+      .from(users)
+      .where(eq(users.id, userId));
+    return result[0]?.reportCount || 0;
+  }
+
+  async incrementUserReportCount(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ reportCount: sql`COALESCE(${users.reportCount}, 0) + 1` })
+      .where(eq(users.id, userId));
+  }
+
+  async getUserReports(userId: number): Promise<any[]> {
+    const { userReports } = await import('@shared/schema');
+    return db.select()
+      .from(userReports)
+      .where(eq(userReports.reportedUserId, userId))
+      .orderBy(desc(userReports.createdAt));
+  }
+
+  async suspendUser(userId: number, reason: string): Promise<void> {
+    await db.update(users)
+      .set({
+        isSuspended: true,
+        suspendedAt: new Date(),
+        suspensionReason: reason,
+      } as any)
+      .where(eq(users.id, userId));
+  }
+
+  async unsuspendUser(userId: number): Promise<void> {
+    await db.update(users)
+      .set({
+        isSuspended: false,
+        suspendedAt: null,
+        suspensionReason: null,
+      } as any)
+      .where(eq(users.id, userId));
+  }
+
+  async getSuspendedUsers(): Promise<any[]> {
+    return db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      email: users.email,
+      suspendedAt: users.suspendedAt,
+      suspensionReason: users.suspensionReason,
+      reportCount: users.reportCount,
+    } as any)
+      .from(users)
+      .where(eq(users.isSuspended as any, true))
+      .orderBy(desc(users.createdAt));
+  }
+
+  async confirmEventAttendance(eventId: number, userId: number): Promise<any> {
+    const { eventRsvps } = await import('@shared/schema');
+    const [updated] = await db.update(eventRsvps)
+      .set({ confirmedAt: new Date() })
+      .where(and(
+        eq(eventRsvps.eventId, eventId),
+        eq(eventRsvps.userId, userId),
+      ))
+      .returning();
+    return updated;
+  }
+
+  async getPendingAttendanceConfirmations(userId: number): Promise<any[]> {
+    const { eventRsvps, events } = await import('@shared/schema');
+    const result = await db.select({ event: events, rsvp: eventRsvps })
+      .from(eventRsvps)
+      .innerJoin(events, eq(eventRsvps.eventId, events.id))
+      .where(and(
+        eq(eventRsvps.userId, userId),
+        eq(eventRsvps.status, 'going'),
+        isNull(eventRsvps.confirmedAt),
+        lt(events.eventDate, new Date()),
+      ))
+      .orderBy(desc(events.eventDate));
+    return result.map(r => ({ ...r.event, rsvp: r.rsvp }));
+  }
+
+  async getConfirmedAttendedEvents(userId: number): Promise<any[]> {
+    const { eventRsvps, events } = await import('@shared/schema');
+    const { isNotNull } = await import('drizzle-orm');
+    const result = await db.select({ event: events, rsvp: eventRsvps })
+      .from(eventRsvps)
+      .innerJoin(events, eq(eventRsvps.eventId, events.id))
+      .where(and(
+        eq(eventRsvps.userId, userId),
+        isNotNull(eventRsvps.confirmedAt),
+      ))
+      .orderBy(desc(eventRsvps.confirmedAt));
+    return result.map(r => ({ ...r.event, confirmedAt: r.rsvp.confirmedAt }));
   }
 
   // Get a single message by ID
