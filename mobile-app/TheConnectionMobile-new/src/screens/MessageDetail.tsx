@@ -100,11 +100,12 @@ function useSharedLinkPreview(link: SharedLink | null) {
   useEffect(() => {
     if (!link) return;
 
+    // Use public preview endpoints (no auth needed, cached)
     const fetchMap: Record<SharedLink['type'], string> = {
-      apologetics: `/api/apologetics/answers/${link.id}`,
+      apologetics: `/api/public/apologetics/${link.id}`,
       advice: `/api/microblogs/${link.id}`,
-      post: `/api/posts/${link.id}`,
-      event: `/api/events/${link.id}`,
+      post: `/api/public/posts/${link.id}`,
+      event: `/api/public/events/${link.id}`,
       question: `/api/apologetics/questions/${link.id}`,
     };
 
@@ -117,17 +118,17 @@ function useSharedLinkPreview(link: SharedLink | null) {
       let snippet = '';
 
       if (link.type === 'apologetics') {
-        title = data.question?.title || data.title || 'Apologetics Answer';
-        snippet = (data.content || data.answer || '').replace(/<[^>]*>/g, '').slice(0, 120);
+        title = data.title || 'Apologetics Answer';
+        snippet = (data.quickAnswer || data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
       } else if (link.type === 'advice') {
         title = 'Advice Post';
         snippet = (data.content || '').slice(0, 120);
       } else if (link.type === 'post') {
         title = data.title || 'Post';
-        snippet = (data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
+        snippet = (data.excerpt || data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
       } else if (link.type === 'event') {
         title = data.title || 'Event';
-        snippet = data.description ? data.description.slice(0, 120) : (data.location || '');
+        snippet = data.description ? data.description.replace(/<[^>]*>/g, '').slice(0, 120) : (data.location || '');
       } else if (link.type === 'question') {
         title = data.title || 'Question';
         snippet = (data.content || data.body || '').replace(/<[^>]*>/g, '').slice(0, 120);
