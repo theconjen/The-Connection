@@ -513,6 +513,9 @@ export default function BibleChallengeScreen() {
 
   const isDark = colorScheme === 'dark';
   const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
+  // In dark mode, colors.primary is cream (#FAF8F3) — good for text, bad for fills.
+  // Use gold accent for backgrounds/fills, cream for text labels.
+  const accentFill = isDark ? '#D4A860' : colors.primary;
 
   // Month-specific accent colors for visual variety
   const monthAccents = [
@@ -739,10 +742,10 @@ export default function BibleChallengeScreen() {
               )}
 
               <TouchableOpacity
-                style={[styles.changeBookBtnInline, { backgroundColor: colors.primary + '10' }]}
+                style={[styles.changeBookBtnInline, { backgroundColor: isDark ? '#26252B' : colors.primary + '10', borderWidth: isDark ? 1 : 0, borderColor: '#3D3B44' }]}
                 onPress={() => setShowBookPicker(!showBookPicker)}
               >
-                <Text style={[styles.changeBookText, { color: colors.primary }]}>
+                <Text style={[styles.changeBookText, { color: colors.text }]}>
                   {showBookPicker ? 'Close' : 'Change Book'}
                 </Text>
               </TouchableOpacity>
@@ -759,11 +762,11 @@ export default function BibleChallengeScreen() {
               <View style={styles.mainReadingSection}>
                 <View style={styles.chapterHeaderRow}>
                   <Text style={[styles.sectionCardTitle, { color: colors.text }]}>Chapter Progress</Text>
-                  <Text style={[styles.chapterStatPct, { color: colors.primary }]}>{chapterPct}%</Text>
+                  <Text style={[styles.chapterStatPct, { color: accentFill }]}>{chapterPct}%</Text>
                 </View>
 
                 <View style={[styles.chapterTrack, { backgroundColor: trackBg }]}>
-                  <View style={[styles.chapterFill, { backgroundColor: colors.primary, width: `${chapterPct}%` }]} />
+                  <View style={[styles.chapterFill, { backgroundColor: accentFill, width: `${chapterPct}%` }]} />
                 </View>
 
                 <View style={styles.chapterGrid}>
@@ -775,13 +778,13 @@ export default function BibleChallengeScreen() {
                         style={[
                           styles.chapterDot,
                           {
-                            backgroundColor: isRead ? colors.primary : (isDark ? '#3D3B44' : '#e0d8cc'),
+                            backgroundColor: isRead ? accentFill : (isDark ? '#3D3B44' : '#e0d8cc'),
                           },
                         ]}
                         onPress={() => handleChapterChange(ch === currentChapter ? ch - 1 : ch)}
                         activeOpacity={0.6}
                       >
-                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#9A968E' : '#a09888') }]}>
+                        <Text style={[styles.chapterDotText, { color: isRead ? (isDark ? '#0F0F12' : '#fff') : (isDark ? '#9A968E' : '#a09888') }]}>
                           {ch}
                         </Text>
                       </TouchableOpacity>
@@ -834,7 +837,7 @@ export default function BibleChallengeScreen() {
           {/* What to Expect */}
           {bookInfo && (
             <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
-              <Text style={[styles.aboutTheme, { color: colors.primary }]}>{bookInfo.theme}</Text>
+              <Text style={[styles.aboutTheme, { color: accentFill }]}>{bookInfo.theme}</Text>
               <Text style={[styles.aboutDesc, { color: isDark ? '#B8B4AC' : '#6a6050' }]}>
                 {bookInfo.description}
               </Text>
@@ -951,7 +954,7 @@ export default function BibleChallengeScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.upNextHeader}>
-              <Text style={[styles.upNextLabel, { color: colors.primary }]}>UP NEXT</Text>
+              <Text style={[styles.upNextLabel, { color: accentFill }]}>UP NEXT</Text>
               <Text style={[styles.upNextDay, { color: colors.textSecondary }]}>Day {nextReading.day}</Text>
             </View>
             <Text style={[styles.upNextMain, { color: colors.text }]}>{nextReading.main}</Text>
@@ -963,9 +966,9 @@ export default function BibleChallengeScreen() {
                 {nextReading.commentary}
               </Text>
             ) : null}
-            <View style={[styles.upNextBtn, { backgroundColor: colors.primary + '12' }]}>
-              <Check size={14} color={colors.primary} />
-              <Text style={[styles.upNextBtnText, { color: colors.primary }]}>Mark as Read</Text>
+            <View style={[styles.upNextBtn, { backgroundColor: accentFill + '18' }]}>
+              <Check size={14} color={accentFill} />
+              <Text style={[styles.upNextBtnText, { color: accentFill }]}>Mark as Read</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -998,19 +1001,19 @@ export default function BibleChallengeScreen() {
                 onPress={() => !locked && toggleDay(reading.day)}
                 activeOpacity={locked ? 1 : 0.6}
               >
-                <View style={[styles.checkbox, { backgroundColor: isCompleted ? colors.primary : 'transparent', borderColor: isCompleted ? colors.primary : (isDark ? '#4A4842' : '#d0c8bc') }]}>
+                <View style={[styles.checkbox, { backgroundColor: isCompleted ? accentFill : 'transparent', borderColor: isCompleted ? accentFill : (isDark ? '#3D3B44' : '#d0c8bc') }]}>
                   {isCompleted && <Check size={13} color="#fff" strokeWidth={3} />}
                 </View>
                 <View style={styles.readingInfo}>
-                  <Text style={[styles.mainReading, { color: isCompleted ? colors.primary : colors.text }]}>{reading.main}</Text>
+                  <Text style={[styles.mainReading, { color: isCompleted ? accentFill : colors.text }]}>{reading.main}</Text>
                   <Text style={[styles.subReading, { color: isDark ? '#9A968E' : '#aaa' }]}>{reading.psalm}  ·  {reading.proverb}</Text>
                   {reading.commentary ? (
                     <Text style={[styles.commentaryText, { color: isDark ? '#9A968E' : '#999' }]} numberOfLines={2}>{reading.commentary}</Text>
                   ) : null}
                 </View>
                 {!locked && (
-                  <View style={[styles.dayBadge, { backgroundColor: isCompleted ? colors.primary + '12' : (isDark ? '#1E1D22' : '#f5f0ea') }]}>
-                    <Text style={[styles.dayBadgeText, { color: isCompleted ? colors.primary : (isDark ? '#9A968E' : '#b0a898') }]}>{reading.day}</Text>
+                  <View style={[styles.dayBadge, { backgroundColor: isCompleted ? accentFill + '18' : (isDark ? '#1E1D22' : '#f5f0ea') }]}>
+                    <Text style={[styles.dayBadgeText, { color: isCompleted ? accentFill : (isDark ? '#9A968E' : '#b0a898') }]}>{reading.day}</Text>
                   </View>
                 )}
                 {locked && <Lock size={13} color={isDark ? '#4A4842' : '#ccc'} />}
