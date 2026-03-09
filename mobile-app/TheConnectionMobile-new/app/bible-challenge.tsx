@@ -23,7 +23,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Clock, Hash, Info, Lock, Search, Trophy, Users, X } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CircleHelp, Clock, Hash, Info, Lock, Search, Trophy, Users, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { useAuth } from '../src/contexts/AuthContext';
@@ -695,6 +695,7 @@ export default function BibleChallengeScreen() {
   }, [localBook]);
 
   const [showBookComplete, setShowBookComplete] = useState(false);
+  const [showStudyGuide, setShowStudyGuide] = useState(false);
 
   const handleChapterChange = useCallback(async (chapter: number) => {
     setLocalChapter(chapter);
@@ -730,6 +731,15 @@ export default function BibleChallengeScreen() {
 
           {/* Main card — everything in one connected container */}
           <View style={[styles.mainReadingCard, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
+            {/* Study guide icon */}
+            <TouchableOpacity
+              onPress={() => setShowStudyGuide(true)}
+              style={styles.studyGuideBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <CircleHelp size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+
             {/* Book name + meta */}
             <View style={styles.mainReadingTop}>
               <Text style={[styles.readingHeroLabel, { color: colors.textSecondary }]}>CURRENTLY READING</Text>
@@ -879,6 +889,103 @@ export default function BibleChallengeScreen() {
             setShowBookPicker(true);
           }}
         />
+
+        {/* How to Study the Bible modal */}
+        <Modal visible={showStudyGuide} transparent animationType="fade" onRequestClose={() => setShowStudyGuide(false)}>
+          <Pressable style={styles.studyOverlay} onPress={() => setShowStudyGuide(false)}>
+            <Pressable style={[styles.studyModal, { backgroundColor: isDark ? '#1E1D22' : '#fff' }]} onPress={e => e.stopPropagation()}>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: SCREEN_HEIGHT * 0.7 }}>
+                <Text style={[styles.studyTitle, { color: colors.textPrimary }]}>8 Tools for Studying the Bible</Text>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>1. Read Through the Bible</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Ephesians 3:4 "When you read this"{'\n'}
+                    {'\u2022'} Mark 13:14 "Let the reader understand"{'\n'}
+                    {'\u2022'} Read it systematically — Jude 11, Luke 24:25{'\n'}
+                    {'\u2022'} Read it slowly — 2 Corinthians 3:18 "behold"{'\n'}
+                    {'\u2022'} Read it meditatively — 2 Timothy 2:7 "Think over what I say"
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>2. Ask the Text Questions</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Who wrote it? Who received it? Why was it written?{'\n'}
+                    {'\u2022'} What was said before or after the text I'm interpreting?{'\n'}
+                    {'\u2022'} What does this text reveal about God?{'\n'}
+                    {'\u2022'} What does this text reveal about man?{'\n'}
+                    {'\u2022'} What biblical principles does this text inform or illustrate?{'\n'}
+                    {'\u2022'} How can this be applied in light of the new covenant?{'\n'}
+                    {'\u2022'} Does this text point to Christ in any way? (Matt 11){'\n'}
+                    {'\u2022'} Is there any text that points to this one?
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>3. Cross Reference</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Clear passages must interpret unclear ones{'\n'}
+                    {'\u2022'} Don't ignore parallel passages
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>4. Pay Attention to the Details</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Locations — Cities, regions, physical landmarks{'\n'}
+                    {'\u2022'} Time markers — Year, month, feasts, time of day{'\n'}
+                    {'\u2022'} Objects — Items, clothing, materials{'\n'}
+                    {'\u2022'} Numbers — Amounts, measurements, numerical patterns
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>5. Repetition, Repetition, Repetition</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Rev 22:17 "Come" "Let the one"{'\n'}
+                    {'\u2022'} Genesis 1:3–25 "It was good"
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>6. Types and Shadows</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    Where can I find Christ? Type = Example, Shadow = an announcing.{'\n\n'}
+                    {'\u2022'} Is there any part of a character's story that illustrates a N.T. truth? (Romans){'\n'}
+                    {'\u2022'} Is there any ceremony, ritual, feast, or symbol (5:14) that points to a New Covenant principle?{'\n'}
+                    {'\u2022'} Is there any object or event that foreshadows a gospel truth? Hebrews 13:10, John 3:14
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>7. Watch for Allusions</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} The NT expects you to know the O.T.
+                  </Text>
+                </View>
+
+                <View style={styles.studySection}>
+                  <Text style={[styles.studyHeading, { color: accentFill }]}>8. Outside Resources</Text>
+                  <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    {'\u2022'} Commentaries — Don't let them do the thinking for you
+                  </Text>
+                </View>
+
+                <Text style={[styles.studyCredit, { color: colors.textMuted }]}>
+                  Pastor Daniel Batarseh{'\n'}Maranatha Bible Church — Rooted Conference
+                </Text>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.studyCloseBtn, { backgroundColor: isDark ? '#26252B' : '#f0ebe4' }]}
+                onPress={() => setShowStudyGuide(false)}
+              >
+                <Text style={[styles.studyCloseBtnText, { color: colors.textPrimary }]}>Close</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -1691,5 +1798,61 @@ const styles = StyleSheet.create({
   resetBtnText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  // ── Study Guide ─────────────────────────────
+  studyGuideBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 2,
+  },
+  studyOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  studyModal: {
+    width: '100%',
+    borderRadius: 18,
+    padding: 22,
+    maxHeight: '85%',
+  },
+  studyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  studySection: {
+    marginBottom: 16,
+  },
+  studyHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  studyBody: {
+    fontSize: 13.5,
+    lineHeight: 21,
+  },
+  studyCredit: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  studyCloseBtn: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  studyCloseBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
