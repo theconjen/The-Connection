@@ -778,13 +778,13 @@ export default function BibleChallengeScreen() {
                         style={[
                           styles.chapterDot,
                           {
-                            backgroundColor: isRead ? accentFill : (isDark ? '#3D3B44' : '#e0d8cc'),
+                            backgroundColor: isRead ? (isDark ? '#8B6914' : colors.primary) : (isDark ? '#3D3B44' : '#e0d8cc'),
                           },
                         ]}
                         onPress={() => handleChapterChange(ch === currentChapter ? ch - 1 : ch)}
                         activeOpacity={0.6}
                       >
-                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#9A968E' : '#a09888') }]}>
+                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#D4D0C8' : '#a09888') }]}>
                           {ch}
                         </Text>
                       </TouchableOpacity>
