@@ -512,7 +512,7 @@ export default function BibleChallengeScreen() {
   const nextMonthTitle = nextPlan ? nextPlan.title : null;
 
   const isDark = colorScheme === 'dark';
-  const trackBg = isDark ? '#2a3550' : '#e0d8cc';
+  const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
 
   // Month-specific accent colors for visual variety
   const monthAccents = [
@@ -603,8 +603,8 @@ export default function BibleChallengeScreen() {
     }
     // Card-style picker (light/dark aware)
     return (
-      <View style={[bgStyle === 'inline' ? styles.bookPickerInline : styles.bookPickerCard, bgStyle !== 'inline' && { backgroundColor: isDark ? '#1e2a3a' : '#f0ebe4', borderColor: isDark ? '#2a3550' : '#e0d8cc' }]}>
-        <View style={[styles.bookSearchRowCard, { backgroundColor: isDark ? '#151d2e' : '#e8e0d4' }]}>
+      <View style={[bgStyle === 'inline' ? styles.bookPickerInline : styles.bookPickerCard, bgStyle !== 'inline' && { backgroundColor: isDark ? '#1E1D22' : '#f0ebe4', borderColor: isDark ? '#2E2D33' : '#e0d8cc' }]}>
+        <View style={[styles.bookSearchRowCard, { backgroundColor: isDark ? '#26252B' : '#e8e0d4' }]}>
           <Search size={13} color={colors.textSecondary} />
           <TextInput
             style={[styles.bookSearchInputCard, { color: colors.text }]}
@@ -633,7 +633,7 @@ export default function BibleChallengeScreen() {
               {filteredBooks.ot.map(name => {
                 const done = completedBooks.has(name);
                 return (
-                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#151d2e' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
+                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
                       {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
                       <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.text }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
@@ -651,7 +651,7 @@ export default function BibleChallengeScreen() {
               {filteredBooks.nt.map(name => {
                 const done = completedBooks.has(name);
                 return (
-                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#151d2e' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
+                  <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
                       {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
                       <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.text }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
@@ -717,7 +717,7 @@ export default function BibleChallengeScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={[styles.readingHeader, { backgroundColor: colors.surface, borderBottomColor: isDark ? '#2a3550' : '#e8e0d4' }]}>
+          <View style={[styles.readingHeader, { backgroundColor: colors.surface, borderBottomColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
             <TouchableOpacity onPress={() => router.back()} style={styles.heroBack}>
               <ArrowLeft size={22} color={colors.text} />
             </TouchableOpacity>
@@ -726,7 +726,7 @@ export default function BibleChallengeScreen() {
           </View>
 
           {/* Main card — everything in one connected container */}
-          <View style={[styles.mainReadingCard, { backgroundColor: isDark ? '#1a2235' : '#f8f5f0', borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}>
+          <View style={[styles.mainReadingCard, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
             {/* Book name + meta */}
             <View style={styles.mainReadingTop}>
               <Text style={[styles.readingHeroLabel, { color: colors.textSecondary }]}>CURRENTLY READING</Text>
@@ -752,7 +752,7 @@ export default function BibleChallengeScreen() {
             {renderBookPicker('inline')}
 
             {/* Divider */}
-            {bookInfo && <View style={[styles.mainDivider, { backgroundColor: isDark ? '#2a3550' : '#e8e0d4' }]} />}
+            {bookInfo && <View style={[styles.mainDivider, { backgroundColor: isDark ? '#2E2D33' : '#e8e0d4' }]} />}
 
             {/* Chapter Progress */}
             {bookInfo && (
@@ -775,13 +775,13 @@ export default function BibleChallengeScreen() {
                         style={[
                           styles.chapterDot,
                           {
-                            backgroundColor: isRead ? colors.primary : (isDark ? '#2a3550' : '#e0d8cc'),
+                            backgroundColor: isRead ? colors.primary : (isDark ? '#3D3B44' : '#e0d8cc'),
                           },
                         ]}
                         onPress={() => handleChapterChange(ch === currentChapter ? ch - 1 : ch)}
                         activeOpacity={0.6}
                       >
-                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#6b7a9a' : '#a09888') }]}>
+                        <Text style={[styles.chapterDotText, { color: isRead ? '#fff' : (isDark ? '#9A968E' : '#a09888') }]}>
                           {ch}
                         </Text>
                       </TouchableOpacity>
@@ -796,7 +796,7 @@ export default function BibleChallengeScreen() {
             )}
 
             {/* Divider */}
-            {bookInfo && <View style={[styles.mainDivider, { backgroundColor: isDark ? '#2a3550' : '#e8e0d4' }]} />}
+            {bookInfo && <View style={[styles.mainDivider, { backgroundColor: isDark ? '#2E2D33' : '#e8e0d4' }]} />}
 
             {/* Stats row — inline */}
             {bookInfo && (
@@ -809,7 +809,7 @@ export default function BibleChallengeScreen() {
                     </Text>
                   </View>
                 )}
-                <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2a3550' : '#e0d8cc' }]} />
+                <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2E2D33' : '#e0d8cc' }]} />
                 <View style={styles.inlineStat}>
                   <Text style={[styles.inlineStatValue, { color: colors.text }]}>
                     {bookInfo.chapters - currentChapter}
@@ -818,7 +818,7 @@ export default function BibleChallengeScreen() {
                 </View>
                 {remainingMin > 0 && (
                   <>
-                    <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2a3550' : '#e0d8cc' }]} />
+                    <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2E2D33' : '#e0d8cc' }]} />
                     <View style={styles.inlineStat}>
                       <Text style={[styles.inlineStatValue, { color: colors.text }]}>
                         {remainingMin >= 60 ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m` : `${remainingMin}m`}
@@ -833,12 +833,12 @@ export default function BibleChallengeScreen() {
 
           {/* What to Expect */}
           {bookInfo && (
-            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1a2235' : '#f8f5f0', borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}>
+            <View style={[styles.sectionCard, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
               <Text style={[styles.aboutTheme, { color: colors.primary }]}>{bookInfo.theme}</Text>
-              <Text style={[styles.aboutDesc, { color: isDark ? '#8a9ab8' : '#6a6050' }]}>
+              <Text style={[styles.aboutDesc, { color: isDark ? '#B8B4AC' : '#6a6050' }]}>
                 {bookInfo.description}
               </Text>
-              <Text style={[styles.aboutCredit, { color: isDark ? '#4a5a7a' : '#b0a898' }]}>
+              <Text style={[styles.aboutCredit, { color: isDark ? '#6E6A62' : '#b0a898' }]}>
                 Adapted from Matthew Henry's Commentary on the Whole Bible{'\n'}
                 biblestudytools.com/commentaries/matthew-henry-complete
               </Text>
@@ -847,7 +847,7 @@ export default function BibleChallengeScreen() {
 
           {/* Bible Challenge toggle */}
           <TouchableOpacity
-            style={[styles.challengeToggle, { backgroundColor: isDark ? '#1a2235' : '#f8f5f0', borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}
+            style={[styles.challengeToggle, { backgroundColor: isDark ? '#1E1D22' : '#f8f5f0', borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}
             onPress={() => setShowChallenge(true)}
             activeOpacity={0.7}
           >
@@ -946,7 +946,7 @@ export default function BibleChallengeScreen() {
         {/* Up Next card */}
         {nextReading && !isFutureMonth && (
           <TouchableOpacity
-            style={[styles.upNextCard, { backgroundColor: colors.card, borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}
+            style={[styles.upNextCard, { backgroundColor: colors.card, borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}
             onPress={() => toggleDay(nextReading.day)}
             activeOpacity={0.7}
           >
@@ -959,7 +959,7 @@ export default function BibleChallengeScreen() {
               {nextReading.psalm}  ·  {nextReading.proverb}
             </Text>
             {nextReading.commentary ? (
-              <Text style={[styles.upNextCommentary, { color: isDark ? '#8a9ab8' : '#7a7060' }]}>
+              <Text style={[styles.upNextCommentary, { color: isDark ? '#B8B4AC' : '#7a7060' }]}>
                 {nextReading.commentary}
               </Text>
             ) : null}
@@ -972,7 +972,7 @@ export default function BibleChallengeScreen() {
 
         {/* Locked notice */}
         {isFutureMonth && (
-          <View style={[styles.lockedBanner, { backgroundColor: colors.card, borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}>
+          <View style={[styles.lockedBanner, { backgroundColor: colors.card, borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
             <Lock size={15} color={colors.textSecondary} />
             <Text style={[styles.lockedText, { color: colors.textSecondary }]}>
               Complete "{BIBLE_READING_PLAN.find(m => m.month === activeMonth)?.title}" to unlock
@@ -982,7 +982,7 @@ export default function BibleChallengeScreen() {
 
         <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ALL READINGS</Text>
 
-        <View style={[styles.readingsCard, { backgroundColor: colors.card, borderColor: isDark ? '#2a3550' : '#e8e0d4' }]}>
+        <View style={[styles.readingsCard, { backgroundColor: colors.card, borderColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
           {plan.readings.map((reading, index) => {
             const isCompleted = completedDays.includes(reading.day);
             const locked = isFutureMonth;
@@ -992,28 +992,28 @@ export default function BibleChallengeScreen() {
                 key={reading.day}
                 style={[
                   styles.readingItem,
-                  !isLast && { borderBottomWidth: 1, borderBottomColor: isDark ? '#222d40' : '#f0ebe4' },
+                  !isLast && { borderBottomWidth: 1, borderBottomColor: isDark ? '#26252B' : '#f0ebe4' },
                   locked && styles.readingLocked,
                 ]}
                 onPress={() => !locked && toggleDay(reading.day)}
                 activeOpacity={locked ? 1 : 0.6}
               >
-                <View style={[styles.checkbox, { backgroundColor: isCompleted ? colors.primary : 'transparent', borderColor: isCompleted ? colors.primary : (isDark ? '#3a4a6a' : '#d0c8bc') }]}>
+                <View style={[styles.checkbox, { backgroundColor: isCompleted ? colors.primary : 'transparent', borderColor: isCompleted ? colors.primary : (isDark ? '#4A4842' : '#d0c8bc') }]}>
                   {isCompleted && <Check size={13} color="#fff" strokeWidth={3} />}
                 </View>
                 <View style={styles.readingInfo}>
                   <Text style={[styles.mainReading, { color: isCompleted ? colors.primary : colors.text }]}>{reading.main}</Text>
-                  <Text style={[styles.subReading, { color: isDark ? '#6b7a9a' : '#aaa' }]}>{reading.psalm}  ·  {reading.proverb}</Text>
+                  <Text style={[styles.subReading, { color: isDark ? '#9A968E' : '#aaa' }]}>{reading.psalm}  ·  {reading.proverb}</Text>
                   {reading.commentary ? (
-                    <Text style={[styles.commentaryText, { color: isDark ? '#6b7a9a' : '#999' }]} numberOfLines={2}>{reading.commentary}</Text>
+                    <Text style={[styles.commentaryText, { color: isDark ? '#9A968E' : '#999' }]} numberOfLines={2}>{reading.commentary}</Text>
                   ) : null}
                 </View>
                 {!locked && (
-                  <View style={[styles.dayBadge, { backgroundColor: isCompleted ? colors.primary + '12' : (isDark ? '#1a2235' : '#f5f0ea') }]}>
-                    <Text style={[styles.dayBadgeText, { color: isCompleted ? colors.primary : (isDark ? '#6b7a9a' : '#b0a898') }]}>{reading.day}</Text>
+                  <View style={[styles.dayBadge, { backgroundColor: isCompleted ? colors.primary + '12' : (isDark ? '#1E1D22' : '#f5f0ea') }]}>
+                    <Text style={[styles.dayBadgeText, { color: isCompleted ? colors.primary : (isDark ? '#9A968E' : '#b0a898') }]}>{reading.day}</Text>
                   </View>
                 )}
-                {locked && <Lock size={13} color={isDark ? '#3a4a6a' : '#ccc'} />}
+                {locked && <Lock size={13} color={isDark ? '#4A4842' : '#ccc'} />}
               </TouchableOpacity>
             );
           })}
@@ -1036,7 +1036,7 @@ export default function BibleChallengeScreen() {
             ]);
           }}
         >
-          <Text style={[styles.resetBtnText, { color: isDark ? '#5a6a8a' : '#b0a898' }]}>Reset Progress</Text>
+          <Text style={[styles.resetBtnText, { color: isDark ? '#8A867E' : '#b0a898' }]}>Reset Progress</Text>
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />

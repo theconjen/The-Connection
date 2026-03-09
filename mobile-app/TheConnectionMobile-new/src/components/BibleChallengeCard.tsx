@@ -96,10 +96,10 @@ export default function BibleChallengeCard() {
   const allDone = completedCount === totalCount && totalCount > 0;
 
   // Theme-aware accent colors
-  const cardBg = isDark ? '#1a2235' : '#f8f5f0';
-  const cardBorder = isDark ? '#2a3550' : '#e8e0d4';
-  const accentBg = isDark ? colors.primary + '18' : colors.primary + '10';
-  const trackBg = isDark ? '#2a3550' : '#e0d8cc';
+  const cardBg = isDark ? '#1E1D22' : '#f8f5f0';
+  const cardBorder = isDark ? '#2E2D33' : '#e8e0d4';
+  const accentBg = isDark ? '#26252B' : colors.primary + '10';
+  const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
 
   // ── Currently Reading card ──
   if (currentBook && bookInfo) {
@@ -253,10 +253,12 @@ export default function BibleChallengeCard() {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 12,
+    marginHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 8,
   },
   topRow: {
     flexDirection: 'row',

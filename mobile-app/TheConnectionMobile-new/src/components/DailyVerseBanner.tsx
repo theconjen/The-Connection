@@ -158,7 +158,7 @@ export default function DailyVerseBanner() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDark ? '#1a2540' : '#f0f4ff', borderColor: isDark ? '#2a3a5a' : '#d4dff7' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#1E1D22' : '#f0f4ff', borderColor: isDark ? '#2E2D33' : '#d4dff7' }]}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -172,8 +172,8 @@ export default function DailyVerseBanner() {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? '#1a2540' : '#f0f4ff',
-          borderColor: isDark ? '#2a3a5a' : '#d4dff7',
+          backgroundColor: isDark ? '#1E1D22' : '#f0f4ff',
+          borderColor: isDark ? '#2E2D33' : '#d4dff7',
         },
       ]}
     >
