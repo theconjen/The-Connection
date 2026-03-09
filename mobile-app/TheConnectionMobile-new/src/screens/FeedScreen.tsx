@@ -38,7 +38,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { exploreFeedAPI, MicroblogTopic, MicroblogType } from '../lib/apiClient';
+import apiClient, { exploreFeedAPI, MicroblogTopic, MicroblogType, safetyAPI } from '../lib/apiClient';
 import { AppHeader } from './AppHeader';
 import { formatDistanceToNow } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
@@ -46,6 +46,7 @@ import { PostCard } from './PostCard';
 import { TopicChips } from '../components/TopicChips';
 import { PollCard } from '../components/PollCard';
 import { ImageCarousel } from '../components/ImageCarousel';
+import { GIF_CONFIG } from '../config';
 
 // ============================================================================
 // TYPES
@@ -145,7 +146,6 @@ function useTrendingHashtags() {
         type: 'hashtag' as const,
       }));
     },
-    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
 }
 
@@ -191,7 +191,6 @@ function useMicroblogs(filter: 'latest' | 'popular', trendingFilter?: { type: 'h
         // Otherwise, sorted by filter (recent or popular) from API
         return microblogsWithAuthors;
       } catch (error) {
-        console.error('Error fetching microblogs:', error);
         throw error;
       }
     },
@@ -214,7 +213,6 @@ function usePosts(filter: 'latest' | 'popular') {
         // Debug logging
         const bookmarkedPosts = posts.filter((p: any) => p.isBookmarked);
         if (bookmarkedPosts.length > 0) {
-          console.info('[DEBUG] Posts with bookmarks:', bookmarkedPosts.map((p: any) => ({ id: p.id, isBookmarked: p.isBookmarked })));
         }
 
         return posts.map((post: any) => ({
@@ -226,7 +224,6 @@ function usePosts(filter: 'latest' | 'popular') {
           },
         }));
       } catch (error) {
-        console.error('Error fetching posts:', error);
         return []; // Return empty array on error instead of throwing
       }
     },
@@ -494,29 +491,6 @@ function useReportPost() {
   });
 }
 
-function useBlockUser() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, reason }: { userId: number; reason?: string }) => {
-      const response = await apiClient.post('/api/safety/blocks', {
-        userId,
-        reason,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      // Invalidate feed queries to remove blocked user's posts
-      queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
-      Alert.alert('User Blocked', 'You will no longer see posts from this user.');
-    },
-    onError: (error: any) => {
-      Alert.alert('Error', error?.response?.data?.message || 'Failed to block user');
-    },
-  });
-}
-
 function useComments(postId: number | null) {
   return useQuery<Comment[]>({
     queryKey: ['/api/microblogs', postId, 'comments'],
@@ -613,18 +587,14 @@ function useBookmarkMicroblog() {
     mutationFn: async ({ postId, isBookmarked, type = 'microblog' }: { postId: number; isBookmarked: boolean; type?: 'microblog' | 'post' }) => {
       try {
         const endpoint = type === 'post' ? `/api/posts/${postId}/bookmark` : `/api/microblogs/${postId}/bookmark`;
-        console.info(`[BOOKMARK] ${type} ${postId}: ${isBookmarked ? 'unbookmark' : 'bookmark'} via ${endpoint}`);
         if (isBookmarked) {
           // Currently bookmarked, so unbookmark
           await apiClient.delete(endpoint);
-          console.info(`[BOOKMARK] Successfully unbookmarked ${type} ${postId}`);
         } else {
           // Not bookmarked, so bookmark
           const response = await apiClient.post(endpoint);
-          console.info(`[BOOKMARK] Successfully bookmarked ${type} ${postId}`, response.data);
         }
       } catch (error: any) {
-        console.info(`[BOOKMARK] Error for ${type} ${postId}:`, error.response?.status, error.response?.data);
         // If we get 404 on delete, the bookmark didn't exist - treat as success
         if (error.response?.status === 404 && isBookmarked) {
           return;
@@ -679,7 +649,6 @@ function useBookmarkMicroblog() {
       Alert.alert('Error', 'Failed to update bookmark. Please try again.');
     },
     onSettled: async (data, error, variables) => {
-      console.info(`[BOOKMARK] Settled for ${variables.type} ${variables.postId}, invalidating queries...`);
       // Always refetch after error or success to sync with server
       await queryClient.invalidateQueries({ queryKey: ['/api/microblogs'] });
       await queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
@@ -691,7 +660,6 @@ function useBookmarkMicroblog() {
         const postsData = queryClient.getQueryData(['/api/posts', 'latest']) as any[];
         if (postsData) {
           const post = postsData.find((p: any) => p.id === variables.postId);
-          console.info(`[BOOKMARK] After refetch, ${variables.type} ${variables.postId} isBookmarked:`, post?.isBookmarked);
         }
       }, 500);
     },
@@ -927,7 +895,6 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onMorePress, onCommen
               style={styles.sourceUrlContainer}
               onPress={() => {
                 // Open URL (will implement linking)
-                console.info('Open URL:', post.sourceUrl);
               }}
             >
               <Ionicons name="link" size={14} color={colors.link} />
@@ -1110,7 +1077,6 @@ export default function FeedScreen({
   const createMutation = useCreateMicroblog();
   const deleteMutation = useDeletePost();
   const reportMutation = useReportPost();
-  const blockMutation = useBlockUser();
   const { data: comments = [], isLoading: commentsLoading } = useComments(selectedPostForComments?.id || null);
   const createCommentMutation = useCreateComment();
   const repostMutation = useRepostMicroblog();
@@ -1237,8 +1203,16 @@ export default function FeedScreen({
         {
           text: 'Block',
           style: 'destructive',
-          onPress: () => {
-            blockMutation.mutate({ userId });
+          onPress: async () => {
+            try {
+              await safetyAPI.blockUser({ userId });
+              Alert.alert('User Blocked', 'You will no longer see posts from this user.');
+              // Refresh the feed to remove blocked user's posts
+              queryClient.invalidateQueries({ queryKey: ['microblogs'] });
+              queryClient.invalidateQueries({ queryKey: ['feed'] });
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+            }
           },
         },
       ]
@@ -1421,31 +1395,29 @@ export default function FeedScreen({
   };
 
   // GIF Picker Functions
-  const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh'; // Free Giphy API key (public beta)
-
   const searchGifs = async (query: string) => {
+    const { apiKey, baseUrl } = GIF_CONFIG.giphy;
+
     if (!query.trim()) {
       // Load trending GIFs when no search query
       try {
         const response = await fetch(
-          `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=50&rating=g`
+          `${baseUrl}/trending?api_key=${apiKey}&limit=50&rating=g`
         );
         const data = await response.json();
         setGifs(data.data || []);
       } catch (error) {
-        console.error('Error loading trending GIFs:', error);
       }
       return;
     }
 
     try {
       const response = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g`
+        `${baseUrl}/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=50&rating=g`
       );
       const data = await response.json();
       setGifs(data.data || []);
     } catch (error) {
-      console.error('Error searching GIFs:', error);
       Alert.alert('Error', 'Failed to load GIFs. Please try again.');
     }
   };
@@ -1547,10 +1519,6 @@ export default function FeedScreen({
           Alert.alert('Success', composerMode === 'poll' ? 'Poll created successfully!' : 'Post created successfully!');
         },
         onError: (error: any) => {
-          console.error('Failed to create post - Full error:', JSON.stringify(error, null, 2));
-          console.error('Error response:', error?.response);
-          console.error('Error status:', error?.response?.status);
-          console.error('Error data:', error?.response?.data);
 
           const errorMessage = error?.response?.data?.message
             || error?.response?.data?.error
@@ -1561,7 +1529,6 @@ export default function FeedScreen({
         },
       });
     } catch (error) {
-      console.error('Error preparing post:', error);
       Alert.alert('Error', 'Failed to prepare media. Please try again.');
     }
   };
@@ -1608,7 +1575,6 @@ export default function FeedScreen({
         next.delete(userId);
         return next;
       });
-      console.error('Failed to follow user:', error);
     }
   };
 
@@ -1617,7 +1583,6 @@ export default function FeedScreen({
       await apiClient.post('/api/user/suggestions/hide', { hiddenUserId: userId });
       refetchSuggestions();
     } catch (error) {
-      console.error('Failed to hide suggestion:', error);
     }
   };
 
@@ -1625,7 +1590,7 @@ export default function FeedScreen({
   const styles = getStyles(colors, colorScheme);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       {/* Header */}
       <AppHeader
@@ -2443,7 +2408,7 @@ export default function FeedScreen({
 // STYLES
 // ============================================================================
 
-const getStyles = (colors: any, theme: 'light' | 'dark'): Record<string, any> => {
+const getStyles = (colors: any, theme: 'light' | 'dark') => {
   const isDark = theme === 'dark';
 
   return StyleSheet.create({
@@ -3045,11 +3010,11 @@ const getStyles = (colors: any, theme: 'light' | 'dark'): Record<string, any> =>
     height: 300,
   },
   doubleImage: {
-    width: '48%',
+    width: 'calc(50% - 2px)',
     height: 200,
   },
   gridImage: {
-    width: '32%',
+    width: 'calc(33.33% - 3px)',
     height: 120,
   },
   gridImageContent: {

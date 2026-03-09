@@ -1,5 +1,6 @@
 import React, { ReactNode, useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Text, useTheme } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -83,10 +84,9 @@ export function AppHeader({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          height: 56,
-          backgroundColor: transparent ? 'transparent' : colors.header,
-          borderBottomWidth: transparent ? 0 : 1,
-          borderBottomColor: transparent ? 'transparent' : (colors.headerBorder || colors.borderSubtle),
+          height: 48,
+          backgroundColor: transparent ? 'transparent' : colors.background,
+          borderBottomWidth: 0,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -128,7 +128,7 @@ export function AppHeader({
                     onError={() => setAvatarError(true)}
                   />
                 ) : (
-                  <Text style={{ color: colors.primaryForeground, fontSize: 16, fontWeight: '600' }}>
+                  <Text style={{ color: colors.primaryForeground, fontSize: 14, fontWeight: '600' }}>
                     {getUserInitials()}
                   </Text>
                 )}
@@ -142,7 +142,7 @@ export function AppHeader({
             <Text
               style={{
                 fontFamily: 'PlayfairDisplay-Bold',
-                fontSize: 20,
+                fontSize: 17,
                 color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
                 letterSpacing: 0.5,
               }}
@@ -165,7 +165,7 @@ export function AppHeader({
                 ]}
               >
                 <View style={{ position: 'relative' }}>
-                  <Ionicons name="chatbubble-outline" size={22} color={colors.headerForeground} />
+                  <Ionicons name="chatbubble-outline" size={20} color={colors.headerForeground} />
                   {unreadMessageCount > 0 && (
                     <View style={{
                       position: 'absolute',
@@ -200,7 +200,7 @@ export function AppHeader({
                 ]}
               >
                 <View style={{ position: 'relative' }}>
-                  <Ionicons name="menu-outline" size={26} color={colors.headerForeground} />
+                  <Ionicons name="menu-outline" size={24} color={colors.headerForeground} />
                   {unreadNotificationCount > 0 && (
                     <View style={{
                       position: 'absolute',
@@ -352,9 +352,8 @@ export function PageHeader({ title, onBackPress, rightElement, showLogo }: { tit
       style={[
         styles.container,
         {
-          backgroundColor: colors.header,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.headerBorder,
+          backgroundColor: colors.background,
+          borderBottomWidth: 0,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -377,7 +376,7 @@ export function PageHeader({ title, onBackPress, rightElement, showLogo }: { tit
         <Text
           style={{
             fontFamily: 'PlayfairDisplay-Bold',
-            fontSize: 20,
+            fontSize: 17,
             flex: 1,
             textAlign: 'center',
             color: colorScheme === 'dark' ? colors.headerForeground : '#1E3A5F',
@@ -392,7 +391,7 @@ export function PageHeader({ title, onBackPress, rightElement, showLogo }: { tit
         </Text>
       )}
 
-      {rightElement ?? <View style={{ width: 40 }} />}
+      {rightElement ?? <View style={{ width: 36 }} />}
     </View>
   );
 }
@@ -402,7 +401,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 56,
+    height: 48,
   },
   leftSection: {
     flexDirection: 'row',
@@ -421,17 +420,17 @@ const styles = StyleSheet.create({
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
     zIndex: 1,
   },
   brandContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   logo: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     backgroundColor: 'transparent',
   },
   centeredLogo: {
@@ -439,27 +438,27 @@ const styles = StyleSheet.create({
     height: 140,
   },
   brandText: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '800',
     fontFamily: 'System',
-    letterSpacing: -0.5,  // Tighter letter spacing (~2-3%)
+    letterSpacing: -0.5,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarButton: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
 });

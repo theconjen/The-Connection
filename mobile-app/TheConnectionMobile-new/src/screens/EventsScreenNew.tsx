@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,58 +13,36 @@ import {
   Image,
   ActionSheetIOS,
   Alert,
-  TouchableOpacity,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { eventsAPI, getApiBase } from "../lib/apiClient";
+import { eventsAPI } from "../lib/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
-import Constants from "expo-constants";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { AppHeader } from "./AppHeader";
 import apiClient from "../lib/apiClient";
 import { getCurrentLocation, hasLocationPermission, requestLocationPermission, type UserLocation } from "../services/locationService";
-import { shareEvent } from "../lib/shareUrls";
-import { isHost } from "../lib/eventHelpers";
-
-// DEV-ONLY: Get build channel from EAS or fallback
-const getBuildChannel = (): string => {
-  // EAS Update channel
-  const updateChannel = Constants.expoConfig?.extra?.eas?.projectId ? 'eas' : null;
-  // Check releaseChannel (older expo)
-  const releaseChannel = (Constants.manifest as any)?.releaseChannel;
-  // Check if running in development
-  if (__DEV__) return 'dev';
-  if (releaseChannel) return releaseChannel;
-  if (updateChannel) return 'production';
-  return 'unknown';
-};
 
 // Custom church icon
 const ChurchIcon = require("../../assets/church-icon.png");
 
 type Range = "today" | "week" | "weekend" | "next" | "all";
 type Mode = "all" | "inPerson" | "online";
-type DistanceFilter = "all" | "5" | "10" | "20" | "50" | "100";
+type DistanceFilter = "all" | "5" | "10" | "25" | "50";
+type EventType = "all" | "Sunday Service" | "Worship" | "Bible Study" | "Social" | "Service" | "Prayer";
+type GenderFilter = "all" | "men" | "women";
+type AgeGroupFilter = "all" | "kids" | "teens" | "young_adults" | "adults" | "seniors";
 
 // RSVP status type - matches backend values: 'going', 'maybe', 'not_going'
 type RsvpStatus = 'going' | 'maybe' | 'not_going' | null;
 
-// Host user info type
-type HostUser = {
-  id: number;
-  username: string;
-  displayName: string;
-  avatarUrl?: string | null;
-};
-
 type EventItem = {
   id: number | string;
   title: string;
-  description?: string | null;
   // API returns these separate fields:
   eventDate?: string;      // "2026-01-12 00:00:00"
   startTime?: string;      // "10:30:00"
@@ -83,19 +61,17 @@ type EventItem = {
   distanceMiles?: number | null;
   posterUrl?: string | null;
   imageUrl?: string | null;
-  imagePosition?: 'top' | 'center' | 'bottom' | null;
-  targetGender?: 'men' | 'women' | null;
-  targetAgeGroup?: string | null; // comma-separated: "teens,young_adults"
+  imagePosition?: string | null; // 0-100 percentage or legacy 'top'/'center'/'bottom'
   category?: string | null; // "Worship", "Bible Study", "Apologetics"
-  isPublic?: boolean; // true = visible on main Events page
+  isPrivate?: boolean;
+  isPublic?: boolean;
   attendingCount?: number | null;
   rsvpStatus?: RsvpStatus; // User's RSVP status for this event (legacy)
   userRsvpStatus?: RsvpStatus; // User's RSVP status from API
   isBookmarked?: boolean; // User's bookmark status from API
-  creatorId?: number; // Event creator ID
-  hostUserId?: number; // Reliable host identifier from API
-  host?: HostUser | null; // Host user info from API
   connectionsGoing?: { count: number; names: string[] }; // Connections (following) who RSVP'd going
+  targetGender?: string | null; // "men", "women", or null (all)
+  targetAgeGroup?: string | null; // comma-separated: "kids,teens,young_adults,adults,seniors"
 };
 
 // ----- API -----
@@ -363,14 +339,34 @@ const getEventIcon = (eventType: string) => {
   return EVENT_TYPE_ICONS[eventType] || 'calendar-outline';
 };
 
-// Default gradient colors for event types
+// Parse imagePosition: legacy 'top'/'center'/'bottom' or numeric string (0-100)
+function parseImagePosition(pos: string | null | undefined): number {
+  if (!pos) return 50;
+  if (pos === 'top') return 0;
+  if (pos === 'center') return 50;
+  if (pos === 'bottom') return 100;
+  const num = parseInt(pos);
+  return isNaN(num) ? 50 : Math.max(0, Math.min(100, num));
+}
+
+// Default gradient colors for event types - each category has unique color
 const EVENT_TYPE_GRADIENTS: Record<string, [string, string]> = {
-  'Sunday Service': ['#4A5568', '#2D3748'],
-  'Worship': ['#805AD5', '#553C9A'],
-  'Social': ['#48BB78', '#38A169'],
-  'Service': ['#ED8936', '#DD6B20'],
-  'Bible Study': ['#3182CE', '#2C5282'],
-  'Prayer': ['#9F7AEA', '#805AD5'],
+  'Sunday Service': ['#4A5568', '#2D3748'],      // Slate gray
+  'Worship': ['#805AD5', '#553C9A'],             // Purple
+  'Bible Study': ['#5C6B5E', '#3D4A3F'],         // Muted sage green
+  'Prayer Meeting': ['#9F7AEA', '#805AD5'],      // Light purple
+  'Prayer': ['#9F7AEA', '#805AD5'],              // Light purple (alias)
+  'Fellowship Social': ['#48BB78', '#38A169'],   // Green
+  'Fellowship/Social': ['#48BB78', '#38A169'],   // Green (alias)
+  'Social': ['#48BB78', '#38A169'],              // Green (alias)
+  'Service Outreach': ['#E07C4F', '#C4623A'],    // Terracotta/burnt orange
+  'Service/Outreach': ['#E07C4F', '#C4623A'],    // Terracotta (alias)
+  'Service': ['#ED8936', '#DD6B20'],             // Orange (legacy)
+  'Activity': ['#3B82F6', '#2563EB'],            // Blue
+  'Conference': ['#EC4899', '#DB2777'],          // Pink
+  'Youth Event': ['#14B8A6', '#0D9488'],         // Teal
+  'Youth': ['#14B8A6', '#0D9488'],               // Teal (alias)
+  'Other': ['#6B7280', '#4B5563'],               // Gray
 };
 
 // RSVP status colors - matches backend values
@@ -380,86 +376,6 @@ const RSVP_COLORS: Record<string, string> = {
   not_going: '#EF4444', // Red
 };
 
-// ----- SMART FILTER TYPES & UTILITIES -----
-
-type CategoryFilter = 'all' | string;
-type GenderFilter = 'all' | 'men' | 'women';
-type AgeGroupFilter = 'all' | 'kids' | 'teens' | 'young_adults' | 'adults' | 'seniors';
-
-const EVENT_CATEGORIES = [
-  'All', 'Sunday Service', 'Worship', 'Bible Study', 'Prayer Meeting',
-  'Youth Group', 'Small Group', 'Fellowship', 'Outreach', 'Conference',
-  'Workshop', 'Activity',
-] as const;
-
-const AGE_GROUP_LABELS: Record<string, string> = {
-  all: 'All Ages',
-  kids: 'Kids',
-  teens: 'Teens',
-  young_adults: 'Young Adults',
-  adults: 'Adults',
-  seniors: 'Seniors',
-};
-
-interface SmartTags {
-  gender: 'men' | 'women' | null;
-  ageGroup: 'kids' | 'teens' | 'young_adults' | 'adults' | 'seniors' | null;
-}
-
-function extractSmartTags(title: string | undefined, description: string | undefined): SmartTags {
-  const text = `${title || ''} ${description || ''}`.toLowerCase();
-
-  // Gender detection
-  let gender: SmartTags['gender'] = null;
-  if (/\b(men'?s|guys|brothers|\bmale\b)\b/.test(text) && !/\b(women|ladies|sisters|female)\b/.test(text)) {
-    gender = 'men';
-  } else if (/\b(women'?s|ladies|sisters|\bfemale\b)\b/.test(text)) {
-    gender = 'women';
-  }
-
-  // Age group detection
-  let ageGroup: SmartTags['ageGroup'] = null;
-  if (/\b(kids|children|child)\b/.test(text)) {
-    ageGroup = 'kids';
-  } else if (/\b(teens?|teenagers?)\b/.test(text)) {
-    ageGroup = 'teens';
-  } else if (/\b(youth|young\s*adults?|college|campus)\b/.test(text)) {
-    ageGroup = 'young_adults';
-  } else if (/\b(seniors?|elderly|retirees?|50\+|55\+|60\+|65\+)\b/.test(text)) {
-    ageGroup = 'seniors';
-  } else if (/\b(adults?)\b/.test(text) && !/young\s*adults?/.test(text)) {
-    ageGroup = 'adults';
-  }
-
-  // Age range patterns: "18-40", "18+", "21+"
-  if (!ageGroup) {
-    const ageRangeMatch = text.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
-    const agePlusMatch = text.match(/(\d{1,2})\+/);
-    if (ageRangeMatch) {
-      const low = parseInt(ageRangeMatch[1]);
-      const high = parseInt(ageRangeMatch[2]);
-      if (low <= 12) ageGroup = 'kids';
-      else if (low <= 17) ageGroup = 'teens';
-      else if (high <= 35) ageGroup = 'young_adults';
-      else if (low >= 50) ageGroup = 'seniors';
-      else ageGroup = 'adults';
-    } else if (agePlusMatch) {
-      const age = parseInt(agePlusMatch[1]);
-      if (age >= 50) ageGroup = 'seniors';
-      else if (age >= 18 && age <= 25) ageGroup = 'young_adults';
-      else if (age >= 21) ageGroup = 'adults';
-    }
-  }
-
-  return { gender, ageGroup };
-}
-
-// DEV-ONLY: Viewer type for debug panel
-type ViewerInfo = {
-  id?: number;
-  username?: string;
-} | null;
-
 function EventCard({
   item,
   colors,
@@ -468,9 +384,7 @@ function EventCard({
   onRsvpPress,
   onBookmarkPress,
   isBookmarked,
-  isUserHost,
-  onManagePress,
-  viewer,
+  onConnectionsPress,
 }: {
   item: EventItem;
   colors: any;
@@ -479,28 +393,8 @@ function EventCard({
   onRsvpPress?: () => void;
   onBookmarkPress?: () => void;
   isBookmarked?: boolean;
-  isUserHost?: boolean;
-  onManagePress?: () => void;
-  viewer?: ViewerInfo;
+  onConnectionsPress?: () => void;
 }) {
-  // DEV-ONLY: Track if we've logged once for this card
-  const hasLoggedRef = useRef(false);
-
-  // DEV-ONLY: Console.log debug payload once on mount
-  useEffect(() => {
-    if (__DEV__ && viewer && !hasLoggedRef.current) {
-      hasLoggedRef.current = true;
-      console.info('[EventCard DEBUG]', {
-        viewerId: viewer?.id,
-        viewerUsername: viewer?.username,
-        eventId: item.id,
-        'event.hostUserId': item.hostUserId,
-        'event.host?.id': item.host?.id,
-        'event.creatorId': item.creatorId,
-        derivedIsHost: isHost(item, viewer?.id),
-      });
-    }
-  }, [item, viewer]);
   // Handle both isOnline and isVirtual flags
   const isOnlineEvent = item.isOnline || item.isVirtual;
 
@@ -527,32 +421,44 @@ function EventCard({
         { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
       ]}
     >
-      {/* Poster block with default gradient */}
+      {/* Poster block with custom flyer image or default gradient */}
       <View
         style={[
           styles.poster,
-          (item.posterUrl || item.imageUrl)
+          (item.imageUrl || item.posterUrl)
             ? { backgroundColor: colors.surfaceNested, borderColor: colors.borderSubtle }
             : { backgroundColor: gradientStart, borderColor: colors.borderSubtle }
         ]}
       >
-        {(item.posterUrl || item.imageUrl) ? (
-          <Image
-            source={{ uri: (item.posterUrl || item.imageUrl)! }}
-            style={[
-              styles.posterImagePositioned,
-              item.imagePosition === 'top' && { top: 0 },
-              item.imagePosition === 'bottom' && { bottom: 0 },
-              (!item.imagePosition || item.imagePosition === 'center') && { top: '50%', marginTop: -150 },
-            ]}
-            resizeMode="cover"
-          />
+        {(item.imageUrl || item.posterUrl) ? (
+          (() => {
+            const pos = parseImagePosition(item.imagePosition);
+            // Use a tall render height so there's enough image to shift
+            const POSTER_H = 160;
+            const RENDER_H = POSTER_H * 5; // 800px tall
+            const maxShift = RENDER_H - POSTER_H; // 480px shift range
+            const topOffset = -(pos / 100) * maxShift;
+            return (
+                <Image
+                  source={{ uri: item.imageUrl || item.posterUrl || '' }}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: topOffset,
+                    width: '100%',
+                    height: RENDER_H,
+                  }}
+                  resizeMode="cover"
+                />
+            );
+          })()
         ) : (
           <View style={styles.posterFallback}>
             {/* Event type icon */}
             <View style={styles.posterIconContainer}>
               {isSundayService ? (
-                <Image source={ChurchIcon} style={styles.customIconImage} />
+                <Image source={ChurchIcon} style={styles.customIconImage} resizeMode="contain" />
               ) : (
                 <Ionicons name={eventIcon || 'calendar-outline'} size={32} color={colors.textInverse} />
               )}
@@ -565,38 +471,20 @@ function EventCard({
           </View>
         )}
 
-        {/* Community-only badge (shows when event is not public) */}
-        {item.isPublic === false ? (
+        {/* Private badge */}
+        {item.isPrivate ? (
           <View style={[styles.badge, { borderColor: colors.borderSubtle, backgroundColor: colors.surface }]}>
             <Text style={[styles.badgeText, { color: colors.textPrimary }]}>
-              Community Only
+              Private
             </Text>
           </View>
         ) : null}
-
-        {/* Host badge */}
-        {isUserHost && (
-          <View style={[styles.hostBadge, { backgroundColor: colors.primary }]}>
-            <Ionicons name="star" size={10} color="#fff" />
-            <Text style={styles.hostBadgeText}>Host</Text>
-          </View>
-        )}
       </View>
 
       {/* Title */}
       <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
         {item.title}
       </Text>
-
-      {/* Host line */}
-      {item.host && (
-        <View style={styles.hostRow}>
-          <Ionicons name="person-circle-outline" size={14} color={colors.textTertiary} />
-          <Text style={[styles.hostText, { color: colors.textTertiary }]} numberOfLines={1}>
-            Hosted by {item.host.displayName || item.host.username}
-          </Text>
-        </View>
-      )}
 
       {/* Meta rows */}
       <View style={styles.metaRow}>
@@ -629,7 +517,7 @@ function EventCard({
             ]}
           >
             {isSundayService ? (
-              <Image source={ChurchIcon} style={styles.chipIconImage} />
+              <Image source={ChurchIcon} style={styles.chipIconImage} resizeMode="contain" />
             ) : (
               <Ionicons name={eventIcon || 'calendar-outline'} size={11} color={colors.textPrimary} style={{ marginRight: 4 }} />
             )}
@@ -638,9 +526,10 @@ function EventCard({
             </Text>
           </View>
 
-          {/* Connections Going pill */}
+          {/* Connections Going pill - tappable to show names */}
           {item.connectionsGoing && item.connectionsGoing.count > 0 && (
-            <View
+            <Pressable
+              onPress={onConnectionsPress}
               style={[
                 styles.connectionsChip,
                 { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' },
@@ -650,30 +539,11 @@ function EventCard({
               <Text style={[styles.connectionsText, { color: colors.primary }]} numberOfLines={1}>
                 {item.connectionsGoing.count} {item.connectionsGoing.count === 1 ? 'Connection' : 'Connections'}
               </Text>
-            </View>
+            </Pressable>
           )}
         </View>
 
         <View style={{ flexDirection: "row", gap: 6 }}>
-          {/* Share button */}
-          <Pressable
-            hitSlop={10}
-            onPress={() => shareEvent(item.id, item.title)}
-            style={[
-              styles.iconAction,
-              {
-                backgroundColor: colors.surfaceMuted,
-                borderColor: colors.borderSoft
-              },
-            ]}
-          >
-            <Ionicons
-              name="share-outline"
-              size={15}
-              color={colors.textPrimary}
-            />
-          </Pressable>
-
           {/* Bookmark button */}
           <Pressable
             hitSlop={10}
@@ -711,51 +581,196 @@ function EventCard({
               color={rsvpStatus ? '#FFFFFF' : colors.textPrimary}
             />
           </Pressable>
-
-          {/* Manage button (host only) */}
-          {isUserHost && onManagePress && (
-            <Pressable
-              hitSlop={10}
-              onPress={onManagePress}
-              style={[
-                styles.iconAction,
-                {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary
-                },
-              ]}
-            >
-              <Ionicons
-                name="settings-outline"
-                size={15}
-                color="#FFFFFF"
-              />
-            </Pressable>
-          )}
         </View>
       </View>
+    </Pressable>
+  );
+}
 
-      {/* DEV-ONLY Debug Panel */}
-      {__DEV__ && viewer && (
-        <View style={styles.debugPanelCard}>
-          <Text style={styles.debugTitleCard}>🛠️ DEBUG</Text>
-          <View style={styles.debugRowCard}>
-            <Text style={styles.debugLabelCard}>viewer: {viewer?.id ?? 'null'} (@{viewer?.username ?? 'null'})</Text>
-          </View>
-          <View style={styles.debugRowCard}>
-            <Text style={styles.debugLabelCard}>eventId: {item.id}</Text>
-          </View>
-          <View style={styles.debugRowCard}>
-            <Text style={styles.debugLabelCard}>hostUserId: {item.hostUserId ?? 'undef'} | host?.id: {item.host?.id ?? 'undef'}</Text>
-          </View>
-          <View style={styles.debugRowCard}>
-            <Text style={[styles.debugLabelCard, { color: isHost(item, viewer?.id) ? '#22c55e' : '#ef4444', fontWeight: 'bold' }]}>
-              isHost: {isHost(item, viewer?.id) ? 'TRUE' : 'FALSE'}
+// Cluster events by location to prevent flickering when multiple events share coordinates
+interface ClusteredLocation {
+  key: string;
+  latitude: number;
+  longitude: number;
+  events: EventItem[];
+}
+
+function clusterEventsByLocation(events: EventItem[]): ClusteredLocation[] {
+  const clusters = new Map<string, ClusteredLocation>();
+
+  for (const event of events) {
+    if (!event.latitude || !event.longitude || event.isOnline) {
+      continue;
+    }
+
+    // Round coordinates to group nearby events (within ~10m)
+    const lat = Math.round(event.latitude * 10000) / 10000;
+    const lng = Math.round(event.longitude * 10000) / 10000;
+    const key = `${lat},${lng}`;
+
+    if (clusters.has(key)) {
+      clusters.get(key)!.events.push(event);
+    } else {
+      clusters.set(key, {
+        key,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        events: [event],
+      });
+    }
+  }
+
+  return Array.from(clusters.values());
+}
+
+// Separate map component to handle clustering
+function EventMapView({
+  data,
+  userLocation,
+  locationPermissionGranted,
+  theme,
+  colors,
+  router,
+}: {
+  data: EventItem[] | undefined;
+  userLocation: UserLocation | null;
+  locationPermissionGranted: boolean;
+  theme: string;
+  colors: any;
+  router: any;
+}) {
+  const [selectedCluster, setSelectedCluster] = useState<ClusteredLocation | null>(null);
+
+  const clusters = useMemo(() => {
+    if (!data) return [];
+    return clusterEventsByLocation(data);
+  }, [data]);
+
+  const handleClusterPress = (cluster: ClusteredLocation) => {
+    if (cluster.events.length === 1) {
+      // Single event - navigate directly
+      router.push({
+        pathname: "/events/[id]",
+        params: { id: String(cluster.events[0].id) },
+      });
+    } else {
+      // Multiple events - show selection modal
+      setSelectedCluster(cluster);
+    }
+  };
+
+  const handleEventSelect = (event: EventItem) => {
+    setSelectedCluster(null);
+    router.push({
+      pathname: "/events/[id]",
+      params: { id: String(event.id) },
+    });
+  };
+
+  return (
+    <>
+      <MapView
+        style={styles.map}
+        // Use Apple Maps on iOS (works without API key), Google Maps on Android
+        provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
+        initialRegion={
+          userLocation
+            ? {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                latitudeDelta: 0.2,
+                longitudeDelta: 0.2,
+              }
+            : {
+                // Default to US center if no location
+                latitude: 39.8283,
+                longitude: -98.5795,
+                latitudeDelta: 50,
+                longitudeDelta: 50,
+              }
+        }
+        showsUserLocation={locationPermissionGranted}
+        showsMyLocationButton={true}
+        userInterfaceStyle={theme === "dark" ? "dark" : "light"}
+      >
+        {clusters.map((cluster) => {
+          const primaryEvent = cluster.events[0];
+          const eventType = formatCategory(primaryEvent.category) || 'Sunday Service';
+          const eventIcon = getEventIcon(eventType);
+          const [markerColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
+          const isSundayService = eventType === 'Sunday Service';
+          const eventCount = cluster.events.length;
+
+          return (
+            <Marker
+              key={cluster.key}
+              coordinate={{
+                latitude: cluster.latitude,
+                longitude: cluster.longitude,
+              }}
+              title={eventCount > 1 ? `${eventCount} events` : primaryEvent.title}
+              description={eventCount > 1 ? 'Tap to see all events' : formatWhen(primaryEvent)}
+              onPress={() => handleClusterPress(cluster)}
+              tracksViewChanges={false}
+            >
+              {/* Custom marker with event type icon */}
+              <View style={[styles.customMarker, { backgroundColor: markerColor }]}>
+                {isSundayService ? (
+                  <Image source={ChurchIcon} style={styles.markerIconImage} resizeMode="contain" />
+                ) : (
+                  <Ionicons name={eventIcon || 'calendar-outline'} size={18} color="#FFFFFF" />
+                )}
+                {/* Badge for multiple events */}
+                {eventCount > 1 && (
+                  <View style={styles.clusterBadge}>
+                    <Text style={styles.clusterBadgeText}>{eventCount}</Text>
+                  </View>
+                )}
+              </View>
+            </Marker>
+          );
+        })}
+      </MapView>
+
+      {/* Event Selection Modal for clustered locations */}
+      {selectedCluster && (
+        <View style={[styles.clusterModal, { backgroundColor: colors.surface }]}>
+          <View style={styles.clusterModalHeader}>
+            <Text style={[styles.clusterModalTitle, { color: colors.textPrimary }]}>
+              {selectedCluster.events.length} Events at this Location
             </Text>
+            <Pressable onPress={() => setSelectedCluster(null)} hitSlop={12}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </Pressable>
           </View>
+          <ScrollView style={styles.clusterModalList}>
+            {selectedCluster.events.map((event) => {
+              const eventType = formatCategory(event.category) || 'Sunday Service';
+              const [bgColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
+
+              return (
+                <Pressable
+                  key={event.id}
+                  style={[styles.clusterEventItem, { borderBottomColor: colors.borderSubtle }]}
+                  onPress={() => handleEventSelect(event)}
+                >
+                  <View style={[styles.clusterEventDot, { backgroundColor: bgColor }]} />
+                  <View style={styles.clusterEventInfo}>
+                    <Text style={[styles.clusterEventTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                    <Text style={[styles.clusterEventTime, { color: colors.textSecondary }]}>
+                      {formatWhen(event)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
-    </Pressable>
+    </>
   );
 }
 
@@ -776,35 +791,19 @@ export default function EventsScreenNew({
 }: EventsScreenNewProps = {}) {
   const router = useRouter();
   const { colors, theme, radii, colorScheme } = useTheme();
-  const { user, isLoading: authLoading } = useAuth();
-
-  // Auth must be fully initialized before firing event queries
-  // This ensures JWT token is restored and attached to requests
-  const authReady = !authLoading;
-
-  // DEV-ONLY: Log auth readiness state on mount
-  useEffect(() => {
-    if (__DEV__) {
-      console.info('[EventsScreen] Auth state:', {
-        authReady,
-        authLoading,
-        hasUser: !!user,
-        userId: user?.id,
-      });
-    }
-  }, [authReady, authLoading, user]);
+  const { user } = useAuth();
 
   const [view, setView] = useState<"list" | "map">("list");
   const [range, setRange] = useState<Range>("week");
   const [mode, setMode] = useState<Mode>("all");
   const [distance, setDistance] = useState<DistanceFilter>("all");
+  const [eventType, setEventType] = useState<EventType>("all");
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
+  const [ageGroupFilter, setAgeGroupFilter] = useState<AgeGroupFilter>("all");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [showMyEvents, setShowMyEvents] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
-  const [ageGroupFilter, setAgeGroupFilter] = useState<AgeGroupFilter>('all');
 
   // Location state
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -816,40 +815,34 @@ export default function EventsScreenNew({
   const [bookmarkedEvents, setBookmarkedEvents] = useState<Set<string | number>>(new Set());
   const queryClient = useQueryClient();
 
+  // Connections modal state
+  const [connectionsModalVisible, setConnectionsModalVisible] = useState(false);
+  const [selectedEventConnections, setSelectedEventConnections] = useState<{
+    eventTitle: string;
+    names: string[];
+  } | null>(null);
+
+  // Handle connections pill press - show modal with connection names
+  const handleConnectionsPress = (eventTitle: string, names: string[]) => {
+    setSelectedEventConnections({ eventTitle, names });
+    setConnectionsModalVisible(true);
+  };
+
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: number; status: string }) => {
-      if (__DEV__) {
-        console.info('[RSVP] Setting status:', { eventId, status });
-      }
       return eventsAPI.rsvp(eventId, status);
     },
     onSuccess: (_, { eventId, status }) => {
-      if (__DEV__) {
-        console.info('[RSVP] Success - invalidating queries for event:', eventId);
-      }
-      // Optimistic update for immediate UI feedback
       setRsvpStatuses(prev => ({
         ...prev,
         [eventId]: status as RsvpStatus,
       }));
-      // Invalidate queries to ensure server state is fetched
-      // This ensures RSVP persists across app restarts
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "my"] });
-      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
     },
     onError: (error: any) => {
       // Extract actual server error message from axios response
       const serverMessage = error.response?.data?.error || error.response?.data?.message;
       const statusCode = error.response?.status;
-
-      console.error('[RSVP Error]', {
-        statusCode,
-        serverMessage,
-        responseData: error.response?.data,
-        axiosMessage: error.message
-      });
 
       // Show user-friendly message based on error
       if (statusCode === 403 && serverMessage?.includes('suspended')) {
@@ -859,39 +852,6 @@ export default function EventsScreenNew({
       } else {
         Alert.alert('RSVP Failed', serverMessage || error.message || 'Failed to update RSVP. Please try again.');
       }
-    },
-  });
-
-  // Clear RSVP mutation - calls DELETE /api/events/:id/rsvp
-  const clearRsvpMutation = useMutation({
-    mutationFn: async (eventId: number) => {
-      if (__DEV__) {
-        console.info('[RSVP] Clearing RSVP for event:', eventId);
-      }
-      return apiClient.delete(`/api/events/${eventId}/rsvp`);
-    },
-    onSuccess: (_, eventId) => {
-      if (__DEV__) {
-        console.info('[RSVP] Clear success - invalidating queries for event:', eventId);
-      }
-      // Clear local state
-      setRsvpStatuses(prev => {
-        const newStatuses = { ...prev };
-        delete newStatuses[eventId];
-        return newStatuses;
-      });
-      // Invalidate queries to ensure server state is fetched
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "my"] });
-      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-    },
-    onError: (error: any) => {
-      const serverMessage = error.response?.data?.error || error.response?.data?.message;
-      console.error('[RSVP Clear Error]', {
-        status: error.response?.status,
-        message: serverMessage || error.message,
-      });
-      Alert.alert('Error', serverMessage || 'Failed to clear RSVP. Please try again.');
     },
   });
 
@@ -918,8 +878,12 @@ export default function EventsScreenNew({
           if (buttonIndex < 3) {
             rsvpMutation.mutate({ eventId: Number(eventId), status: statusMap[buttonIndex]! });
           } else if (buttonIndex === 3) {
-            // Clear RSVP - call API to persist deletion
-            clearRsvpMutation.mutate(Number(eventId));
+            // Clear RSVP
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
           }
         }
       );
@@ -933,8 +897,11 @@ export default function EventsScreenNew({
           { text: 'Maybe', onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'maybe' }) },
           { text: "Can't Go", onPress: () => rsvpMutation.mutate({ eventId: Number(eventId), status: 'not_going' }) },
           { text: 'Clear', style: 'destructive', onPress: () => {
-            // Clear RSVP - call API to persist deletion
-            clearRsvpMutation.mutate(Number(eventId));
+            setRsvpStatuses(prev => {
+              const newStatuses = { ...prev };
+              delete newStatuses[eventId];
+              return newStatuses;
+            });
           }},
           { text: 'Cancel', style: 'cancel' },
         ]
@@ -1031,83 +998,24 @@ export default function EventsScreenNew({
     }
   };
 
-  const { data: rawData, isLoading: isLoadingAll, isError, refetch } = useQuery({
+  const { data: rawData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["events", { view, range, mode, distance, q, city, userLocation }],
-    queryFn: async () => {
-      if (__DEV__) {
-        console.info('[EventsScreen] Fetching events list...');
-      }
-      try {
-        const data = await fetchEvents({ range, mode, distance, q, city, userLocation });
-        if (__DEV__) {
-          console.info('[EventsScreen] Events fetch success:', {
-            count: data?.length ?? 0,
-            hasUserRsvpStatus: data?.[0]?.userRsvpStatus !== undefined,
-          });
-        }
-        return data;
-      } catch (error: any) {
-        if (__DEV__) {
-          console.error('[EventsScreen] Events fetch error:', {
-            status: error.response?.status,
-            message: error.message,
-          });
-        }
-        throw error;
-      }
-    },
-    staleTime: 30_000,
-    // Wait for auth to be ready before fetching (ensures JWT is attached)
-    enabled: authReady && !showMyEvents,
+    queryFn: () => fetchEvents({ range, mode, distance, q, city, userLocation }),
+    staleTime: 2 * 60 * 1000, // 2 minutes - fresher data for better UX
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache longer (formerly cacheTime)
   });
 
-  // My Events query - fetches hosting, going, maybe events from server
-  const { data: myEventsData, isLoading: isLoadingMy, refetch: refetchMy } = useQuery({
-    queryKey: ["events", "my"],
+  // Personalized event recommendations (only shown when no filters/search active)
+  const hasActiveFilters = q.length > 0 || range !== 'all' || mode !== 'all' || distance !== 'all' || eventType !== 'all' || genderFilter !== 'all' || ageGroupFilter !== 'all';
+  const { data: recommendedEvents } = useQuery({
+    queryKey: ['events-recommended'],
     queryFn: async () => {
-      if (__DEV__) {
-        console.info('[EventsScreen] Fetching my events...');
-      }
-      try {
-        const data = await eventsAPI.getMy();
-        if (__DEV__) {
-          console.info('[EventsScreen] My events fetch success:', {
-            hosting: data?.hosting?.length ?? 0,
-            going: data?.going?.length ?? 0,
-            maybe: data?.maybe?.length ?? 0,
-            saved: data?.saved?.length ?? 0,
-          });
-        }
-        return data;
-      } catch (error: any) {
-        if (__DEV__) {
-          console.error('[EventsScreen] My events fetch error:', {
-            status: error.response?.status,
-            message: error.message,
-          });
-        }
-        throw error;
-      }
+      const res = await apiClient.get('/api/events/recommended?limit=5');
+      return (res.data?.events || []) as EventItem[];
     },
-    staleTime: 30_000,
-    // Wait for auth to be ready AND user to be authenticated
-    enabled: authReady && showMyEvents && !!user,
+    staleTime: 5 * 60 * 1000,
+    enabled: !hasActiveFilters,
   });
-
-  // DEV-ONLY: Fetch viewer from /api/user/me for debug panel
-  const { data: viewer } = useQuery<ViewerInfo>({
-    queryKey: ['me'],
-    queryFn: async () => {
-      const res = await apiClient.get('/api/user/me');
-      return res.data;
-    },
-    enabled: __DEV__,
-    staleTime: 60_000,
-  });
-
-  // Include authLoading in isLoading to show loading state while auth initializes
-  // This prevents showing "No events" before the query even starts
-  const isLoading = authLoading || (showMyEvents ? isLoadingMy : isLoadingAll);
 
   // Initialize RSVP statuses from API response (persists across app reloads)
   useEffect(() => {
@@ -1145,75 +1053,53 @@ export default function EventsScreenNew({
   // Note: isPublic filter removed since existing events have isPublic=false
   // Events marked as explicitly private (isPrivate=true) are still hidden
   const data = useMemo(() => {
+    if (!rawData) return [];
+
     const now = new Date();
     now.setHours(0, 0, 0, 0); // Start of today
 
-    // For My Events, use the server data which includes hosting events
-    if (showMyEvents && myEventsData) {
-      // Combine hosting, going, maybe into single list (deduplicated)
-      const seenIds = new Set<number | string>();
-      const combined: EventItem[] = [];
-
-      // Add hosting events first (user's own events)
-      for (const event of (myEventsData.hosting || [])) {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id);
-          combined.push({ ...event, _section: 'hosting' });
-        }
-      }
-
-      // Add going events
-      for (const event of (myEventsData.going || [])) {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id);
-          combined.push({ ...event, _section: 'going' });
-        }
-      }
-
-      // Add maybe events
-      for (const event of (myEventsData.maybe || [])) {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id);
-          combined.push({ ...event, _section: 'maybe' });
-        }
-      }
-
-      // Add saved/bookmarked events
-      for (const event of (myEventsData.saved || [])) {
-        if (!seenIds.has(event.id)) {
-          seenIds.add(event.id);
-          combined.push({ ...event, _section: 'saved' });
-        }
-      }
-
-      // Filter to upcoming events, but ALWAYS keep hosted events (host can manage past events)
-      return combined.filter((event: any) => {
-        // Always show events the user is hosting
-        if (event._section === 'hosting') {
-          return true;
-        }
-
-        let eventDateParsed: Date | null = null;
-        if (event.eventDate) {
-          eventDateParsed = parseEventDate(event.eventDate);
-        } else if (event.startsAt) {
-          eventDateParsed = new Date(event.startsAt);
-        }
-        if (!eventDateParsed || isNaN(eventDateParsed.getTime())) {
-          return true;
-        }
-        return eventDateParsed >= now;
-      }).sort((a, b) => {
-        const dateA = parseEventDate(a.eventDate || '') || new Date(0);
-        const dateB = parseEventDate(b.eventDate || '') || new Date(0);
-        return dateA.getTime() - dateB.getTime();
-      });
-    }
-
-    // Regular events list
-    if (!rawData) return [];
-
     return rawData.filter((event) => {
+      // Only filter out explicitly private events
+      if (event.isPrivate === true) {
+        return false;
+      }
+
+      // Event type filter
+      if (eventType !== "all") {
+        const eventCategory = event.category || 'Sunday Service';
+        if (eventCategory !== eventType) {
+          return false;
+        }
+      }
+
+      // Gender filter — show events targeting this gender or events with no gender restriction
+      if (genderFilter !== "all") {
+        if (event.targetGender && event.targetGender !== genderFilter) {
+          return false;
+        }
+      }
+
+      // Age group filter — events store comma-separated values like "kids,teens,adults"
+      if (ageGroupFilter !== "all") {
+        if (event.targetAgeGroup) {
+          const ageGroups = event.targetAgeGroup.split(',').map(s => s.trim());
+          if (!ageGroups.includes(ageGroupFilter)) {
+            return false;
+          }
+        }
+      }
+
+      // "My Events" filter - show bookmarked OR events where user RSVP'd "going" or "maybe"
+      // (not "not_going" - declining an event shouldn't add it to My Events)
+      if (showMyEvents) {
+        const isBookmarked = bookmarkedEvents.has(event.id);
+        const rsvpStatus = rsvpStatuses[event.id];
+        const isAttending = rsvpStatus === 'going' || rsvpStatus === 'maybe';
+        if (!isBookmarked && !isAttending) {
+          return false;
+        }
+      }
+
       // Try to parse the event date - prefer eventDate (new API), fall back to startsAt (legacy)
       let eventDateParsed: Date | null = null;
 
@@ -1225,39 +1111,14 @@ export default function EventsScreenNew({
       }
 
       // If we couldn't parse a valid date, include the event (fail safe)
-      if (eventDateParsed && !isNaN(eventDateParsed.getTime()) && eventDateParsed < now) {
-        return false;
+      if (!eventDateParsed || isNaN(eventDateParsed.getTime())) {
+        return true;
       }
 
-      // Category filter
-      if (categoryFilter !== 'all') {
-        const eventCategory = formatCategory(event.category);
-        if (eventCategory !== categoryFilter) return false;
-      }
-
-      // Gender & age group filters — use explicit fields first, fall back to keyword detection
-      if (genderFilter !== 'all' || ageGroupFilter !== 'all') {
-        const explicitGender = event.targetGender || null;
-        const explicitAgeRaw = event.targetAgeGroup || null;
-        // targetAgeGroup can be comma-separated (e.g. "teens,young_adults")
-        const explicitAgeGroups = explicitAgeRaw ? explicitAgeRaw.split(',').filter(Boolean) : [];
-        const tags = (!explicitGender || explicitAgeGroups.length === 0)
-          ? extractSmartTags(event.title, event.description ?? undefined)
-          : null;
-
-        const eventGender = explicitGender || tags?.gender || null;
-
-        if (genderFilter !== 'all' && eventGender !== null && eventGender !== genderFilter) return false;
-        if (ageGroupFilter !== 'all') {
-          const eventAgeGroups = explicitAgeGroups.length > 0 ? explicitAgeGroups : (tags?.ageGroup ? [tags.ageGroup] : []);
-          // If event has age groups set, check if the selected filter is among them
-          if (eventAgeGroups.length > 0 && !eventAgeGroups.includes(ageGroupFilter)) return false;
-        }
-      }
-
-      return true;
+      // Only show events that are today or in the future
+      return eventDateParsed >= now;
     });
-  }, [rawData, myEventsData, showMyEvents, categoryFilter, genderFilter, ageGroupFilter]);
+  }, [rawData, showMyEvents, bookmarkedEvents, rsvpStatuses, eventType, genderFilter, ageGroupFilter]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -1265,23 +1126,23 @@ export default function EventsScreenNew({
     if (range !== "week") count++;
     if (mode !== "all") count++;
     if (distance !== "all") count++;
-    if (q.trim()) count++;
-    if (city.trim()) count++;
-    if (categoryFilter !== "all") count++;
+    if (eventType !== "all") count++;
     if (genderFilter !== "all") count++;
     if (ageGroupFilter !== "all") count++;
+    if (q.trim()) count++;
+    if (city.trim()) count++;
     return count;
-  }, [range, mode, distance, q, city, categoryFilter, genderFilter, ageGroupFilter]);
+  }, [range, mode, distance, eventType, genderFilter, ageGroupFilter, q, city]);
 
   const clearAllFilters = () => {
     setRange("week");
     setMode("all");
     setDistance("all");
-    setQ("");
-    setCity("");
-    setCategoryFilter("all");
+    setEventType("all");
     setGenderFilter("all");
     setAgeGroupFilter("all");
+    setQ("");
+    setCity("");
   };
 
   const getDistanceLabel = (dist: DistanceFilter) => {
@@ -1290,7 +1151,7 @@ export default function EventsScreenNew({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* App Header */}
@@ -1364,6 +1225,7 @@ export default function EventsScreenNew({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ maxHeight: 40 }}
             contentContainerStyle={styles.activeFiltersRow}
           >
             {range !== "week" && (
@@ -1372,7 +1234,35 @@ export default function EventsScreenNew({
                   {range === "today" ? "Today" : range === "weekend" ? "Weekend" : range === "next" ? "Next Week" : "All"}
                 </Text>
                 <Pressable onPress={() => setRange("week")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {eventType !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{eventType}</Text>
+                <Pressable onPress={() => setEventType("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {genderFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {genderFilter === 'men' ? 'Men' : 'Women'}
+                </Text>
+                <Pressable onPress={() => setGenderFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
+            )}
+            {ageGroupFilter !== "all" && (
+              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
+                  {ageGroupFilter === 'young_adults' ? 'Young Adults' : ageGroupFilter.charAt(0).toUpperCase() + ageGroupFilter.slice(1)}
+                </Text>
+                <Pressable onPress={() => setAgeGroupFilter("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
@@ -1382,249 +1272,167 @@ export default function EventsScreenNew({
                   {mode === "inPerson" ? "In-Person" : "Online"}
                 </Text>
                 <Pressable onPress={() => setMode("all")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {distance !== "all" && (
               <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-                <Ionicons name="navigate-outline" size={14} color={colors.primary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
-                  Within {distance} mi
-                </Text>
-                <Pressable onPress={() => setDistance("all")} hitSlop={8} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{distance} mi</Text>
+                <Pressable onPress={() => setDistance("all")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
             {city.trim() && (
               <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-                <Ionicons name="location-outline" size={14} color={colors.primary} style={{ marginRight: 4 }} />
                 <Text style={[styles.activeFilterText, { color: colors.primary }]}>{city}</Text>
-                <Pressable onPress={() => setCity("")} hitSlop={8} style={{ marginLeft: 4 }}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                <Pressable onPress={() => setCity("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={14} color={colors.primary} />
                 </Pressable>
               </View>
             )}
-            {categoryFilter !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-                <Text style={[styles.activeFilterText, { color: colors.primary }]}>{categoryFilter}</Text>
-                <Pressable onPress={() => setCategoryFilter("all")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
-                </Pressable>
-              </View>
-            )}
-            {genderFilter !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-                <Ionicons name={genderFilter === 'men' ? "man-outline" : "woman-outline"} size={14} color={colors.primary} style={{ marginRight: 4 }} />
-                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
-                  {genderFilter === 'men' ? 'Men' : 'Women'}
-                </Text>
-                <Pressable onPress={() => setGenderFilter("all")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
-                </Pressable>
-              </View>
-            )}
-            {ageGroupFilter !== "all" && (
-              <View style={[styles.activeFilterPill, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-                <Text style={[styles.activeFilterText, { color: colors.primary }]}>
-                  {AGE_GROUP_LABELS[ageGroupFilter]}
-                </Text>
-                <Pressable onPress={() => setAgeGroupFilter("all")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.primary} />
-                </Pressable>
-              </View>
-            )}
-            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.textMuted }]}>
-              <Text style={[styles.clearAllText, { color: colors.textPrimary }]}>Clear All</Text>
+            <Pressable onPress={clearAllFilters} style={[styles.clearAllBtn, { borderColor: colors.textMuted }]}>
+              <Text style={[styles.clearAllText, { color: colors.textMuted }]}>Clear</Text>
             </Pressable>
           </ScrollView>
         )}
 
-        {/* Expanded Filters Panel */}
+        {/* Expanded Filters Panel - Compact Layout */}
         {filtersExpanded && (
           <View style={[styles.filtersPanel, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Date Range */}
-              <FilterSection title="DATE RANGE" colors={colors}>
-                <View style={styles.filterGrid}>
-                  <FilterChip
-                    label="Today"
-                    active={range === "today"}
-                    onPress={() => setRange("today")}
-                    icon="today-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="This Week"
-                    active={range === "week"}
-                    onPress={() => setRange("week")}
-                    icon="calendar-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Weekend"
-                    active={range === "weekend"}
-                    onPress={() => setRange("weekend")}
-                    icon="calendar-number-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Next Week"
-                    active={range === "next"}
-                    onPress={() => setRange("next")}
-                    icon="arrow-forward-circle-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="All Events"
-                    active={range === "all"}
-                    onPress={() => setRange("all")}
-                    colors={colors}
-                  />
-                </View>
-              </FilterSection>
-
-              {/* Event Format */}
-              <FilterSection title="EVENT FORMAT" colors={colors}>
-                <View style={styles.filterGrid}>
-                  <FilterChip
-                    label="All"
-                    active={mode === "all"}
-                    onPress={() => setMode("all")}
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="In-Person"
-                    active={mode === "inPerson"}
-                    onPress={() => setMode("inPerson")}
-                    icon="location-outline"
-                    colors={colors}
-                  />
-                  <FilterChip
-                    label="Online"
-                    active={mode === "online"}
-                    onPress={() => setMode("online")}
-                    icon="videocam-outline"
-                    colors={colors}
-                  />
-                </View>
-              </FilterSection>
-
-              {/* Event Type (Category) */}
-              <FilterSection title="EVENT TYPE" colors={colors}>
-                <View style={styles.filterGrid}>
-                  {EVENT_CATEGORIES.map((cat) => (
+              {/* Row 1: Date Range */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>When</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "today", label: "Today" },
+                    { key: "week", label: "This Week" },
+                    { key: "weekend", label: "Weekend" },
+                    { key: "next", label: "Next Week" },
+                    { key: "all", label: "All" },
+                  ].map((item) => (
                     <FilterChip
-                      key={cat}
-                      label={cat}
-                      active={cat === 'All' ? categoryFilter === 'all' : categoryFilter === cat}
-                      onPress={() => setCategoryFilter(cat === 'All' ? 'all' : cat)}
+                      key={item.key}
+                      label={item.label}
+                      active={range === item.key}
+                      onPress={() => setRange(item.key as Range)}
                       colors={colors}
                     />
                   ))}
-                </View>
-              </FilterSection>
+                </ScrollView>
+              </View>
 
-              {/* For Who (Gender) */}
-              <FilterSection title="FOR WHO" colors={colors}>
-                <View style={styles.filterGrid}>
-                  <FilterChip label="All" active={genderFilter === 'all'} onPress={() => setGenderFilter('all')} colors={colors} />
-                  <FilterChip label="Men" active={genderFilter === 'men'} onPress={() => setGenderFilter('men')} icon="man-outline" colors={colors} />
-                  <FilterChip label="Women" active={genderFilter === 'women'} onPress={() => setGenderFilter('women')} icon="woman-outline" colors={colors} />
-                </View>
-              </FilterSection>
-
-              {/* Age Group */}
-              <FilterSection title="AGE GROUP" colors={colors}>
-                <View style={styles.filterGrid}>
-                  {(Object.entries(AGE_GROUP_LABELS) as [AgeGroupFilter | 'all', string][]).map(([key, label]) => (
+              {/* Row 2: Event Type */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Type</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "All Types" },
+                    { key: "Sunday Service", label: "Sunday Service" },
+                    { key: "Worship", label: "Worship" },
+                    { key: "Bible Study", label: "Bible Study" },
+                    { key: "Social", label: "Social" },
+                    { key: "Service", label: "Service" },
+                    { key: "Prayer", label: "Prayer" },
+                  ].map((item) => (
                     <FilterChip
-                      key={key}
-                      label={label}
-                      active={ageGroupFilter === key}
-                      onPress={() => setAgeGroupFilter(key as AgeGroupFilter)}
+                      key={item.key}
+                      label={item.label}
+                      active={eventType === item.key}
+                      onPress={() => setEventType(item.key as EventType)}
                       colors={colors}
                     />
                   ))}
-                </View>
-              </FilterSection>
+                </ScrollView>
+              </View>
 
-              {/* Distance Filter */}
-              <FilterSection
-                title="DISTANCE"
-                subtitle={locationLoading ? "Getting your location..." : !locationPermissionGranted ? "Location permission required" : undefined}
-                colors={colors}
-              >
+              {/* Row 3: For Who (Gender) */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>For</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "Everyone" },
+                    { key: "men", label: "Men", icon: "man-outline" as keyof typeof Ionicons.glyphMap },
+                    { key: "women", label: "Women", icon: "woman-outline" as keyof typeof Ionicons.glyphMap },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={genderFilter === item.key}
+                      onPress={() => setGenderFilter(item.key as GenderFilter)}
+                      icon={item.icon}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Row 4: Age Group */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Age</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  {[
+                    { key: "all", label: "All Ages" },
+                    { key: "kids", label: "Kids" },
+                    { key: "teens", label: "Teens" },
+                    { key: "young_adults", label: "Young Adults" },
+                    { key: "adults", label: "Adults" },
+                    { key: "seniors", label: "Seniors" },
+                  ].map((item) => (
+                    <FilterChip
+                      key={item.key}
+                      label={item.label}
+                      active={ageGroupFilter === item.key}
+                      onPress={() => setAgeGroupFilter(item.key as AgeGroupFilter)}
+                      colors={colors}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Row 5: Format & Distance combined */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Format</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                  <FilterChip label="All" active={mode === "all"} onPress={() => setMode("all")} colors={colors} />
+                  <FilterChip label="In-Person" active={mode === "inPerson"} onPress={() => setMode("inPerson")} icon="location-outline" colors={colors} />
+                  <FilterChip label="Online" active={mode === "online"} onPress={() => setMode("online")} icon="videocam-outline" colors={colors} />
+                </ScrollView>
+              </View>
+
+              {/* Row 6: Distance */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>Distance</Text>
                 {locationLoading ? (
-                  <View style={styles.locationLoading}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.locationLoadingText, { color: colors.textSecondary }]}>
-                      Getting your location...
-                    </Text>
-                  </View>
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 12 }} />
                 ) : (
-                  <View style={styles.filterGrid}>
-                    <FilterChip
-                      label="All Distances"
-                      active={distance === "all"}
-                      onPress={() => setDistance("all")}
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="5 miles"
-                      active={distance === "5"}
-                      onPress={() => handleDistanceFilterChange("5")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="10 miles"
-                      active={distance === "10"}
-                      onPress={() => handleDistanceFilterChange("10")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="20 miles"
-                      active={distance === "20"}
-                      onPress={() => handleDistanceFilterChange("20")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="50 miles"
-                      active={distance === "50"}
-                      onPress={() => handleDistanceFilterChange("50")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                    <FilterChip
-                      label="100 miles"
-                      active={distance === "100"}
-                      onPress={() => handleDistanceFilterChange("100")}
-                      icon="navigate-outline"
-                      colors={colors}
-                    />
-                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                    <FilterChip label="Any" active={distance === "all"} onPress={() => setDistance("all")} colors={colors} />
+                    <FilterChip label="5 mi" active={distance === "5"} onPress={() => handleDistanceFilterChange("5")} colors={colors} />
+                    <FilterChip label="10 mi" active={distance === "10"} onPress={() => handleDistanceFilterChange("10")} colors={colors} />
+                    <FilterChip label="25 mi" active={distance === "25"} onPress={() => handleDistanceFilterChange("25")} colors={colors} />
+                    <FilterChip label="50 mi" active={distance === "50"} onPress={() => handleDistanceFilterChange("50")} colors={colors} />
+                  </ScrollView>
                 )}
-              </FilterSection>
+              </View>
 
-              {/* Location */}
-              <FilterSection title="CITY SEARCH" subtitle="Or search by city name" colors={colors}>
+              {/* Row 7: City Search */}
+              <View style={styles.filterRow}>
+                <Text style={[styles.filterRowLabel, { color: colors.textSecondary }]}>City</Text>
                 <View
                   style={[
-                    styles.locationInputWrap,
+                    styles.compactInputWrap,
                     { backgroundColor: colors.background, borderColor: colors.borderSubtle },
                   ]}
                 >
-                  <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
                   <TextInput
                     value={city}
                     onChangeText={setCity}
-                    placeholder="Enter city name..."
+                    placeholder="Search city..."
                     placeholderTextColor={colors.textMuted}
-                    style={[styles.input, { color: colors.textPrimary }]}
+                    style={[styles.compactInput, { color: colors.textPrimary }]}
                     returnKeyType="done"
                     onSubmitEditing={() => refetch()}
                   />
@@ -1634,26 +1442,24 @@ export default function EventsScreenNew({
                     </Pressable>
                   )}
                 </View>
-              </FilterSection>
+              </View>
 
               {/* Action Buttons */}
-              <View style={styles.filterActions}>
+              <View style={styles.filterActionsCompact}>
                 <Pressable
                   onPress={clearAllFilters}
-                  style={[styles.filterActionBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSubtle }]}
+                  style={[styles.filterActionBtnCompact, { borderColor: colors.borderSubtle }]}
                 >
-                  <Text style={[styles.filterActionText, { color: colors.textPrimary }]}>Clear All</Text>
+                  <Text style={[styles.filterActionTextCompact, { color: colors.textSecondary }]}>Clear</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     setFiltersExpanded(false);
                     refetch();
                   }}
-                  style={[styles.filterActionBtn, styles.filterActionBtnPrimary, { backgroundColor: colors.primary }]}
+                  style={[styles.filterActionBtnCompact, styles.filterActionBtnPrimaryCompact, { backgroundColor: colors.primary }]}
                 >
-                  <Text style={[styles.filterActionText, { color: colors.primaryForeground }]}>
-                    Apply Filters
-                  </Text>
+                  <Text style={[styles.filterActionTextCompact, { color: colors.primaryForeground }]}>Apply</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -1703,148 +1509,134 @@ export default function EventsScreenNew({
 
         {/* Body */}
         {view === "map" ? (
-          isLoading ? (
-            <View style={[styles.map, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface }]}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 14 }}>
-                Loading events...
-              </Text>
-            </View>
-          ) : (
-          <MapView
-            style={styles.map}
-            // Use Apple Maps on iOS (works without API key), Google Maps on Android
-            provider={Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
-            initialRegion={
-              userLocation
-                ? {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
-                    latitudeDelta: 0.2,
-                    longitudeDelta: 0.2,
-                  }
-                : {
-                    // Default to US center if no location
-                    latitude: 39.8283,
-                    longitude: -98.5795,
-                    latitudeDelta: 50,
-                    longitudeDelta: 50,
-                  }
-            }
-            showsUserLocation={locationPermissionGranted}
-            showsMyLocationButton={true}
-            userInterfaceStyle={theme === "dark" ? "dark" : "light"}
-          >
-            {data?.map((event) => {
-              // Skip events without coordinates or online events
-              if (!event.latitude || !event.longitude || event.isOnline) {
-                return null;
-              }
-
-              const eventType = formatCategory(event.category) || 'Sunday Service';
-              const eventIcon = getEventIcon(eventType);
-              const [markerColor] = EVENT_TYPE_GRADIENTS[eventType] || ['#3B82F6'];
-              const isSundayService = eventType === 'Sunday Service';
-
-              return (
-                <Marker
-                  key={event.id}
-                  coordinate={{
-                    latitude: event.latitude,
-                    longitude: event.longitude,
-                  }}
-                  title={event.title}
-                  description={formatWhen(event)}
-                  pinColor={markerColor}
-                  onCalloutPress={() => {
-                    router.push({
-                      pathname: "/events/[id]",
-                      params: { id: String(event.id) },
-                    });
-                  }}
-                >
-                  {/* Custom marker with event type icon */}
-                  <View style={[styles.customMarker, { backgroundColor: markerColor }]}>
-                    {isSundayService ? (
-                      <Image source={ChurchIcon} style={styles.markerIconImage} />
-                    ) : (
-                      <Ionicons name={eventIcon || 'calendar-outline'} size={18} color="#FFFFFF" />
-                    )}
-                  </View>
-                </Marker>
-              );
-            })}
-          </MapView>
-          )
+          <EventMapView
+            data={data}
+            userLocation={userLocation}
+            locationPermissionGranted={locationPermissionGranted}
+            theme={theme}
+            colors={colors}
+            router={router}
+          />
+        ) : isLoading && !rawData ? (
+          // Initial loading state - show loading indicator
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading events...
+            </Text>
+          </View>
         ) : (
           <FlatList
             data={data ?? []}
             keyExtractor={(it) => String(it.id)}
-            contentContainerStyle={{ paddingBottom: 18 }}
-            ListEmptyComponent={
-              isLoading ? (
-                <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={{ color: colors.textSecondary, marginTop: 12, fontSize: 14 }}>
-                    Loading events...
+            contentContainerStyle={{ paddingBottom: 18, flexGrow: 1 }}
+            ListHeaderComponent={
+              !hasActiveFilters && recommendedEvents && recommendedEvents.length > 0 ? (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 }}>
+                    Recommended for You
                   </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                    {recommendedEvents.map((event) => {
+                      const dateStr = event.eventDate ? String(event.eventDate).split(' ')[0] : '';
+                      const eventDate = dateStr ? new Date(dateStr + 'T00:00:00') : null;
+                      const month = eventDate ? eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() : '';
+                      const day = eventDate ? eventDate.getDate() : '';
+                      return (
+                        <Pressable
+                          key={event.id}
+                          onPress={() => router.push({ pathname: '/events/[id]', params: { id: String(event.id) } })}
+                          style={{
+                            width: 200,
+                            backgroundColor: colors.surface,
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: colors.borderSubtle,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {event.imageUrl ? (
+                            <Image source={{ uri: event.imageUrl }} style={{ width: 200, height: 100 }} />
+                          ) : (
+                            <View style={{ width: 200, height: 60, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="calendar" size={24} color={colors.primary} />
+                            </View>
+                          )}
+                          <View style={{ padding: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <View style={{ backgroundColor: colors.primary + '15', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.primary }}>{month}</Text>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary }}>{day}</Text>
+                              </View>
+                              <Text numberOfLines={2} style={{ flex: 1, fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{event.title}</Text>
+                            </View>
+                            {event.location && (
+                              <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                                <Ionicons name="location-outline" size={10} color={colors.textMuted} /> {event.location}
+                              </Text>
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                  <View style={{ height: 1, backgroundColor: colors.borderSubtle, marginTop: 14 }} />
                 </View>
-              ) : (
-                <View
-                  style={[
-                    styles.empty,
-                    { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
-                  ]}
-                >
-                  <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
-                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 12 }}>
-                    No events found
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 18, textAlign: 'center' }}>
-                    Try adjusting your filters or search criteria
-                  </Text>
-                  {activeFiltersCount > 0 && (
-                    <Pressable
-                      onPress={clearAllFilters}
-                      style={[
-                        styles.secondaryBtn,
-                        { backgroundColor: colors.surfaceMuted, marginTop: 12 },
-                      ]}
-                    >
-                      <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Clear Filters</Text>
-                    </Pressable>
-                  )}
+              ) : null
+            }
+            ListEmptyComponent={
+              <View
+                style={[
+                  styles.empty,
+                  { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
+                ]}
+              >
+                <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
+                <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginTop: 12 }}>
+                  No events found
+                </Text>
+                <Text style={{ color: colors.textSecondary, marginTop: 6, lineHeight: 18, textAlign: 'center' }}>
+                  Try adjusting your filters or search criteria
+                </Text>
+                {activeFiltersCount > 0 && (
                   <Pressable
-                    onPress={() => router.push("/events/create")}
+                    onPress={clearAllFilters}
                     style={[
-                      styles.primaryBtn,
-                      { backgroundColor: colors.primary, marginTop: 8 },
+                      styles.secondaryBtn,
+                      { backgroundColor: colors.surfaceMuted, marginTop: 12 },
                     ]}
                   >
-                    <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>Create an Event</Text>
+                    <Text style={{ color: colors.textPrimary, fontWeight: "600" }}>Clear Filters</Text>
                   </Pressable>
-                </View>
-              )
+                )}
+                <Pressable
+                  onPress={() => router.push("/events/create")}
+                  style={[
+                    styles.primaryBtn,
+                    { backgroundColor: colors.primary, marginTop: 8 },
+                  ]}
+                >
+                  <Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>Create an Event</Text>
+                </Pressable>
+              </View>
             }
             renderItem={({ item }) => (
               <EventCard
                 item={item}
                 colors={colors}
-                onPress={() => {
-                  console.info('[EventsScreen] Navigating to event:', item.id, item.title);
-                  Alert.alert('DEBUG', `Navigating to event ${item.id}: ${item.title}`);
-                  router.push({ pathname: "/events/[id]", params: { id: String(item.id) } });
-                }}
+                onPress={() => router.push({ pathname: "/events/[id]", params: { id: String(item.id) } })}
                 rsvpStatus={rsvpStatuses[item.id]}
                 onRsvpPress={() => handleRsvpPress(item.id)}
                 isBookmarked={bookmarkedEvents.has(item.id)}
                 onBookmarkPress={() => handleBookmarkPress(item.id)}
-                isUserHost={isHost(item, user?.id)}
-                onManagePress={() => router.push({ pathname: "/events/manage/[id]", params: { id: String(item.id) } })}
-                viewer={__DEV__ ? viewer : undefined}
+                onConnectionsPress={
+                  item.connectionsGoing?.count
+                    ? () => handleConnectionsPress(item.title, item.connectionsGoing?.names || [])
+                    : undefined
+                }
               />
             )}
-            refreshing={isLoading}
+            refreshing={isFetching && !!rawData}
             onRefresh={refetch}
           />
         )}
@@ -1856,49 +1648,81 @@ export default function EventsScreenNew({
             </Text>
           </View>
         ) : null}
-
-        {/* DEV-ONLY: Debug Footer */}
-        {__DEV__ && (
-          <View style={styles.devFooter}>
-            <View style={styles.devFooterRow}>
-              <Text style={styles.devFooterLabel}>API:</Text>
-              <Text style={styles.devFooterValue} numberOfLines={1}>{getApiBase()}</Text>
-            </View>
-            <View style={styles.devFooterRow}>
-              <Text style={styles.devFooterLabel}>Build:</Text>
-              <Text style={styles.devFooterValue}>{getBuildChannel()}</Text>
-            </View>
-            <View style={styles.devFooterRow}>
-              <Text style={styles.devFooterLabel}>User:</Text>
-              <Text style={styles.devFooterValue}>
-                {user ? `${user.id} (@${user.username})` : 'not logged in'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.devRefreshBtn}
-              onPress={async () => {
-                console.info('[DEV] Hard refresh triggered');
-                await Promise.all([
-                  queryClient.invalidateQueries({ queryKey: ["events"] }),
-                  queryClient.invalidateQueries({ queryKey: ["events", "my"] }),
-                  queryClient.invalidateQueries({ queryKey: ["me"] }),
-                ]);
-                // Also refetch immediately
-                await Promise.all([
-                  queryClient.refetchQueries({ queryKey: ["events"] }),
-                  queryClient.refetchQueries({ queryKey: ["events", "my"] }),
-                  queryClient.refetchQueries({ queryKey: ["me"] }),
-                ]);
-                console.info('[DEV] Hard refresh complete');
-                Alert.alert('Refreshed', 'All queries invalidated and refetched');
-              }}
-            >
-              <Ionicons name="refresh" size={14} color="#fff" />
-              <Text style={styles.devRefreshText}>Hard Refresh</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
+
+      {/* Connections Going Modal */}
+      <Modal
+        visible={connectionsModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConnectionsModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setConnectionsModalVisible(false)}
+        >
+          <Pressable
+            style={[styles.connectionsModal, { backgroundColor: colors.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View style={[styles.connectionsModalHeader, { borderBottomColor: colors.borderSubtle }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.connectionsModalTitle, { color: colors.textPrimary }]}>
+                  Connections Going
+                </Text>
+                {selectedEventConnections && (
+                  <Text style={[styles.connectionsModalSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {selectedEventConnections.eventTitle}
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                onPress={() => setConnectionsModalVisible(false)}
+                hitSlop={12}
+                style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]}
+              >
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Connection List */}
+            <ScrollView style={styles.connectionsModalList}>
+              {selectedEventConnections?.names.map((name, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.connectionItem,
+                    { borderBottomColor: colors.borderSubtle },
+                    index === selectedEventConnections.names.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={[styles.connectionAvatar, { backgroundColor: colors.primary + '20' }]}>
+                    <Ionicons name="person" size={18} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.connectionName, { color: colors.textPrimary }]}>
+                    {name}
+                  </Text>
+                  <View style={[styles.goingBadge, { backgroundColor: '#22C55E20' }]}>
+                    <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                    <Text style={[styles.goingBadgeText, { color: '#22C55E' }]}>Going</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Empty state */}
+            {(!selectedEventConnections?.names || selectedEventConnections.names.length === 0) && (
+              <View style={styles.emptyConnections}>
+                <Ionicons name="people-outline" size={40} color={colors.textMuted} />
+                <Text style={[styles.emptyConnectionsText, { color: colors.textSecondary }]}>
+                  No connections going yet
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1909,30 +1733,30 @@ const styles = StyleSheet.create({
   // Search Row
   searchRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   searchInputWrap: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    paddingVertical: Platform.select({ ios: 10, android: 8, default: 8 }),
+    fontSize: 13,
+    paddingVertical: Platform.select({ ios: 8, android: 6, default: 6 }),
   },
   filterToggleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1958,41 +1782,105 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 4,
-    gap: 8,
+    paddingVertical: 6,
+    gap: 6,
   },
   activeFilterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 4,
   },
   activeFilterText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   clearAllBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: 'center',
   },
   clearAllText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
-  // Filters Panel (expanded state)
+  // Filters Panel (expanded state) - Compact Layout
   filtersPanel: {
     maxHeight: 400,
     borderBottomWidth: 1,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingLeft: 16,
+  },
+  filterRowLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    width: 56,
+  },
+  filterScrollContent: {
+    paddingRight: 16,
+    gap: 6,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  compactInputWrap: {
+    flex: 1,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  compactInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 4,
+  },
+  filterActionsCompact: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  filterActionBtnCompact: {
+    flex: 1,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterActionBtnPrimaryCompact: {
+    borderWidth: 0,
+  },
+  filterActionTextCompact: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  // Legacy styles (kept for compatibility)
   filterSection: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -2014,18 +1902,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   locationLoading: {
     flexDirection: 'row',
@@ -2072,9 +1948,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   myEventsToggle: {
     flexDirection: 'row',
@@ -2086,37 +1961,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   toggleWrap: {
-    width: 120,
-    height: 36,
-    borderRadius: 20,
+    width: 110,
+    height: 32,
+    borderRadius: 18,
     borderWidth: 1,
     flexDirection: "row",
     padding: 2,
   },
   toggleBtn: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  toggleText: { fontSize: 13, fontWeight: "700" },
+  toggleText: { fontSize: 12, fontWeight: "700" },
   resultsCount: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 
   // Event Card
   card: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 8,
+    marginBottom: 3,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
+    padding: 10,
   },
   poster: {
-    height: 120,
-    borderRadius: 10,
+    height: 160,
+    borderRadius: 8,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
@@ -2124,20 +1999,6 @@ const styles = StyleSheet.create({
   posterImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 10,
-  },
-  posterImagePositioned: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    width: '100%',
-    height: 300,
-    borderRadius: 10,
-  },
-  posterImagePlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   posterFallback: {
     flex: 1,
@@ -2172,44 +2033,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: { fontSize: 10, fontWeight: "900" },
-  hostBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    gap: 4,
-  },
-  hostBadgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "800",
-  },
   title: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: 14,
     fontWeight: "700",
-    lineHeight: 22,
+    lineHeight: 19,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 6,
-  },
-  metaText: { fontSize: 13, fontWeight: "500" },
-  hostRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    gap: 5,
     marginTop: 4,
   },
-  hostText: { fontSize: 12, fontWeight: "500" },
+  metaText: { fontSize: 12, fontWeight: "500" },
   footerRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2239,12 +2077,25 @@ const styles = StyleSheet.create({
   },
   connectionsText: { fontSize: 10, fontWeight: "600" },
   iconAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: '500',
   },
 
   // Map & Empty States
@@ -2271,6 +2122,77 @@ const styles = StyleSheet.create({
     height: 18,
     tintColor: '#FFFFFF',
   },
+  clusterBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  clusterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  clusterModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  clusterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  clusterModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  clusterModalList: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  clusterEventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  clusterEventDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  clusterEventInfo: {
+    flex: 1,
+  },
+  clusterEventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  clusterEventTime: {
+    fontSize: 13,
+    marginTop: 2,
+  },
   empty: {
     margin: 16,
     borderRadius: 16,
@@ -2294,69 +2216,83 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  // DEV-ONLY Debug Panel styles for EventCard
-  debugPanelCard: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: '#1e1e2e',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#f59e0b',
+  // Connections Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  debugTitleCard: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginBottom: 6,
+  connectionsModal: {
+    maxHeight: '60%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
-  debugRowCard: {
-    paddingVertical: 2,
-  },
-  debugLabelCard: {
-    fontSize: 9,
-    color: '#a1a1aa',
-    fontFamily: 'monospace',
-  },
-
-  // DEV-ONLY: Footer styles
-  devFooter: {
-    backgroundColor: '#1e1e2e',
-    borderTopWidth: 2,
-    borderTopColor: '#f59e0b',
-    padding: 12,
-    gap: 6,
-  },
-  devFooterRow: {
+  connectionsModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
   },
-  devFooterLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    width: 40,
+  connectionsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
   },
-  devFooterValue: {
-    fontSize: 10,
-    color: '#e4e4e7',
-    fontFamily: 'monospace',
-    flex: 1,
+  connectionsModalSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
-  devRefreshBtn: {
-    flexDirection: 'row',
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#f59e0b',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    marginTop: 8,
   },
-  devRefreshText: {
+  connectionsModalList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  connectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  connectionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  connectionName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  goingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  goingBadgeText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1e1e2e',
+    fontWeight: '600',
+  },
+  emptyConnections: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyConnectionsText: {
+    fontSize: 15,
+    marginTop: 12,
   },
 });

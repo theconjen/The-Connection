@@ -1,5 +1,6 @@
 /**
- * Redesigned ProfileScreen - Modern profile with tabs, follow system, communities, and posts
+ * Redesigned ProfileScreen - Modern profile with tabs, follow system, and communities
+ * Tabs: Communities (joined groups) and Questions (advice questions asked)
  */
 
 import React, { useState } from 'react';
@@ -24,7 +25,7 @@ import { useRouter } from 'expo-router';
 import { Text } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { AppHeader } from './AppHeader';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -33,13 +34,21 @@ import {
   useUnfollowUser,
   useFollowStatus,
 } from '../queries/follow';
-import { eventsAPI } from '../lib/apiClient';
 // Colors now come from useTheme() - see colors.primary usage below
 import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
-import { ClergyBadge } from '../components/ClergyBadge';
+import apiClient from '../lib/apiClient';
+import { formatDistanceToNow } from 'date-fns';
 
-// Custom church icon
-const ChurchIcon = require('../../assets/church-icon.png');
+// Helper to format activity dates
+const formatActivityDate = (date: Date) => {
+  try {
+    return formatDistanceToNow(date, { addSuffix: true }).replace('about ', '');
+  } catch {
+    return '';
+  }
+};
+
+// Church icon now uses MaterialCommunityIcons
 
 interface ProfileScreenProps {
   onBackPress?: () => void;
@@ -50,11 +59,13 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { colors, spacing, radii, colorScheme } = useTheme();
   const { user: currentUser, refresh: refreshAuth } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'posts' | 'communities' | 'events'>('posts');
+  const [activeTab, setActiveTab] = useState<'communities' | 'advice'>('communities');
   const [refreshing, setRefreshing] = useState(false);
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [versePassage, setVersePassage] = useState<{ reference: string; text: string; translation: string } | null>(null);
   const [verseLoading, setVerseLoading] = useState(false);
+  const [showClergyModal, setShowClergyModal] = useState(false);
+  const [showApologistModal, setShowApologistModal] = useState(false);
 
   // Determine if viewing own profile
   const viewingOwnProfile = !userId || userId === currentUser?.id;
@@ -65,26 +76,16 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { data: profile, isLoading, error, refetch } = useUserProfile(targetUserId);
   const { data: followStatus } = useFollowStatus(targetUserId);
 
-  // Fetch attended events for the Events tab
-  const { data: attendedEventsData, refetch: refetchAttendedEvents } = useQuery({
-    queryKey: ['attended-events', targetUserId],
-    queryFn: () => eventsAPI.getAttendees(targetUserId),
-    enabled: !!targetUserId,
+  // Fetch user activity
+  const { data: activityData, isLoading: isActivityLoading, refetch: refetchActivity } = useQuery({
+    queryKey: ['userActivity', targetUserId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/users/${targetUserId}/activity`);
+      return response.data;
+    },
+    enabled: !!targetUserId && activeTab === 'advice',
   });
 
-  // Debug logging
-  React.useEffect(() => {
-    if (profile) {
-      console.info('[ProfileScreen] User fields:', {
-        location: profile.user?.location,
-        denomination: profile.user?.denomination,
-        homeChurch: profile.user?.homeChurch,
-        favoriteBibleVerse: profile.user?.favoriteBibleVerse,
-        testimony: profile.user?.testimony,
-        interests: profile.user?.interests,
-      });
-    }
-  }, [profile]);
 
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();
@@ -109,15 +110,15 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      refetch(),                 // Refresh local profile query
-      refreshAuth(),             // Refresh global user state
-      refetchAttendedEvents(),   // Refresh attended events
+      refetch(),        // Refresh local profile query
+      refreshAuth(),    // Refresh global user state
+      refetchActivity(), // Refresh activity
     ]);
     setRefreshing(false);
   };
 
   const handleVersePress = async () => {
-    const verseText = user?.favoriteBibleVerse;
+    const verseText = profile?.user?.favoriteBibleVerse;
     if (!verseText) return;
 
     setShowVerseModal(true);
@@ -189,7 +190,6 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
         ]);
         Alert.alert('Success', 'Profile picture updated!');
       } catch (error) {
-        console.error('Error updating avatar:', error);
         Alert.alert('Error', 'Failed to update profile picture. Please try again.');
       }
     }
@@ -197,7 +197,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
@@ -213,7 +213,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (!profile) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
@@ -227,10 +227,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
     );
   }
 
-  const { user, stats, communities, recentPosts, recentMicroblogs } = profile;
+  const { user, stats, communities, recentPosts, recentMicroblogs, isPrivate: isPrivateProfile } = profile;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <AppHeader
@@ -295,13 +295,19 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.eventsCount || 0}</Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Events</Text>
               </View>
-              <Pressable style={styles.statItem}>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${targetUserId}&tab=followers`)}
+              >
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followersCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Followers</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connections</Text>
               </Pressable>
-              <Pressable style={styles.statItem}>
+              <Pressable
+                style={styles.statItem}
+                onPress={() => router.push(`/profile/followers?userId=${targetUserId}&tab=following`)}
+              >
                 <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{stats.followingCount}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Following</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Connected</Text>
               </Pressable>
             </View>
           </View>
@@ -313,10 +319,26 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               <Text style={[styles.displayName, { color: colors.textPrimary }]}>
                 {user.displayName || user.username}
               </Text>
-              {/* TEMP: Inline clergy badge for preview */}
-              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginLeft: 4 }}>
-                <Ionicons name="shield-checkmark" size={11} color="#D97706" />
-              </View>
+              {/* Clergy badge - shows if user.isVerifiedClergy */}
+              {user.isVerifiedClergy && (
+                <Pressable onPress={() => setShowClergyModal(true)} style={{ marginLeft: 2 }}>
+                  <Image
+                    source={require('../../assets/clergy-shield.png')}
+                    style={{ width: 18, height: 18 }}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              )}
+              {/* Apologist badge - shows if user.isVerifiedApologeticsAnswerer */}
+              {user.isVerifiedApologeticsAnswerer && (
+                <Pressable onPress={() => setShowApologistModal(true)} style={{ marginLeft: 2 }}>
+                  <Image
+                    source={require('../../assets/apologist-shield.png')}
+                    style={{ width: 18, height: 18 }}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              )}
               {user.denomination && (
                 <View style={[styles.denominationBadge, { backgroundColor: `${colors.primary}15` }]}>
                   <Text style={[styles.denominationText, { color: colors.primary }]}>{user.denomination}</Text>
@@ -340,11 +362,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 )}
                 {user.homeChurch && (
                   <>
-                    <Image
-                      source={ChurchIcon}
-                      style={{ width: 14, height: 14, tintColor: colors.textSecondary }}
-                      resizeMode="contain"
-                    />
+                    <MaterialCommunityIcons name="church" size={14} color={colors.textSecondary} />
                     <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>{user.homeChurch}</Text>
                   </>
                 )}
@@ -375,9 +393,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Interests as tags */}
             {user.interests && (
               <View style={styles.interestTags}>
-                {user.interests.split(',').slice(0, 5).map((interest: string, index: number) => (
-                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.surfaceMuted }]}>
-                    <Text style={[styles.interestTagText, { color: colors.textSecondary }]}>{interest.trim()}</Text>
+                {(Array.isArray(user.interests)
+                  ? user.interests
+                  : user.interests.replace(/^\{|\}$/g, '').split(',').map((s: string) => s.replace(/^"|"$/g, '').trim()).filter(Boolean)
+                ).slice(0, 5).map((interest: string, index: number) => (
+                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
+                    <Text style={[styles.interestTagText, { color: colors.primary }]}>{interest}</Text>
                   </View>
                 ))}
               </View>
@@ -410,156 +431,53 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                     followStatus?.isFollowing && [styles.followingButtonText, { color: colors.textPrimary }],
                   ]}
                 >
-                  {followStatus?.isFollowing ? 'Following' : 'Follow'}
+                  {followStatus?.isFollowing ? 'Connected' : 'Connect'}
                 </Text>
               </Pressable>
             )}
           </View>
         </View>
 
-        {/* Tabs */}
+        {/* Tabs - Advice tab only visible on own profile, Communities hidden from others if profile is private */}
         <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.borderSubtle }]}>
-          <Pressable
-            style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab('posts')}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={20}
-              color={activeTab === 'posts' ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[styles.tabText, { color: activeTab === 'posts' ? colors.primary : colors.textSecondary }]}>
-              Posts
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab('communities')}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
+          {/* Communities tab - only visible to profile owner OR to others if profile is NOT private */}
+          {(viewingOwnProfile || !isPrivateProfile) && (
+            <Pressable
+              style={[styles.tab, activeTab === 'communities' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setActiveTab('communities')}
             >
-              Communities
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, activeTab === 'events' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-            onPress={() => setActiveTab('events')}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color={activeTab === 'events' ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[styles.tabText, { color: activeTab === 'events' ? colors.primary : colors.textSecondary }]}
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={activeTab === 'communities' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[styles.tabText, { color: activeTab === 'communities' ? colors.primary : colors.textSecondary }]}
+              >
+                Communities
+              </Text>
+            </Pressable>
+          )}
+          {/* Advice tab - only visible on own profile (private) */}
+          {viewingOwnProfile && (
+            <Pressable
+              style={[styles.tab, activeTab === 'advice' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setActiveTab('advice')}
             >
-              Events
-            </Text>
-          </Pressable>
+              <Ionicons
+                name="time-outline"
+                size={20}
+                color={activeTab === 'advice' ? colors.primary : colors.textSecondary}
+              />
+              <Text style={[styles.tabText, { color: activeTab === 'advice' ? colors.primary : colors.textSecondary }]}>
+                My Activity
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Tab Content */}
         <View style={[styles.content, { backgroundColor: colors.background }]}>
-          {activeTab === 'posts' && (
-            <View style={styles.postsContainer}>
-              {/* Show microblogs (feed posts) */}
-              {recentMicroblogs && recentMicroblogs.length > 0 ? (
-                recentMicroblogs.map((microblog: any) => (
-                  <View key={`microblog-${microblog.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.postContent, { color: colors.textPrimary }]} numberOfLines={4}>
-                      {microblog.content}
-                    </Text>
-                    <View style={styles.postFooter}>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {new Date(microblog.createdAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {microblog.likeCount || 0} likes
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {microblog.replyCount || 0} comments
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              ) : recentPosts && recentPosts.length > 0 ? (
-                // Show forum posts if no microblogs
-                recentPosts.map((post: any) => (
-                  <View key={`post-${post.id}`} style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.postTitle, { color: colors.textPrimary }]}>{post.title}</Text>
-                    <Text style={[styles.postContent, { color: colors.textSecondary }]} numberOfLines={3}>
-                      {post.content}
-                    </Text>
-                    <View style={styles.postFooter}>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>
-                        {new Date(post.createdAt).toLocaleDateString()}
-                      </Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>•</Text>
-                      <Text style={[styles.postMeta, { color: colors.textSecondary }]}>{post.upvotes || 0} upvotes</Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="document-outline" size={40} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 8 }} />
-
-                  {viewingOwnProfile ? (
-                    // Own profile empty state
-                    <>
-                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? "Your posts aren't showing here" : 'Nothing here yet'}
-                      </Text>
-                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                        {stats.postsCount > 0
-                          ? 'Check your privacy settings if this seems wrong.'
-                          : "Share something when you're ready."}
-                      </Text>
-                      <Pressable
-                        style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                        onPress={() => router.push('/create')}
-                      >
-                        <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                          Create a post
-                        </Text>
-                      </Pressable>
-                    </>
-                  ) : (
-                    // Viewing another user's profile
-                    <>
-                      <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
-                        {stats.postsCount > 0 ? "Posts aren't visible" : 'Nothing here yet'}
-                      </Text>
-                      <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                        {stats.postsCount > 0
-                          ? 'Follow to see what they share.'
-                          : "They haven't shared anything publicly."}
-                      </Text>
-                      {stats.postsCount > 0 && !followStatus?.isFollowing && (
-                        <Pressable
-                          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                          onPress={handleFollow}
-                          disabled={followMutation.isPending}
-                        >
-                          <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                            Follow
-                          </Text>
-                        </Pressable>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
-            </View>
-          )}
-
           {activeTab === 'communities' && (
             <View style={styles.communitiesContainer}>
               {communities && communities.length > 0 ? (
@@ -589,76 +507,68 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 <View style={styles.emptyState}>
                   <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No communities yet</Text>
+                  {viewingOwnProfile && (
+                    <Pressable
+                      style={[styles.emptyActionButton, { backgroundColor: colors.primary, marginTop: 16 }]}
+                      onPress={() => router.push('/(tabs)/communities' as any)}
+                    >
+                      <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
+                        Explore Communities
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
           )}
 
-          {activeTab === 'events' && (
-            <View style={styles.eventsContainer}>
-              {attendedEventsData?.events && attendedEventsData.events.length > 0 ? (
-                attendedEventsData.events.map((event: any) => (
+          {activeTab === 'advice' && (
+            <View style={styles.postsContainer}>
+              {/* Show user activity - community joins, event RSVPs, connections */}
+              {isActivityLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : activityData?.activities && activityData.activities.length > 0 ? (
+                activityData.activities.map((activity: any) => (
                   <Pressable
-                    key={event.id}
-                    style={[styles.attendedEventCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
-                    onPress={() => router.push(`/events/${event.id}`)}
+                    key={activity.id}
+                    style={[styles.postCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+                    onPress={() => {
+                      if (activity.type === 'community_join' && activity.communityId) {
+                        router.push(`/communities/${activity.communityId}`);
+                      } else if (activity.type === 'event_rsvp' && activity.eventId) {
+                        router.push(`/events/${activity.eventId}`);
+                      } else if (activity.type === 'follow' && activity.userId) {
+                        router.push(`/profile/${activity.userId}`);
+                      }
+                    }}
                   >
-                    {event.imageUrl && (
-                      <Image
-                        source={{ uri: event.imageUrl }}
-                        style={styles.attendedEventImage}
-                        resizeMode="cover"
-                      />
-                    )}
-                    <View style={styles.attendedEventInfo}>
-                      <Text style={[styles.attendedEventTitle, { color: colors.textPrimary }]} numberOfLines={2}>
-                        {event.title}
-                      </Text>
-                      <View style={styles.attendedEventMeta}>
-                        <Ionicons name="calendar" size={12} color={colors.textSecondary} />
-                        <Text style={[styles.attendedEventMetaText, { color: colors.textSecondary }]}>
-                          {new Date(event.eventDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${activity.iconColor}15`, justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name={activity.icon as any} size={18} color={activity.iconColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.postContent, { color: colors.textPrimary, marginBottom: 2 }]}>
+                          {activity.text}
+                        </Text>
+                        <Text style={[styles.postMeta, { color: colors.textMuted }]}>
+                          {formatActivityDate(new Date(activity.date))}
                         </Text>
                       </View>
-                      {(event.location || event.communityName) && (
-                        <View style={styles.attendedEventMeta}>
-                          <Ionicons name="location" size={12} color={colors.textSecondary} />
-                          <Text style={[styles.attendedEventMetaText, { color: colors.textSecondary }]} numberOfLines={1}>
-                            {event.location || event.communityName}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={[styles.attendedBadge, { backgroundColor: '#10B98115' }]}>
-                      <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ opacity: 0.5 }} />
                     </View>
                   </Pressable>
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={48} color={colors.textMuted} style={{ opacity: 0.5 }} />
-                  <Text style={[styles.emptyHeadline, { color: colors.textPrimary, marginTop: 12 }]}>
-                    No events attended yet
+                  <Ionicons name="time-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyHeadline, { color: colors.textPrimary }]}>
+                    No activity yet
                   </Text>
                   <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                    {viewingOwnProfile
-                      ? 'RSVP to events and confirm your attendance after they end to build your event history!'
-                      : "This user hasn't confirmed attendance at any events yet."}
+                    Your community joins, event RSVPs, and connections will appear here.
                   </Text>
-                  {viewingOwnProfile && (
-                    <Pressable
-                      style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-                      onPress={() => router.push('/(tabs)/events')}
-                    >
-                      <Text style={[styles.emptyActionButtonText, { color: colors.primaryForeground }]}>
-                        Browse Events
-                      </Text>
-                    </Pressable>
-                  )}
                 </View>
               )}
             </View>
@@ -678,7 +588,10 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
           style={styles.modalOverlay}
           onPress={() => setShowVerseModal(false)}
         >
-          <Pressable style={[styles.verseModalContent, { backgroundColor: colors.surface }]}>
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.verseModalHeader}>
               <Ionicons name="book" size={20} color={colors.primary} />
               <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
@@ -701,7 +614,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
               </View>
             ) : (
               <>
-                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={false}>
+                <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
                   <Text style={[styles.verseModalText, { color: colors.textPrimary }]}>
                     {versePassage?.text || user?.favoriteBibleVerse}
                   </Text>
@@ -713,7 +626,103 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
                 )}
               </>
             )}
-          </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Clergy Verification Modal */}
+      <Modal
+        visible={showClergyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowClergyModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowClergyModal(false)}
+        >
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.verseModalHeader}>
+              <Image
+                source={require('../../assets/clergy-shield.png')}
+                style={{ width: 28, height: 28 }}
+                resizeMode="contain"
+              />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                Verified Clergy
+              </Text>
+              <Pressable
+                onPress={() => setShowClergyModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary }]}>
+                This person has been verified as ordained clergy by their church or organization on The Connection.
+              </Text>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary, marginTop: 12 }]}>
+                Verified clergy members have had their pastoral credentials confirmed by a registered church administrator, ensuring authentic spiritual leadership within our community.
+              </Text>
+            </ScrollView>
+
+            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+              "Feed my sheep" - John 21:17
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Apologist Verification Modal */}
+      <Modal
+        visible={showApologistModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowApologistModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowApologistModal(false)}
+        >
+          <View
+            style={[styles.verseModalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.verseModalHeader}>
+              <Image
+                source={require('../../assets/apologist-shield.png')}
+                style={{ width: 28, height: 28 }}
+                resizeMode="contain"
+              />
+              <Text style={[styles.verseModalTitle, { color: colors.textPrimary }]}>
+                Verified Apologist
+              </Text>
+              <Pressable
+                onPress={() => setShowApologistModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.verseModalScroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary }]}>
+                This person is a verified Christian apologist on The Connection.
+              </Text>
+              <Text style={[styles.clergyModalText, { color: colors.textPrimary, marginTop: 12 }]}>
+                Verified apologists have demonstrated theological knowledge and are approved to answer faith-related questions in our Q&A system, helping others understand and defend the Christian faith.
+              </Text>
+            </ScrollView>
+
+            <Text style={[styles.verseModalAttribution, { color: colors.textMuted }]}>
+              "Always be prepared to give an answer" - 1 Peter 3:15
+            </Text>
+          </View>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -840,17 +849,18 @@ const styles = StyleSheet.create({
   interestTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 12,
   },
   interestTag: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   interestTagText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionButtons: {
     gap: 8,
@@ -945,49 +955,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     gap: 16,
-  },
-  eventsContainer: {
-    padding: 16,
-  },
-  attendedEventCard: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  attendedEventImage: {
-    width: 80,
-    height: 80,
-  },
-  attendedEventInfo: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  attendedEventTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  attendedEventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  attendedEventMetaText: {
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  attendedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   storyCircle: {
     width: 80,
@@ -1086,6 +1053,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     fontStyle: 'italic',
+  },
+  clergyModalText: {
+    fontSize: 15,
+    lineHeight: 24,
   },
   verseModalAttribution: {
     fontSize: 12,

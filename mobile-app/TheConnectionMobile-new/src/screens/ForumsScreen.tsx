@@ -7,22 +7,23 @@
 import React, { useState } from 'react';
 import {
   View,
+  Text,
   ScrollView,
   Pressable,
   FlatList,
+  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
   Alert,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Screen, Text } from '../theme';
+import { Screen } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { PostCard, Post } from './PostCard';
 import { AppHeader } from './AppHeader';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiClient, queryClient } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -47,7 +48,6 @@ function useTrendingItems() {
       const response = await apiClient.get('/api/posts/trending/combined?limit=10');
       return response.data;
     },
-    refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
     retry: 1, // Only retry once if it fails
   });
 }
@@ -66,7 +66,6 @@ export function ForumsScreen({
 }: ForumsScreenProps) {
   const { colors, spacing, radii, colorScheme } = useTheme();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'home' | 'popular'>('home');
   const [selectedTrending, setSelectedTrending] = useState<{ type: 'hashtag' | 'keyword', value: string, display: string } | null>(null);
 
@@ -78,20 +77,26 @@ export function ForumsScreen({
 
   // Fetch posts from API
   const filter = activeTab === 'popular' ? 'popular' : 'recent';
-  const { data: posts = [], isLoading, refetch } = useQuery<Post[]>({
-    queryKey: ['/api/posts', { filter, selectedTrending }],
+  const { data: allPosts = [], isLoading, refetch } = useQuery<Post[]>({
+    queryKey: ['/api/posts', { filter }],
     queryFn: async () => {
-      if (selectedTrending) {
-        // Note: Posts don't support hashtag/keyword filtering yet, so just return all posts
-        // In the future, we can add these endpoints to the posts routes
-        const response = await apiClient.get(`/api/posts?filter=${filter}`);
-        return response.data;
-      } else {
-        const response = await apiClient.get(`/api/posts?filter=${filter}`);
-        return response.data;
-      }
+      const response = await apiClient.get(`/api/posts?filter=${filter}`);
+      return response.data;
     },
   });
+
+  // Client-side filtering when a trending hashtag/keyword is selected
+  const posts = React.useMemo(() => {
+    if (!selectedTrending) return allPosts;
+    const term = selectedTrending.value.toLowerCase();
+    return allPosts.filter((post) => {
+      const text = `${post.title || ''} ${post.content || ''}`.toLowerCase();
+      if (selectedTrending.type === 'hashtag') {
+        return text.includes(`#${term}`) || text.includes(term);
+      }
+      return text.includes(term);
+    });
+  }, [allPosts, selectedTrending]);
 
   // Upvote mutation
   const upvoteMutation = useMutation({
@@ -116,7 +121,6 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to upvote post. Please try again.');
-      console.error('Upvote error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
@@ -153,7 +157,6 @@ export function ForumsScreen({
     },
     onError: (error) => {
       Alert.alert('Error', 'Failed to downvote post. Please try again.');
-      console.error('Downvote error:', error);
       // Revert optimistic update
       queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
     },
@@ -336,7 +339,7 @@ export function ForumsScreen({
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       <FlatList
         style={{ backgroundColor: colors.surface }}

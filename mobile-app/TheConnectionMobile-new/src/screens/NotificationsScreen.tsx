@@ -14,7 +14,7 @@
  * - Time-based grouping (Today, Last 7 Days, Last 30 Days, Older)
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -24,6 +24,7 @@ import {
   Animated,
   PanResponder,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '../theme';
@@ -32,10 +33,10 @@ import { PageHeader } from './AppHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient, { communitiesAPI, eventsAPI } from '../lib/apiClient';
-import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay, format } from 'date-fns';
+import apiClient from '../lib/apiClient';
+import { formatDistanceToNow, isToday, isWithinInterval, subDays, startOfDay } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { Image } from 'react-native';
+import { setBadgeCount } from '../services/notificationService';
 
 // ============================================================================
 // TYPES
@@ -63,59 +64,6 @@ interface GroupedNotifications {
   last7days: Notification[];
   last30days: Notification[];
   older: Notification[];
-}
-
-interface CommunityInvitation {
-  id: number;
-  communityId: number;
-  inviterUserId: number;
-  status: string;
-  createdAt: string;
-  community: {
-    id: number;
-    name: string;
-    slug: string;
-    description: string;
-    iconName: string;
-    iconColor: string;
-    memberCount: number;
-  } | null;
-  inviter: {
-    id: number;
-    username: string;
-    displayName?: string;
-    avatarUrl?: string;
-  } | null;
-}
-
-interface EventInvitation {
-  id: number;
-  eventId: number;
-  inviterId: number;
-  status: string;
-  createdAt: string;
-  event: {
-    id: number;
-    title: string;
-    description: string;
-    eventDate: string;
-    startTime: string;
-    endTime: string;
-    location?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    isVirtual: boolean;
-    virtualMeetingUrl?: string;
-    imageUrl?: string;
-    attendeeCount: number;
-  } | null;
-  inviter: {
-    id: number;
-    username: string;
-    displayName?: string;
-    avatarUrl?: string;
-  } | null;
 }
 
 // ============================================================================
@@ -162,6 +110,7 @@ function useMarkAllAsRead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notification-count'] });
+      setBadgeCount(0);
     },
   });
 }
@@ -187,60 +136,64 @@ function useDeleteNotification() {
   });
 }
 
-// Community Invitation hooks
-function useCommunityInvitations() {
-  return useQuery<CommunityInvitation[]>({
-    queryKey: ['community-invitations-pending'],
-    queryFn: () => communitiesAPI.getPendingInvitations(),
-  });
+// ============================================================================
+// FOLLOW REQUEST HOOKS
+// ============================================================================
+
+interface FollowRequest {
+  id: number;
+  followerId: number;
+  follower: {
+    id: number;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+    profileImageUrl?: string;
+  };
+  createdAt: string;
 }
 
-function useAcceptCommunityInvitation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (invitationId: number) => communitiesAPI.acceptInvitation(invitationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['user-communities'] });
+function useFollowRequests() {
+  return useQuery<FollowRequest[]>({
+    queryKey: ['follow-requests'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/follow-requests');
+      return response.data || [];
     },
   });
 }
 
-function useDeclineCommunityInvitation() {
+function useAcceptFollowRequest() {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (invitationId: number) => communitiesAPI.declineInvitation(invitationId),
+    mutationFn: async (userId: number) => {
+      const response = await apiClient.post(`/api/follow-requests/${userId}/accept`);
+      return response.data;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['community-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['follow-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to accept request');
     },
   });
 }
 
-// Event Invitation hooks
-function useEventInvitations() {
-  return useQuery<EventInvitation[]>({
-    queryKey: ['event-invitations-pending'],
-    queryFn: () => eventsAPI.getPendingInvitations(),
-  });
-}
-
-function useAcceptEventInvitation() {
+function useDenyFollowRequest() {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (invitationId: number) => eventsAPI.acceptInvitation(invitationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['my-events'] });
+    mutationFn: async (userId: number) => {
+      const response = await apiClient.post(`/api/follow-requests/${userId}/deny`);
+      return response.data;
     },
-  });
-}
-
-function useDeclineEventInvitation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (invitationId: number) => eventsAPI.declineInvitation(invitationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-invitations-pending'] });
+      queryClient.invalidateQueries({ queryKey: ['follow-requests'] });
+    },
+    onError: (error: any) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to deny request');
     },
   });
 }
@@ -494,251 +447,194 @@ function GroupHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ============================================================================
-// INVITATION CARD COMPONENTS
+// CONNECTION REQUESTS SECTION
 // ============================================================================
 
-function CommunityInvitationCard({
-  invitation,
+function FollowRequestCard({
+  request,
   onAccept,
-  onDecline,
+  onDeny,
   isAccepting,
-  isDeclining,
+  isDenying,
 }: {
-  invitation: CommunityInvitation;
+  request: FollowRequest;
   onAccept: () => void;
-  onDecline: () => void;
+  onDeny: () => void;
   isAccepting: boolean;
-  isDeclining: boolean;
+  isDenying: boolean;
 }) {
   const { colors, spacing } = useTheme();
-  const router = useRouter();
-
-  if (!invitation.community) return null;
-
-  const isProcessing = isAccepting || isDeclining;
+  const follower = request.follower;
+  const avatarUrl = follower.profileImageUrl || follower.avatarUrl;
+  const displayName = follower.displayName || follower.username;
 
   return (
     <View
       style={{
-        backgroundColor: colors.surface,
-        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
         padding: spacing.md,
-        marginBottom: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.borderSubtle,
+        backgroundColor: colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderSubtle,
       }}
     >
-      <Pressable
-        onPress={() => router.push(`/communities/${invitation.communityId}`)}
-        style={{ flexDirection: 'row', marginBottom: spacing.md }}
-      >
+      {/* Avatar */}
+      {avatarUrl ? (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: colors.surfaceMuted,
+          }}
+        />
+      ) : (
         <View
           style={{
             width: 48,
             height: 48,
             borderRadius: 24,
-            backgroundColor: invitation.community.iconColor || colors.primary,
+            backgroundColor: colors.primary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="people" size={24} color="#fff" />
-        </View>
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
-          <Text variant="body" style={{ fontWeight: '600' }}>
-            {invitation.community.name}
-          </Text>
-          <Text variant="caption" color="textMuted" numberOfLines={2}>
-            {invitation.community.description}
-          </Text>
-          <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>
-            {invitation.community.memberCount} members
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
+            {displayName.charAt(0).toUpperCase()}
           </Text>
         </View>
-      </Pressable>
-
-      {invitation.inviter && (
-        <Text variant="caption" color="textMuted" style={{ marginBottom: spacing.sm }}>
-          Invited by {invitation.inviter.displayName || invitation.inviter.username}
-        </Text>
       )}
 
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+      {/* User Info */}
+      <View style={{ flex: 1, marginLeft: spacing.md }}>
+        <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 15 }}>
+          {displayName}
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+          @{follower.username}
+        </Text>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
         <Pressable
-          onPress={onAccept}
-          disabled={isProcessing}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.primary,
-            paddingVertical: spacing.sm,
+          onPress={onDeny}
+          disabled={isDenying || isAccepting}
+          style={({ pressed }) => ({
+            paddingHorizontal: 14,
+            paddingVertical: 8,
             borderRadius: 8,
-            opacity: isProcessing ? 0.6 : 1,
-          }}
+            borderWidth: 1,
+            borderColor: colors.borderSubtle,
+            backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
+            opacity: isDenying ? 0.5 : 1,
+          })}
         >
-          {isAccepting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4 }}>Accept</Text>
-            </>
-          )}
+          <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 13 }}>
+            {isDenying ? '...' : 'Deny'}
+          </Text>
         </Pressable>
         <Pressable
-          onPress={onDecline}
-          disabled={isProcessing}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.textMuted,
-            paddingVertical: spacing.sm,
+          onPress={onAccept}
+          disabled={isAccepting || isDenying}
+          style={({ pressed }) => ({
+            paddingHorizontal: 14,
+            paddingVertical: 8,
             borderRadius: 8,
-            opacity: isProcessing ? 0.6 : 1,
-          }}
+            backgroundColor: pressed ? `${colors.primary}dd` : colors.primary,
+            opacity: isAccepting ? 0.5 : 1,
+          })}
         >
-          <Ionicons name="close" size={18} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4 }}>Decline</Text>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+            {isAccepting ? '...' : 'Accept'}
+          </Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function EventInvitationCard({
-  invitation,
-  onAccept,
-  onDecline,
-  isAccepting,
-  isDeclining,
-}: {
-  invitation: EventInvitation;
-  onAccept: () => void;
-  onDecline: () => void;
-  isAccepting: boolean;
-  isDeclining: boolean;
-}) {
+function FollowRequestsSection() {
   const { colors, spacing } = useTheme();
-  const router = useRouter();
+  const { data: requests = [], isLoading } = useFollowRequests();
+  const acceptMutation = useAcceptFollowRequest();
+  const denyMutation = useDenyFollowRequest();
+  const [processingIds, setProcessingIds] = useState<{ [key: number]: 'accept' | 'deny' }>({});
 
-  if (!invitation.event) return null;
+  const handleAccept = (userId: number) => {
+    setProcessingIds(prev => ({ ...prev, [userId]: 'accept' }));
+    acceptMutation.mutate(userId, {
+      onSettled: () => {
+        setProcessingIds(prev => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      },
+    });
+  };
 
-  const isProcessing = isAccepting || isDeclining;
-  const eventDate = new Date(invitation.event.eventDate);
-  const formattedDate = format(eventDate, 'EEE, MMM d');
+  const handleDeny = (userId: number) => {
+    setProcessingIds(prev => ({ ...prev, [userId]: 'deny' }));
+    denyMutation.mutate(userId, {
+      onSettled: () => {
+        setProcessingIds(prev => {
+          const next = { ...prev };
+          delete next[userId];
+          return next;
+        });
+      },
+    });
+  };
+
+  if (isLoading || requests.length === 0) {
+    return null;
+  }
 
   return (
-    <View
-      style={{
-        backgroundColor: colors.surface,
-        borderRadius: 12,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.borderSubtle,
-      }}
-    >
-      <Pressable
-        onPress={() => router.push(`/events/${invitation.eventId}`)}
-        style={{ flexDirection: 'row', marginBottom: spacing.md }}
+    <View>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.sm,
+          backgroundColor: `${colors.primary}10`,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderSubtle,
+        }}
       >
-        {invitation.event.imageUrl ? (
-          <Image
-            source={{ uri: invitation.event.imageUrl }}
-            style={{ width: 64, height: 64, borderRadius: 8 }}
-          />
-        ) : (
-          <View
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="person-add" size={16} color={colors.primary} />
+          <Text
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 8,
-              backgroundColor: colors.primaryMuted,
-              alignItems: 'center',
-              justifyContent: 'center',
+              fontWeight: '700',
+              color: colors.primary,
+              fontSize: 13,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
             }}
           >
-            <Ionicons name="calendar" size={28} color={colors.primary} />
-          </View>
-        )}
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
-          <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={2}>
-            {invitation.event.title}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
-            <Text variant="caption" color="textMuted" style={{ marginLeft: 4 }}>
-              {formattedDate} at {invitation.event.startTime}
-            </Text>
-          </View>
-          {invitation.event.location && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-              <Text variant="caption" color="textMuted" style={{ marginLeft: 4 }} numberOfLines={1}>
-                {invitation.event.location}
-              </Text>
-            </View>
-          )}
-          <Text variant="caption" color="textMuted" style={{ marginTop: 4 }}>
-            {invitation.event.attendeeCount} attending
+            Connection Requests ({requests.length})
           </Text>
         </View>
-      </Pressable>
-
-      {invitation.inviter && (
-        <Text variant="caption" color="textMuted" style={{ marginBottom: spacing.sm }}>
-          Invited by {invitation.inviter.displayName || invitation.inviter.username}
-        </Text>
-      )}
-
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <Pressable
-          onPress={onAccept}
-          disabled={isProcessing}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.primary,
-            paddingVertical: spacing.sm,
-            borderRadius: 8,
-            opacity: isProcessing ? 0.6 : 1,
-          }}
-        >
-          {isAccepting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 4 }}>RSVP Yes</Text>
-            </>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={onDecline}
-          disabled={isProcessing}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.textMuted,
-            paddingVertical: spacing.sm,
-            borderRadius: 8,
-            opacity: isProcessing ? 0.6 : 1,
-          }}
-        >
-          <Ionicons name="close" size={18} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, fontWeight: '600', marginLeft: 4 }}>Decline</Text>
-        </Pressable>
       </View>
+
+      {/* Request Cards */}
+      {requests.map((request) => (
+        <FollowRequestCard
+          key={request.id}
+          request={request}
+          onAccept={() => handleAccept(request.follower.id)}
+          onDeny={() => handleDeny(request.follower.id)}
+          isAccepting={processingIds[request.follower.id] === 'accept'}
+          isDenying={processingIds[request.follower.id] === 'deny'}
+        />
+      ))}
     </View>
   );
 }
@@ -757,106 +653,77 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const markAllAsReadMutation = useMarkAllAsRead();
   const deleteNotificationMutation = useDeleteNotification();
 
-  // Invitation hooks
-  const { data: communityInvitations = [] } = useCommunityInvitations();
-  const { data: eventInvitations = [] } = useEventInvitations();
-  const acceptCommunityInvitation = useAcceptCommunityInvitation();
-  const declineCommunityInvitation = useDeclineCommunityInvitation();
-  const acceptEventInvitation = useAcceptEventInvitation();
-  const declineEventInvitation = useDeclineEventInvitation();
-
   const handleNotificationPress = (notification: Notification) => {
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
     }
 
-    // Navigate to the relevant screen based on notification category and data
-    const { category, data } = notification;
+    // Navigate based on notification category and data
+    const data = notification.data || {};
 
-    try {
-      switch (category) {
-        case 'event':
-          // Navigate to event detail
-          if (data?.eventId) {
-            router.push(`/events/${data.eventId}`);
-          } else {
-            router.push('/(tabs)/events');
-          }
-          break;
+    switch (notification.category) {
+      case 'event':
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        }
+        break;
 
-        case 'invitation':
-          // Community invitation - navigate to community
-          if (data?.communityId) {
-            router.push(`/communities/${data.communityId}`);
-          } else {
-            router.push('/(tabs)/communities');
-          }
-          break;
+      case 'invitation':
+        // Could be event or community invitation
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        } else if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        }
+        break;
 
-        case 'like':
-        case 'comment':
-        case 'reply':
-          // Navigate to the post
-          if (data?.postId) {
-            router.push(`/posts/${data.postId}`);
-          } else if (data?.microblogId) {
-            router.push('/(tabs)/feed');
-          }
-          break;
+      case 'like':
+      case 'comment':
+      case 'reply':
+        // Navigate to the post or microblog
+        if (data.postId) {
+          router.push(`/posts/${data.postId}`);
+        } else if (data.microblogId) {
+          router.push(`/microblogs/${data.microblogId}`);
+        }
+        break;
 
-        case 'community':
-          // Community update - navigate to community
-          if (data?.communityId) {
-            router.push(`/communities/${data.communityId}`);
-          } else {
-            router.push('/(tabs)/communities');
-          }
-          break;
+      case 'community':
+        if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        } else if (data.communitySlug) {
+          router.push(`/communities/${data.communitySlug}`);
+        }
+        break;
 
-        case 'follow':
-          // New follower - navigate to their profile
-          if (data?.followerId) {
-            router.push(`/profile/${data.followerId}`);
-          } else if (data?.userId) {
-            router.push(`/profile/${data.userId}`);
-          }
-          break;
+      case 'follow':
+        if (data.userId) {
+          router.push(`/profile/${data.userId}`);
+        } else if (data.followerId) {
+          router.push(`/profile/${data.followerId}`);
+        }
+        break;
 
-        case 'message':
-        case 'dm':
-          // Direct message - navigate to conversation
-          if (data?.senderId) {
-            router.push(`/messages/${data.senderId}`);
-          } else if (data?.userId) {
-            router.push(`/messages/${data.userId}`);
-          } else {
-            router.push('/(tabs)/messages');
-          }
-          break;
+      case 'message':
+        if (data.senderId) {
+          router.push(`/messages/${data.senderId}`);
+        } else if (data.conversationId) {
+          router.push(`/messages/${data.conversationId}`);
+        }
+        break;
 
-        case 'prayer':
-          // Prayer request - navigate to prayer detail
-          if (data?.prayerId) {
-            router.push(`/prayers/${data.prayerId}`);
-          }
-          break;
-
-        case 'apologetics':
-        case 'question':
-          // Apologetics question - navigate to question detail
-          if (data?.questionId) {
-            router.push(`/questions/${data.questionId}`);
-          } else {
-            router.push('/(tabs)/apologetics');
-          }
-          break;
-
-        default:
-          // No specific navigation - stay on notifications
-          break;
-      }
-    } catch (error) {
-      console.error('Error navigating from notification:', error);
+      default:
+        // For unknown categories, try to infer from data
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        } else if (data.postId) {
+          router.push(`/posts/${data.postId}`);
+        } else if (data.communityId) {
+          router.push(`/communities/${data.communityId}`);
+        } else if (data.userId) {
+          router.push(`/profile/${data.userId}`);
+        }
+        break;
     }
   };
 
@@ -902,11 +769,9 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   };
 
   const hasAnyNotifications = notificationsList.length > 0;
-  const hasInvitations = communityInvitations.length > 0 || eventInvitations.length > 0;
-  const hasAnyContent = hasAnyNotifications || hasInvitations;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <PageHeader
         title="Notifications"
         onBackPress={onBackPress}
@@ -971,78 +836,64 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
               Loading notifications...
             </Text>
           </View>
-        ) : !hasAnyContent ? (
-          <View
-            style={{
-              alignItems: 'center',
-              paddingVertical: spacing.xl * 3,
-              paddingHorizontal: spacing.lg,
-            }}
-          >
-            <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
-            <Text
-              variant="body"
-              style={{
-                fontWeight: '600',
-                marginTop: spacing.md,
-                textAlign: 'center',
-              }}
-            >
-              No Notifications Yet
-            </Text>
-            <Text
-              variant="bodySmall"
-              color="textMuted"
-              style={{ marginTop: spacing.sm, textAlign: 'center' }}
-            >
-              Notifications about events, invitations, and engagement will appear here.
-            </Text>
-          </View>
         ) : (
           <View>
-            {/* Community Invitations Section */}
-            {communityInvitations.length > 0 && (
-              <View>
-                <GroupHeader title="Community Invitations" count={communityInvitations.length} />
-                <View style={{ padding: spacing.md }}>
-                  {communityInvitations.map((invitation) => (
-                    <CommunityInvitationCard
-                      key={invitation.id}
-                      invitation={invitation}
-                      onAccept={() => acceptCommunityInvitation.mutate(invitation.id)}
-                      onDecline={() => declineCommunityInvitation.mutate(invitation.id)}
-                      isAccepting={acceptCommunityInvitation.isPending}
-                      isDeclining={declineCommunityInvitation.isPending}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Event Invitations Section */}
-            {eventInvitations.length > 0 && (
-              <View>
-                <GroupHeader title="Event Invitations" count={eventInvitations.length} />
-                <View style={{ padding: spacing.md }}>
-                  {eventInvitations.map((invitation) => (
-                    <EventInvitationCard
-                      key={invitation.id}
-                      invitation={invitation}
-                      onAccept={() => acceptEventInvitation.mutate(invitation.id)}
-                      onDecline={() => declineEventInvitation.mutate(invitation.id)}
-                      isAccepting={acceptEventInvitation.isPending}
-                      isDeclining={declineEventInvitation.isPending}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
+            {/* Connection Requests Section - Always at top */}
+            <FollowRequestsSection />
 
             {/* Regular Notifications */}
-            {renderGroup('today', 'Today')}
-            {renderGroup('last7days', 'Last 7 Days')}
-            {renderGroup('last30days', 'Last 30 Days')}
-            {renderGroup('older', 'Older')}
+            {hasAnyNotifications ? (
+              <>
+                {renderGroup('today', 'Today')}
+                {renderGroup('last7days', 'Last 7 Days')}
+                {renderGroup('last30days', 'Last 30 Days')}
+                {renderGroup('older', 'Older')}
+              </>
+            ) : (
+              <View
+                style={{
+                  alignItems: 'center',
+                  paddingVertical: spacing.xl * 3,
+                  paddingHorizontal: spacing.lg,
+                }}
+              >
+                <Ionicons name="notifications-off-outline" size={64} color={colors.textMuted} />
+                <Text
+                  variant="body"
+                  style={{
+                    fontWeight: '600',
+                    marginTop: spacing.md,
+                    textAlign: 'center',
+                  }}
+                >
+                  No Notifications Yet
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  color="textMuted"
+                  style={{ marginTop: spacing.sm, textAlign: 'center' }}
+                >
+                  Notifications about events, invitations, and engagement will appear here.
+                </Text>
+                <Pressable
+                  style={{
+                    marginTop: spacing.md,
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => router.push('/(tabs)/communities')}
+                >
+                  <Ionicons name="people-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                  <Text variant="body" style={{ color: '#fff', fontWeight: '600' }}>
+                    Explore Communities
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

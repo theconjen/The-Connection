@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, ScrollView, Pressable, ActivityIndicator, StyleSheet, Alert, Image } from 'react-native';
+import { View, ScrollView, Pressable, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text,  } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -57,7 +58,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.header }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <PageHeader title="Blocked Users" onBackPress={onBackPress} />
 
       <View style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -142,6 +143,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
                       borderRadius: 24,
                       backgroundColor: colors.surfaceMuted,
                     }}
+                    cachePolicy="memory-disk"
                   />
                 ) : (
                   <View

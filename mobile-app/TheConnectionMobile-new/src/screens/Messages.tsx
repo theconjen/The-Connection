@@ -11,11 +11,12 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Image,
   Pressable,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useConversations } from '../queries/messages';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +36,7 @@ export default function MessagesScreen({
   onProfilePress,
 }: MessagesScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
   const { user } = useAuth();
   const { colors, colorScheme } = useTheme();
 
@@ -54,11 +56,8 @@ export default function MessagesScreen({
   // Log error for debugging and check auth status
   useEffect(() => {
     if (error) {
-      console.error('[Messages] Failed to load conversations:', error);
-      console.error('[Messages] User auth status:', { userId: user?.id, username: user?.username });
       const status = (error as any)?.response?.status;
       if (status === 401) {
-        console.error('[Messages] Authentication error - user may need to log in');
       }
     }
   }, [error, user]);
@@ -183,7 +182,7 @@ export default function MessagesScreen({
   // Error state
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           {/* Header with Profile + Centered Logo */}
           <View style={{
@@ -192,7 +191,7 @@ export default function MessagesScreen({
             justifyContent: 'space-between',
             height: 56,
             paddingHorizontal: 16,
-            backgroundColor: colors.header,
+            backgroundColor: colors.background,
             borderBottomWidth: 1,
             borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
@@ -228,7 +227,7 @@ export default function MessagesScreen({
                   { width: 700, height: 140 },
                   colorScheme === 'dark' && { tintColor: colors.headerForeground }
                 ]}
-                resizeMode="contain"
+                contentFit="contain" cachePolicy="memory-disk"
               />
             </View>
 
@@ -270,7 +269,7 @@ export default function MessagesScreen({
   // Empty state
   if (!conversations || conversations.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           {/* Header with Profile + Centered Logo */}
           <View style={{
@@ -279,7 +278,7 @@ export default function MessagesScreen({
             justifyContent: 'space-between',
             height: 56,
             paddingHorizontal: 16,
-            backgroundColor: colors.header,
+            backgroundColor: colors.background,
             borderBottomWidth: 1,
             borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
@@ -315,7 +314,7 @@ export default function MessagesScreen({
                   { width: 700, height: 140 },
                   colorScheme === 'dark' && { tintColor: colors.headerForeground }
                 ]}
-                resizeMode="contain"
+                contentFit="contain" cachePolicy="memory-disk"
               />
             </View>
 
@@ -350,6 +349,13 @@ export default function MessagesScreen({
             <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
             <Text style={{ marginTop: 16, fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>No conversations yet</Text>
             <Text style={{ marginTop: 8, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>Start chatting with other members!</Text>
+            <Pressable
+              style={{ marginTop: 16, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => router.push('/search')}
+            >
+              <Ionicons name="people-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Find People</Text>
+            </Pressable>
           </View>
         </View>
       </SafeAreaView>
@@ -357,7 +363,7 @@ export default function MessagesScreen({
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header with Profile + Centered Logo */}
         <View style={{
@@ -366,7 +372,7 @@ export default function MessagesScreen({
           justifyContent: 'space-between',
           height: 56,
           paddingHorizontal: 16,
-          backgroundColor: colors.header,
+          backgroundColor: colors.background,
           borderBottomWidth: 1,
           borderBottomColor: colors.headerBorder || colors.borderSubtle,
         }}>
@@ -402,7 +408,7 @@ export default function MessagesScreen({
                 { width: 700, height: 140 },
                 colorScheme === 'dark' && { tintColor: colors.headerForeground }
               ]}
-              resizeMode="contain"
+              contentFit="contain" cachePolicy="memory-disk"
             />
           </View>
 
@@ -438,6 +444,11 @@ export default function MessagesScreen({
           renderItem={renderConversation}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingHorizontal: 16 }}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
               <Ionicons name="search-outline" size={48} color={colors.textSecondary} />

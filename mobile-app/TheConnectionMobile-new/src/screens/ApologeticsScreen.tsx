@@ -24,7 +24,6 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,8 +32,6 @@ import { AppHeader } from "./AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../lib/apiClient";
 import { shareApologetics } from "../lib/shareUrls";
-
-const BANNER_DISMISSED_KEY = "apologist-banner-dismissed";
 
 type Domain = "apologetics" | "polemics";
 
@@ -133,43 +130,6 @@ export default function ApologeticsScreen({
   const styles = useMemo(() => getStyles(colors), [colors]);
   const queryClient = useQueryClient();
 
-  // Fetch user capabilities to check if they have inbox access
-  const { data: meData } = useQuery<{
-    user: any;
-    permissions: string[];
-    capabilities: {
-      inboxAccess: boolean;
-      canAuthorApologeticsPosts: boolean;
-    };
-  }>({
-    queryKey: ['/api/me'],
-    queryFn: async () => {
-      const res = await apiClient.get('/api/me');
-      return res.data;
-    },
-    enabled: !!user,
-    staleTime: 60_000,
-  });
-
-  const hasInboxAccess = meData?.capabilities?.inboxAccess || false;
-
-  // Banner dismiss state
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-
-  // Load banner dismissed state from AsyncStorage
-  useEffect(() => {
-    AsyncStorage.getItem(BANNER_DISMISSED_KEY).then((value) => {
-      if (value === "true") {
-        setBannerDismissed(true);
-      }
-    });
-  }, []);
-
-  const dismissBanner = useCallback(async () => {
-    setBannerDismissed(true);
-    await AsyncStorage.setItem(BANNER_DISMISSED_KEY, "true");
-  }, []);
-
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -258,7 +218,57 @@ export default function ApologeticsScreen({
   }
 
   const showSuggestedSearches = !query.trim() && posts.length === 0 && !postsQ.isLoading;
-  const suggestedSearches = SUGGESTED_SEARCHES[domain];
+
+  // Build personalized suggested searches based on user interests
+  const suggestedSearches = useMemo(() => {
+    const staticList = SUGGESTED_SEARCHES[domain];
+
+    // Map user interests/denomination to relevant search topics
+    const interestToSearches: Record<string, string[]> = {
+      'bible study': ['How to study the Bible', 'Interpreting Scripture', 'Historical reliability of the Bible'],
+      'prayer': ['Does God answer prayer?', 'How to pray effectively', 'Prayer in the Bible'],
+      'worship': ['What is worship?', 'Worship in the early church', 'Music in worship'],
+      'apologetics': ['Evidence for the Resurrection', 'Is faith rational?', 'Moral argument for God'],
+      'new to faith': ['Who is Jesus?', 'What does it mean to be saved?', 'Trinity explained'],
+      'mental health': ['Anxiety and faith', 'Depression and the Bible', 'God and suffering'],
+      'missions': ['Great Commission', 'Evangelism approaches', 'Christianity worldwide'],
+      'marriage': ['Biblical marriage', 'Christian dating', 'Divorce and the Bible'],
+      'parent': ['Raising children in faith', 'Teaching kids about God', 'Family devotions'],
+      'college': ['Faith in college', 'Intellectual doubts', 'Science and Christianity'],
+      'catholic': ['Catholic vs Protestant', 'Saints and Mary', 'Church authority'],
+      'baptist': ['Baptism explained', 'Once saved always saved', 'Baptist distinctives'],
+      'pentecostal': ['Gifts of the Spirit', 'Speaking in tongues', 'Holy Spirit baptism'],
+      'orthodox': ['Eastern Orthodox beliefs', 'Church tradition', 'Icons and worship'],
+      'non-denominational': ['Denominations explained', 'Unity in the church', 'Essential doctrines'],
+    };
+
+    // Gather personalized suggestions from user interests
+    const personalized: string[] = [];
+    const userInterests = user?.interests?.split(',').map((i: string) => i.trim().toLowerCase()) || [];
+    const userDenom = (user as any)?.denomination?.toLowerCase() || '';
+    const userLifeStage = (user as any)?.lifeStage?.replace(/_/g, ' ').toLowerCase() || '';
+
+    const allKeys = [...userInterests, userDenom, userLifeStage].filter(Boolean);
+    for (const key of allKeys) {
+      for (const [match, searches] of Object.entries(interestToSearches)) {
+        if (key.includes(match) || match.includes(key)) {
+          personalized.push(...searches);
+        }
+      }
+    }
+
+    // Dedupe and merge: personalized first, then fill with static
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    for (const s of [...personalized, ...staticList]) {
+      const lower = s.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        merged.push(s);
+      }
+    }
+    return merged.slice(0, 12);
+  }, [domain, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -277,34 +287,6 @@ export default function ApologeticsScreen({
         unreadNotificationCount={unreadNotificationCount}
         unreadMessageCount={unreadMessageCount}
       />
-
-      {/* Apologist Application Banner - only show to users who don't have inbox access and haven't dismissed */}
-      {user && !hasInboxAccess && !bannerDismissed && (
-        <View style={styles.applicationBanner}>
-          <Pressable
-            style={styles.bannerTouchable}
-            onPress={() => router.push("/apologetics/apply" as any)}
-          >
-            <View style={styles.bannerIconWrap}>
-              <Ionicons name="school-outline" size={24} color="#D97706" />
-            </View>
-            <View style={styles.bannerContent}>
-              <Text style={styles.bannerTitle}>Become an Apologist Scholar</Text>
-              <Text style={styles.bannerDescription}>
-                Share your knowledge and help answer faith questions
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#D97706" />
-          </Pressable>
-          <Pressable
-            style={styles.bannerCloseButton}
-            onPress={dismissBanner}
-            hitSlop={10}
-          >
-            <Ionicons name="close" size={18} color="#92400E" />
-          </Pressable>
-        </View>
-      )}
 
       <View style={styles.screen}>
         {/* Search */}
@@ -385,7 +367,9 @@ export default function ApologeticsScreen({
         {/* Suggested Searches (when search empty) */}
         {showSuggestedSearches && (
           <View style={styles.suggestedWrap}>
-            <Text style={styles.suggestedTitle}>Suggested Searches</Text>
+            <Text style={styles.suggestedTitle}>
+              {user?.interests || (user as any)?.denomination ? 'Suggested for You' : 'Suggested Searches'}
+            </Text>
             <View style={styles.suggestedGrid}>
               {suggestedSearches.slice(0, 12).map((term, idx) => (
                 <Pressable
@@ -510,13 +494,13 @@ function SegmentButton({
 const segStyles = StyleSheet.create({
   btn: {
     flex: 1,
-    height: 40,
+    height: 34,
     borderRadius: 999,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { fontSize: 14, fontWeight: '600' },
+  text: { fontSize: 13, fontWeight: '600' },
 });
 
 // Chip Component
@@ -535,8 +519,8 @@ function Chip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        height: 32,
-        paddingHorizontal: 14,
+        height: 28,
+        paddingHorizontal: 12,
         borderRadius: 999,
         backgroundColor: active ? colors.primary : colors.surface,
         borderWidth: active ? 0 : 1,
@@ -551,7 +535,7 @@ function Chip({
       <Text
         style={{
           color: active ? colors.primaryForeground : colors.textMuted,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: '500',
         }}
         numberOfLines={1}
@@ -581,9 +565,9 @@ function LibraryPostCard({
         backgroundColor: colors.backgroundSoft,
         borderColor: colors.borderSubtle,
         borderWidth: 1,
-        borderRadius: 16,
-        marginBottom: 12,
-        padding: 16,
+        borderRadius: 12,
+        marginBottom: 10,
+        padding: 12,
         opacity: pressed ? 0.9 : 1,
       })}
     >
@@ -591,8 +575,8 @@ function LibraryPostCard({
       <Text
         style={{
           color: colors.textPrimary,
-          fontSize: 18,
-          lineHeight: 24,
+          fontSize: 15,
+          lineHeight: 20,
           fontWeight: '600',
         }}
         numberOfLines={3}
@@ -604,9 +588,9 @@ function LibraryPostCard({
       {(item.area || item.tag) && (
         <Text
           style={{
-            marginTop: 6,
+            marginTop: 4,
             color: colors.textMuted,
-            fontSize: 12,
+            fontSize: 11,
           }}
           numberOfLines={1}
         >
@@ -618,12 +602,12 @@ function LibraryPostCard({
       {/* TL;DR Preview */}
       {item.tldr && (
         <>
-          <View style={{ marginTop: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+          <View style={{ marginTop: 10, marginBottom: 5, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
             <Text
               style={{
                 color: colors.primary,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: '600',
                 letterSpacing: 0.3,
                 textTransform: 'uppercase',
@@ -635,8 +619,8 @@ function LibraryPostCard({
           <Text
             style={{
               color: colors.textPrimary,
-              fontSize: 15,
-              lineHeight: 21,
+              fontSize: 13,
+              lineHeight: 18,
             }}
             numberOfLines={4}
           >
@@ -646,15 +630,15 @@ function LibraryPostCard({
       )}
 
       {/* Footer */}
-      <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+      <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
+          <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '500' }}>
             Verified Sources
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '500' }}>
             {item.authorDisplayName}
           </Text>
           <Pressable
@@ -675,9 +659,9 @@ function LibraryPostCard({
 
       {/* Perspectives badge (if multiple) */}
       {item.perspectives.length > 1 && (
-        <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="people-outline" size={14} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Ionicons name="people-outline" size={12} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>
             {item.perspectives.length} perspectives included
           </Text>
         </View>
@@ -690,55 +674,7 @@ function getStyles(colors: any) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: colors.header, // Match header color to extend to top of screen
-    },
-    applicationBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FFFBEB', // amber-50 equivalent
-      borderBottomWidth: 1,
-      borderBottomColor: '#FDE68A', // amber-200 equivalent
-      paddingRight: 40, // Space for close button
-    },
-    bannerTouchable: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      gap: 12,
-    },
-    bannerIconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: '#FEF3C7', // amber-100 equivalent
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bannerContent: {
-      flex: 1,
-    },
-    bannerTitle: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: '#78350F', // amber-900 equivalent
-    },
-    bannerDescription: {
-      fontSize: 12,
-      color: '#B45309', // amber-700 equivalent
-      marginTop: 2,
-    },
-    bannerCloseButton: {
-      position: 'absolute',
-      top: 8,
-      right: 8,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: '#FEF3C7',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: colors.background, // Match header color to extend to top of screen
     },
     screen: {
       flex: 1,
@@ -750,13 +686,13 @@ function getStyles(colors: any) {
     searchWrap: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 8,
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      height: 48,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 40,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
@@ -766,14 +702,14 @@ function getStyles(colors: any) {
     searchInput: {
       flex: 1,
       color: colors.textPrimary,
-      fontSize: 15,
+      fontSize: 13,
     },
 
     toggleWrap: {
       flexDirection: "row",
-      gap: 10,
-      marginTop: 14,
-      marginBottom: 8,
+      gap: 8,
+      marginTop: 10,
+      marginBottom: 6,
     },
 
     chipsScrollView: {
@@ -793,100 +729,100 @@ function getStyles(colors: any) {
     },
 
     suggestedWrap: {
-      marginTop: 20,
-      marginBottom: 10,
+      marginTop: 14,
+      marginBottom: 8,
     },
     suggestedTitle: {
       color: colors.textSecondary,
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '600',
-      marginBottom: 12,
+      marginBottom: 8,
       letterSpacing: 0.2,
     },
     suggestedGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 10,
+      gap: 8,
     },
     suggestedButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSubtle,
-      borderRadius: 12,
+      borderRadius: 10,
     },
     suggestedText: {
       color: colors.textPrimary,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '500',
     },
 
     listContent: {
-      paddingTop: 16,
-      paddingBottom: 120,
+      paddingTop: 10,
+      paddingBottom: 100,
     },
 
     empty: {
       backgroundColor: colors.backgroundSoft,
       borderColor: colors.borderSubtle,
       borderWidth: 1,
-      borderRadius: 16,
-      padding: 24,
-      marginTop: 20,
+      borderRadius: 12,
+      padding: 20,
+      marginTop: 14,
       alignItems: 'center',
     },
     emptyTitle: {
-      marginTop: 12,
+      marginTop: 10,
       color: colors.textPrimary,
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '600',
       textAlign: 'center',
     },
     emptyBody: {
-      marginTop: 8,
+      marginTop: 6,
       color: colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 18,
       textAlign: 'center',
     },
     primaryButton: {
-      marginTop: 16,
-      height: 44,
-      borderRadius: 12,
+      marginTop: 12,
+      height: 38,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 20,
+      gap: 6,
+      paddingHorizontal: 16,
     },
     primaryButtonText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
     },
 
     stickyCtaWrap: {
       position: "absolute",
-      left: 16,
-      right: 16,
-      bottom: 16,
+      left: 14,
+      right: 14,
+      bottom: 14,
     },
     stickyCta: {
-      height: 52,
-      borderRadius: 14,
+      height: 44,
+      borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
-      gap: 10,
-      paddingHorizontal: 14,
+      gap: 8,
+      paddingHorizontal: 12,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      elevation: 5,
     },
     stickyCtaText: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '600',
     },
   });
