@@ -100,8 +100,8 @@ export default function BibleChallengeCard() {
   const cardBorder = isDark ? '#2E2D33' : '#e8e0d4';
   const accentBg = isDark ? '#26252B' : colors.primary + '10';
   const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
-  const accentFill = isDark ? '#D4A860' : colors.primary;
-  const accentText = isDark ? '#D4A860' : colors.primary;
+  const accentFill = isDark ? '#E8C476' : colors.primary;
+  const accentText = isDark ? '#E8C476' : colors.primary;
 
   // ── Currently Reading card ──
   if (currentBook && bookInfo) {
@@ -122,7 +122,7 @@ export default function BibleChallengeCard() {
             <Text style={[styles.planLabel, { color: colors.textSecondary }]}>
               CURRENTLY READING
             </Text>
-            <Text style={[styles.planTitle, { color: colors.text }]}>
+            <Text style={[styles.planTitle, { color: colors.textPrimary }]}>
               {currentBook}
             </Text>
           </View>
@@ -133,7 +133,7 @@ export default function BibleChallengeCard() {
         <View style={[styles.readingPill, { backgroundColor: accentBg }]}>
           <BookOpen size={15} color={accentText} style={{ marginTop: 1 }} />
           <View style={styles.readingContent}>
-            <Text style={[styles.readingMain, { color: colors.text }]}>
+            <Text style={[styles.readingMain, { color: colors.textPrimary }]}>
               {bookInfo.theme}
             </Text>
             <View style={styles.bookMetaRow}>
@@ -191,7 +191,7 @@ export default function BibleChallengeCard() {
           <Text style={[styles.planLabel, { color: colors.textSecondary }]}>
             BIBLE CHALLENGE
           </Text>
-          <Text style={[styles.planTitle, { color: colors.text }]}>
+          <Text style={[styles.planTitle, { color: colors.textPrimary }]}>
             {plan.title}
           </Text>
         </View>
@@ -211,7 +211,7 @@ export default function BibleChallengeCard() {
             </View>
           ) : nextReading ? (
             <>
-              <Text style={[styles.readingMain, { color: colors.text }]}>
+              <Text style={[styles.readingMain, { color: colors.textPrimary }]}>
                 {nextReading.main}
               </Text>
               <Text style={[styles.readingMeta, { color: colors.textSecondary }]}>

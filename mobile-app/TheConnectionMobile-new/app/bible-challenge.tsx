@@ -515,7 +515,7 @@ export default function BibleChallengeScreen() {
   const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
   // In dark mode, colors.primary is cream (#FAF8F3) — good for text, bad for fills.
   // Use gold accent for backgrounds/fills, cream for text labels.
-  const accentFill = isDark ? '#D4A860' : colors.primary;
+  const accentFill = isDark ? '#E8C476' : colors.primary;
 
   // Month-specific accent colors for visual variety
   const monthAccents = [
@@ -610,7 +610,7 @@ export default function BibleChallengeScreen() {
         <View style={[styles.bookSearchRowCard, { backgroundColor: isDark ? '#26252B' : '#e8e0d4' }]}>
           <Search size={13} color={colors.textSecondary} />
           <TextInput
-            style={[styles.bookSearchInputCard, { color: colors.text }]}
+            style={[styles.bookSearchInputCard, { color: colors.textPrimary }]}
             placeholder="Search books..."
             placeholderTextColor={colors.textSecondary}
             value={bookSearch}
@@ -639,7 +639,7 @@ export default function BibleChallengeScreen() {
                   <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
                       {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
-                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.text }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
+                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -657,7 +657,7 @@ export default function BibleChallengeScreen() {
                   <TouchableOpacity key={name} style={[styles.bookChipCard, { backgroundColor: currentBook === name ? colors.primary + '18' : done ? '#1B6B3A' + '12' : (isDark ? '#26252B' : '#e8e0d4'), borderColor: currentBook === name ? colors.primary : done ? '#1B6B3A' + '40' : 'transparent' }]} onPress={() => handleSelectBook(name)} disabled={savingBook}>
                     <View style={styles.bookChipRow}>
                       {done && <Check size={10} color="#1B6B3A" strokeWidth={3} />}
-                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.text }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
+                      <Text style={[styles.bookChipTextCard, { color: currentBook === name ? colors.primary : done ? '#1B6B3A' : colors.textPrimary }, (currentBook === name || done) && { fontWeight: '700' }]} numberOfLines={1}>{name}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -722,9 +722,9 @@ export default function BibleChallengeScreen() {
           {/* Header */}
           <View style={[styles.readingHeader, { backgroundColor: colors.surface, borderBottomColor: isDark ? '#2E2D33' : '#e8e0d4' }]}>
             <TouchableOpacity onPress={() => router.back()} style={styles.heroBack}>
-              <ArrowLeft size={22} color={colors.text} />
+              <ArrowLeft size={22} color={colors.textPrimary} />
             </TouchableOpacity>
-            <Text style={[styles.readingHeaderTitle, { color: colors.text }]}>My Bible Reading</Text>
+            <Text style={[styles.readingHeaderTitle, { color: colors.textPrimary }]}>My Bible Reading</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -733,7 +733,7 @@ export default function BibleChallengeScreen() {
             {/* Book name + meta */}
             <View style={styles.mainReadingTop}>
               <Text style={[styles.readingHeroLabel, { color: colors.textSecondary }]}>CURRENTLY READING</Text>
-              <Text style={[styles.readingHeroBook, { color: colors.text }]}>{currentBook}</Text>
+              <Text style={[styles.readingHeroBook, { color: colors.textPrimary }]}>{currentBook}</Text>
 
               {bookInfo && (
                 <Text style={[styles.mainReadingMeta, { color: colors.textSecondary }]}>
@@ -745,7 +745,7 @@ export default function BibleChallengeScreen() {
                 style={[styles.changeBookBtnInline, { backgroundColor: isDark ? '#26252B' : colors.primary + '10', borderWidth: isDark ? 1 : 0, borderColor: '#3D3B44' }]}
                 onPress={() => setShowBookPicker(!showBookPicker)}
               >
-                <Text style={[styles.changeBookText, { color: colors.text }]}>
+                <Text style={[styles.changeBookText, { color: colors.textPrimary }]}>
                   {showBookPicker ? 'Close' : 'Change Book'}
                 </Text>
               </TouchableOpacity>
@@ -761,7 +761,7 @@ export default function BibleChallengeScreen() {
             {bookInfo && (
               <View style={styles.mainReadingSection}>
                 <View style={styles.chapterHeaderRow}>
-                  <Text style={[styles.sectionCardTitle, { color: colors.text }]}>Chapter Progress</Text>
+                  <Text style={[styles.sectionCardTitle, { color: colors.textPrimary }]}>Chapter Progress</Text>
                   <Text style={[styles.chapterStatPct, { color: accentFill }]}>{chapterPct}%</Text>
                 </View>
 
@@ -806,7 +806,7 @@ export default function BibleChallengeScreen() {
               <View style={styles.inlineStatsRow}>
                 {daysReading !== null && (
                   <View style={styles.inlineStat}>
-                    <Text style={[styles.inlineStatValue, { color: colors.text }]}>{daysReading}</Text>
+                    <Text style={[styles.inlineStatValue, { color: colors.textPrimary }]}>{daysReading}</Text>
                     <Text style={[styles.inlineStatLabel, { color: colors.textSecondary }]}>
                       {daysReading === 1 ? 'day' : 'days'}
                     </Text>
@@ -814,7 +814,7 @@ export default function BibleChallengeScreen() {
                 )}
                 <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2E2D33' : '#e0d8cc' }]} />
                 <View style={styles.inlineStat}>
-                  <Text style={[styles.inlineStatValue, { color: colors.text }]}>
+                  <Text style={[styles.inlineStatValue, { color: colors.textPrimary }]}>
                     {bookInfo.chapters - currentChapter}
                   </Text>
                   <Text style={[styles.inlineStatLabel, { color: colors.textSecondary }]}>left</Text>
@@ -823,7 +823,7 @@ export default function BibleChallengeScreen() {
                   <>
                     <View style={[styles.inlineStatDivider, { backgroundColor: isDark ? '#2E2D33' : '#e0d8cc' }]} />
                     <View style={styles.inlineStat}>
-                      <Text style={[styles.inlineStatValue, { color: colors.text }]}>
+                      <Text style={[styles.inlineStatValue, { color: colors.textPrimary }]}>
                         {remainingMin >= 60 ? `${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m` : `${remainingMin}m`}
                       </Text>
                       <Text style={[styles.inlineStatLabel, { color: colors.textSecondary }]}>remaining</Text>
@@ -858,7 +858,7 @@ export default function BibleChallengeScreen() {
               <Trophy size={18} color="#FFD700" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.challengeToggleTitle, { color: colors.text }]}>Bible Challenge</Text>
+              <Text style={[styles.challengeToggleTitle, { color: colors.textPrimary }]}>Bible Challenge</Text>
               <Text style={[styles.challengeToggleSub, { color: colors.textSecondary }]}>
                 Month {activeMonth}: {plan.title} · {Math.round(progressPct * 100)}% complete
               </Text>
@@ -957,7 +957,7 @@ export default function BibleChallengeScreen() {
               <Text style={[styles.upNextLabel, { color: accentFill }]}>UP NEXT</Text>
               <Text style={[styles.upNextDay, { color: colors.textSecondary }]}>Day {nextReading.day}</Text>
             </View>
-            <Text style={[styles.upNextMain, { color: colors.text }]}>{nextReading.main}</Text>
+            <Text style={[styles.upNextMain, { color: colors.textPrimary }]}>{nextReading.main}</Text>
             <Text style={[styles.upNextSub, { color: colors.textSecondary }]}>
               {nextReading.psalm}  ·  {nextReading.proverb}
             </Text>
@@ -1005,7 +1005,7 @@ export default function BibleChallengeScreen() {
                   {isCompleted && <Check size={13} color="#fff" strokeWidth={3} />}
                 </View>
                 <View style={styles.readingInfo}>
-                  <Text style={[styles.mainReading, { color: isCompleted ? accentFill : colors.text }]}>{reading.main}</Text>
+                  <Text style={[styles.mainReading, { color: isCompleted ? accentFill : colors.textPrimary }]}>{reading.main}</Text>
                   <Text style={[styles.subReading, { color: isDark ? '#9A968E' : '#aaa' }]}>{reading.psalm}  ·  {reading.proverb}</Text>
                   {reading.commentary ? (
                     <Text style={[styles.commentaryText, { color: isDark ? '#9A968E' : '#999' }]} numberOfLines={2}>{reading.commentary}</Text>
