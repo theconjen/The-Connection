@@ -27,6 +27,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
@@ -224,6 +225,27 @@ function useCreatePrayerRequest() {
   });
 }
 
+interface CommunityReader {
+  id: number;
+  username: string;
+  displayName?: string;
+  profileImageUrl?: string;
+  currentBibleBook: string;
+  currentBibleChapter?: number;
+  startedAt?: string;
+}
+
+function useReaders(communityId: number) {
+  return useQuery<CommunityReader[]>({
+    queryKey: [`/api/communities/${communityId}/readers`],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/communities/${communityId}/readers`);
+      return response.data?.readers || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 function useLeaveCommunity() {
   const queryClient = useQueryClient();
 
@@ -335,6 +357,7 @@ export function CommunityDetailScreen({
   const { user } = useAuth();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'wall' | 'members' | 'prayers'>('wall');
   const [postContent, setPostContent] = useState('');
@@ -347,6 +370,7 @@ export function CommunityDetailScreen({
 
   const { data: community, isLoading: loadingCommunity } = useCommunity(communityId);
   const { data: members = [], isLoading: loadingMembers } = useMembers(communityId);
+  const { data: readers = [] } = useReaders(communityId);
   const { data: wallPosts = [], isLoading: loadingPosts, refetch: refetchPosts } = useWallPosts(communityId);
   const { data: prayerRequests = [], isLoading: loadingPrayers, refetch: refetchPrayers } = usePrayerRequests(communityId);
 
@@ -636,6 +660,62 @@ export function CommunityDetailScreen({
               })}
             </ScrollView>
           </View>
+        )}
+
+        {/* Reading Together - Bible books community members are reading */}
+        {isMember && readers.length > 0 && (
+          <View style={[styles.readingSection, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+            <View style={styles.readingSectionHeader}>
+              <Ionicons name="book" size={16} color={colors.primary || '#5C6B5E'} />
+              <Text style={[styles.readingSectionTitle, { color: colors.textPrimary }]}>
+                Reading Together
+              </Text>
+              <Pressable onPress={() => router.push('/bible-challenge')} style={styles.readingSetBtn}>
+                <Text style={[styles.readingSetText, { color: colors.primary }]}>
+                  {(user as any)?.currentBibleBook ? 'Change' : 'Set yours'}
+                </Text>
+              </Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 10 }}>
+              {readers.map((reader) => (
+                <Pressable
+                  key={reader.id}
+                  style={[styles.readerChip, { backgroundColor: colors.primary + '0d', borderColor: colors.primary + '20' }]}
+                  onPress={() => onUserPress?.(reader.id)}
+                >
+                  <Image
+                    source={{
+                      uri: reader.profileImageUrl ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(reader.displayName || reader.username)}&background=random&size=32`
+                    }}
+                    style={styles.readerAvatar}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.readerName, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {reader.displayName || reader.username}
+                    </Text>
+                    <Text style={[styles.readerBook, { color: colors.primary }]} numberOfLines={1}>
+                      {reader.currentBibleBook}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Show "Set what you're reading" prompt if no readers yet but user is member */}
+        {isMember && readers.length === 0 && (
+          <Pressable
+            style={[styles.readingPrompt, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}
+            onPress={() => router.push('/bible-challenge')}
+          >
+            <Ionicons name="book-outline" size={18} color={colors.primary || '#5C6B5E'} />
+            <Text style={[styles.readingPromptText, { color: colors.textSecondary }]}>
+              Share what Bible book you're reading with this community
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
         )}
 
         {/* Tabs */}
@@ -1202,5 +1282,66 @@ const getStyles = (colors: any) =>
     },
     followingButtonText: {
       color: '#27AE60',
+    },
+    // Reading Together section
+    readingSection: {
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+    },
+    readingSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    readingSectionTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      flex: 1,
+    },
+    readingSetBtn: {
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+    },
+    readingSetText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    readerChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      minWidth: 140,
+      maxWidth: 200,
+    },
+    readerAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+    },
+    readerName: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    readerBook: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    readingPrompt: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+    },
+    readingPromptText: {
+      fontSize: 13,
+      flex: 1,
     },
   });

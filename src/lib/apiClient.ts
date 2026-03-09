@@ -377,6 +377,16 @@ export const communitiesAPI = {
   requestToJoin: (communityId: number) =>
     apiClient.post(`/api/communities/${communityId}/request-join`).then(res => res.data),
 
+  // Invite codes
+  generateInviteCode: (communityId: number) =>
+    apiClient.post(`/api/communities/${communityId}/invite-code`).then(res => res.data),
+  getInviteCode: (communityId: number) =>
+    apiClient.get(`/api/communities/${communityId}/invite-code`).then(res => res.data),
+
+  // Bible Reading - Community Readers
+  getReaders: (communityId: number) =>
+    apiClient.get(`/api/communities/${communityId}/readers`).then(res => res.data),
+
   // Community Invitations
   inviteUser: (communityId: number, inviteeId: number, sendDm: boolean = true) =>
     apiClient.post(`/api/communities/${communityId}/invite-user`, { inviteeId, sendDm }).then(res => res.data),

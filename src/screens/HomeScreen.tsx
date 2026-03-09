@@ -38,6 +38,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { shareAdvice, shareApologetics } from '../lib/shareUrls';
 import { churchesAPI, ChurchBulletinData } from '../queries/churches';
 import { ChurchBulletinSection } from '../components/ChurchBulletinSection';
+import DailyVerseBanner from '../components/DailyVerseBanner';
+import BibleChallengeCard from '../components/BibleChallengeCard';
 
 // ============================================================================
 // TYPES
@@ -1093,6 +1095,9 @@ export default function HomeScreen({
     if (advicePosts.length === 0) return null;
 
     return (
+      <>
+      <DailyVerseBanner />
+      <BibleChallengeCard />
       <View style={styles.horizontalSection}>
         <View style={[styles.sectionHeaderRow, { borderBottomColor: colors.borderSubtle }]}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Global Community</Text>
@@ -1127,6 +1132,7 @@ export default function HomeScreen({
           }
         />
       </View>
+      </>
     );
   }, [advicePosts, colors, renderAdviceCard, handleAdviceEndReached, isFetchingNextAdvicePage]);
 
