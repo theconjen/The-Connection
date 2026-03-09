@@ -34,7 +34,7 @@ const DAILY_VERSE_REFERENCES = [
   // ── March (60-90) ──
   'Psalm 103:1-3', 'Proverbs 22:6', 'Isaiah 55:8-9', 'John 10:10',
   '1 Corinthians 10:13', 'Psalm 16:11', 'Colossians 3:2', 'James 4:8',
-  'Psalm 19:14', 'Proverbs 11:25', 'Ephesians 4:32', 'Mark 10:27',
+  'Psalm 19:14', 'James 4:6', 'Ephesians 4:32', 'Mark 10:27',
   'Psalm 62:1-2', 'Romans 1:16', 'John 8:32', 'Psalm 145:18',
   'Isaiah 30:21', 'Hebrews 4:16', 'Proverbs 15:1', '2 Chronicles 7:14',
   'Psalm 40:1-3', 'Galatians 6:9', 'John 16:33', 'Psalm 73:26',
@@ -158,7 +158,7 @@ export default function DailyVerseBanner() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDark ? '#1a2540' : '#f0f4ff', borderColor: isDark ? '#2a3a5a' : '#d4dff7' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#1E1D22' : '#f0f4ff', borderColor: isDark ? '#2E2D33' : '#d4dff7' }]}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -172,8 +172,8 @@ export default function DailyVerseBanner() {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? '#1a2540' : '#f0f4ff',
-          borderColor: isDark ? '#2a3a5a' : '#d4dff7',
+          backgroundColor: isDark ? '#1E1D22' : '#f0f4ff',
+          borderColor: isDark ? '#2E2D33' : '#d4dff7',
         },
       ]}
     >

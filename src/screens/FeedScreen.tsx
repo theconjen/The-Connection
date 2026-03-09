@@ -1590,7 +1590,7 @@ export default function FeedScreen({
   const styles = getStyles(colors, colorScheme);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       {/* Header */}
       <AppHeader

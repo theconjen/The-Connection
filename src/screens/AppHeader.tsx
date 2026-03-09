@@ -85,9 +85,8 @@ export function AppHeader({
           alignItems: 'center',
           justifyContent: 'space-between',
           height: 48,
-          backgroundColor: transparent ? 'transparent' : colors.header,
-          borderBottomWidth: transparent ? 0 : 1,
-          borderBottomColor: transparent ? 'transparent' : (colors.headerBorder || colors.borderSubtle),
+          backgroundColor: transparent ? 'transparent' : colors.background,
+          borderBottomWidth: 0,
           paddingHorizontal: spacing.lg,
         },
       ]}
@@ -353,9 +352,8 @@ export function PageHeader({ title, onBackPress, rightElement, showLogo }: { tit
       style={[
         styles.container,
         {
-          backgroundColor: colors.header,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.headerBorder,
+          backgroundColor: colors.background,
+          borderBottomWidth: 0,
           paddingHorizontal: spacing.lg,
         },
       ]}

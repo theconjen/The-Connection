@@ -771,7 +771,7 @@ export function NotificationsScreen({ onBackPress }: NotificationsScreenProps) {
   const hasAnyNotifications = notificationsList.length > 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <PageHeader
         title="Notifications"
         onBackPress={onBackPress}

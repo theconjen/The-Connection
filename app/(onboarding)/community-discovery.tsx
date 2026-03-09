@@ -241,10 +241,10 @@ export default function CommunityDiscoveryScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '75%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '60%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 3 of 4
+          Step 3 of 5
         </Text>
       </View>
 

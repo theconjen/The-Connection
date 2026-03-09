@@ -80,6 +80,7 @@ export default function FirstActionScreen() {
         homeChurch: faith.homeChurch,
         favoriteBibleVerse: faith.favoriteBibleVerse,
         interests: faith.interests || [],
+        activities: faith.activities || [],
       });
 
       // Mark onboarding as completed
@@ -143,11 +144,11 @@ export default function FirstActionScreen() {
       }
 
       await completeOnboarding();
-      router.replace('/(tabs)/home');
+      router.push('/(onboarding)/invite-friends');
 
       setTimeout(() => {
         Alert.alert(
-          'Welcome to The Connection!',
+          'Nice!',
           selectedAction === 'intro'
             ? `Your introduction has been posted to ${targetCommunity.name}.`
             : `Your prayer request has been shared with ${targetCommunity.name}.`
@@ -156,7 +157,7 @@ export default function FirstActionScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to post. You can always do this later.');
       await completeOnboarding();
-      router.replace('/(tabs)/home');
+      router.push('/(onboarding)/invite-friends');
     } finally {
       setIsSubmitting(false);
     }
@@ -166,9 +167,9 @@ export default function FirstActionScreen() {
     setIsSkipping(true);
     try {
       await completeOnboarding();
-      router.replace('/(tabs)/home');
+      router.push('/(onboarding)/invite-friends');
     } catch {
-      router.replace('/(tabs)/home');
+      router.push('/(onboarding)/invite-friends');
     } finally {
       setIsSkipping(false);
     }
@@ -192,10 +193,10 @@ export default function FirstActionScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '100%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '80%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 4 of 4
+          Step 4 of 5
         </Text>
       </View>
 

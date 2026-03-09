@@ -58,7 +58,7 @@ export function BlockedUsersScreen({ onBackPress }: BlockedUsersScreenProps) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.header }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <PageHeader title="Blocked Users" onBackPress={onBackPress} />
 
       <View style={{ flex: 1, backgroundColor: colors.surface }}>

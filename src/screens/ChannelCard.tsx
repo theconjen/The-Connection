@@ -18,6 +18,7 @@ export interface Channel {
   name: string;
   members: string;
   icon: string;
+  iconName?: string; // Ionicons icon name chosen by the community
   isJoined: boolean;
   communityId?: number; // Link to community for navigation
   slug?: string; // Community slug
@@ -70,21 +71,21 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
       onPress={handlePress}
       style={({ pressed }) => [
         {
-          width: 80,
-          height: 80,
+          width: 90,
+          height: 90,
           backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: pressed ? colors.accent : colors.borderSubtle,
           borderRadius: radii.lg,
-          padding: spacing.xs,
+          paddingTop: 12,
+          paddingBottom: 8,
+          paddingHorizontal: spacing.xs,
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: 2,
         },
       ]}
     >
-      {/* Channel Icon */}
-      <View style={{ position: 'relative' }}>
+      {/* Channel Icon — fixed position at top */}
+      <View style={{ position: 'relative', marginBottom: 6 }}>
         <View
           style={{
             width: 34,
@@ -95,15 +96,23 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
             justifyContent: 'center',
           }}
         >
-          <Text
-            style={{
-              color: channel.color ? getContrastColor(channel.color) : colors.secondaryForeground,
-              fontSize: 14,
-              fontWeight: '600',
-            }}
-          >
-            {channel.icon}
-          </Text>
+          {channel.iconName ? (
+            <Ionicons
+              name={channel.iconName as any}
+              size={16}
+              color={channel.color ? getContrastColor(channel.color) : colors.secondaryForeground}
+            />
+          ) : (
+            <Text
+              style={{
+                color: channel.color ? getContrastColor(channel.color) : colors.secondaryForeground,
+                fontSize: 14,
+                fontWeight: '600',
+              }}
+            >
+              {channel.icon}
+            </Text>
+          )}
         </View>
 
         {/* Joined Checkmark */}
@@ -126,7 +135,7 @@ export const ChannelCard = memo(function ChannelCard({ channel, onToggleJoin, on
         )}
       </View>
 
-      {/* Channel Name */}
+      {/* Channel Name — fills remaining space */}
       <Text
         variant="caption"
         numberOfLines={2}
@@ -153,19 +162,20 @@ export const AddChannelCard = memo(function AddChannelCard({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          width: 80,
-          height: 80,
+          width: 90,
+          height: 90,
           borderWidth: 1,
           borderColor: colors.borderSubtle,
           borderRadius: radii.lg,
+          paddingTop: 14,
+          paddingBottom: 8,
+          paddingHorizontal: spacing.xs,
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: 2,
           backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
         },
       ]}
     >
-      <View style={{ position: 'relative' }}>
+      <View style={{ position: 'relative', marginBottom: 6 }}>
         <View
           style={{
             width: 30,

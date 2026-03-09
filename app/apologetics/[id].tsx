@@ -272,15 +272,6 @@ export default function ApologeticsDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back Button */}
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.push("/(tabs)/apologetics" as any)}
-        >
-          <Ionicons name="arrow-back" size={20} color={colors.primary} />
-          <Text style={styles.backButtonText}>Back to Apologetics</Text>
-        </Pressable>
-
         {/* Breadcrumb */}
         {(data.area || data.tag) && (
           <View style={styles.breadcrumb}>

@@ -106,7 +106,7 @@ export default function FollowersScreen() {
   const isLoading = activeTab === 'followers' ? loadingFollowers : loadingFollowing;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <AppHeader

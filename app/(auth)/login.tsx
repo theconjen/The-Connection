@@ -272,6 +272,8 @@ export default function LoginScreen() {
               placeholder="Enter your username or email"
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="username"
+              textContentType="username"
               editable={!isLoading}
             />
           </View>
@@ -286,6 +288,8 @@ export default function LoginScreen() {
                 placeholder="Enter your password"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                autoComplete="password"
+                textContentType="password"
                 editable={!isLoading}
               />
               <TouchableOpacity
@@ -317,10 +321,16 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.biometricButton,
-                (isBiometricLoading || !biometricEnabled) && styles.buttonDisabled
+                isBiometricLoading && styles.buttonDisabled
               ]}
-              onPress={handleBiometricLogin}
-              disabled={isLoading || isBiometricLoading || !biometricEnabled}
+              onPress={biometricEnabled ? handleBiometricLogin : () => {
+                Alert.alert(
+                  `Enable ${biometricType}`,
+                  `Sign in with your password first, then you'll be prompted to enable ${biometricType} for faster logins next time.`,
+                  [{ text: 'OK' }]
+                );
+              }}
+              disabled={isLoading || isBiometricLoading}
             >
               {isBiometricLoading ? (
                 <ActivityIndicator color={colors.primary} />
@@ -329,15 +339,12 @@ export default function LoginScreen() {
                   <Ionicons
                     name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
                     size={24}
-                    color={biometricEnabled ? colors.primary : colors.textSecondary}
+                    color={colors.primary}
                   />
-                  <Text style={[
-                    styles.biometricButtonText,
-                    !biometricEnabled && { color: colors.textSecondary }
-                  ]}>
+                  <Text style={styles.biometricButtonText}>
                     {biometricEnabled
                       ? `Sign in with ${biometricType}`
-                      : `${biometricType} not enabled`
+                      : `Use ${biometricType}`
                     }
                   </Text>
                 </>

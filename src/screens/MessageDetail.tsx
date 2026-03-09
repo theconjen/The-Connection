@@ -22,9 +22,175 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useConversationMessages, useSendMessage, useMarkAsRead, useDeleteMessage } from '../queries/messages';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import apiClient, { messagesAPI } from '../lib/apiClient';
 import { GIF_CONFIG } from '../config';
+
+// ============================================================================
+// SHARED LINK DETECTION
+// ============================================================================
+
+interface SharedLink {
+  type: 'apologetics' | 'advice' | 'post' | 'event' | 'question';
+  id: string;
+  label: string;
+  icon: string; // Ionicons name
+  route: string;
+}
+
+function detectSharedLink(content: string): { link: SharedLink | null; textContent: string } {
+  const urlMatch = content.match(/https?:\/\/theconnection\.app\/(a|advice|p|e|events|questions)\/(\d+)/);
+  if (!urlMatch) return { link: null, textContent: content };
+
+  const [fullUrl, pathType, id] = urlMatch;
+  const textContent = content.replace(fullUrl, '').trim();
+
+  const typeMap: Record<string, SharedLink['type']> = {
+    'a': 'apologetics',
+    'advice': 'advice',
+    'p': 'post',
+    'e': 'event',
+    'events': 'event',
+    'questions': 'question',
+  };
+
+  const labelMap: Record<SharedLink['type'], string> = {
+    apologetics: 'Apologetics Answer',
+    advice: 'Advice Post',
+    post: 'Post',
+    event: 'Event',
+    question: 'Question',
+  };
+
+  const iconMap: Record<SharedLink['type'], string> = {
+    apologetics: 'library',
+    advice: 'chatbubble-ellipses',
+    post: 'document-text',
+    event: 'calendar',
+    question: 'help-circle',
+  };
+
+  const routeMap: Record<SharedLink['type'], string> = {
+    apologetics: `/a/${id}`,
+    advice: `/advice/${id}`,
+    post: `/post/${id}`,
+    event: `/events/${id}`,
+    question: `/questions/${id}`,
+  };
+
+  const type = typeMap[pathType] || 'post';
+
+  return {
+    link: {
+      type,
+      id,
+      label: labelMap[type],
+      icon: iconMap[type],
+      route: routeMap[type],
+    },
+    textContent,
+  };
+}
+
+// Fetch preview data for a shared link
+function useSharedLinkPreview(link: SharedLink | null) {
+  const [preview, setPreview] = useState<{ title: string; snippet: string } | null>(null);
+
+  useEffect(() => {
+    if (!link) return;
+
+    // Use public preview endpoints (no auth needed, cached)
+    const fetchMap: Record<SharedLink['type'], string> = {
+      apologetics: `/api/public/apologetics/${link.id}`,
+      advice: `/api/microblogs/${link.id}`,
+      post: `/api/public/posts/${link.id}`,
+      event: `/api/public/events/${link.id}`,
+      question: `/api/apologetics/questions/${link.id}`,
+    };
+
+    const url = fetchMap[link.type];
+    if (!url) return;
+
+    apiClient.get(url).then(res => {
+      const data = res.data;
+      let title = '';
+      let snippet = '';
+
+      if (link.type === 'apologetics') {
+        title = data.title || 'Apologetics Answer';
+        snippet = (data.quickAnswer || data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      } else if (link.type === 'advice') {
+        title = 'Advice Post';
+        snippet = (data.content || '').slice(0, 120);
+      } else if (link.type === 'post') {
+        title = data.title || 'Post';
+        snippet = (data.excerpt || data.content || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      } else if (link.type === 'event') {
+        title = data.title || 'Event';
+        snippet = data.description ? data.description.replace(/<[^>]*>/g, '').slice(0, 120) : (data.location || '');
+      } else if (link.type === 'question') {
+        title = data.title || 'Question';
+        snippet = (data.content || data.body || '').replace(/<[^>]*>/g, '').slice(0, 120);
+      }
+
+      setPreview({ title, snippet: snippet ? (snippet.length >= 120 ? snippet + '…' : snippet) : '' });
+    }).catch(() => {});
+  }, [link?.type, link?.id]);
+
+  return preview;
+}
+
+// Shared link preview card component
+function SharedLinkPreviewCard({ link, isMe, colors }: { link: SharedLink; isMe: boolean; colors: any }) {
+  const router = useRouter();
+  const preview = useSharedLinkPreview(link);
+  const title = preview?.title || link.label;
+  const snippet = preview?.snippet || '';
+
+  return (
+    <Pressable
+      onPress={() => router.push(link.route)}
+      style={{
+        backgroundColor: isMe ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.05)',
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Accent bar at top */}
+      <View style={{
+        height: 3,
+        backgroundColor: isMe ? 'rgba(255,255,255,0.3)' : colors.primary,
+      }} />
+      <View style={{ padding: 12, gap: 6 }}>
+        {/* Type label */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name={link.icon as any} size={14} color={isMe ? 'rgba(255,255,255,0.6)' : colors.primary} />
+          <Text style={{ fontSize: 11, fontWeight: '600', color: isMe ? 'rgba(255,255,255,0.6)' : colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            {link.label}
+          </Text>
+        </View>
+        {/* Title */}
+        <Text style={{ fontSize: 15, fontWeight: '700', color: isMe ? '#fff' : colors.textPrimary }} numberOfLines={2}>
+          {title}
+        </Text>
+        {/* Snippet */}
+        {snippet ? (
+          <Text style={{ fontSize: 13, color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary, lineHeight: 18 }} numberOfLines={3}>
+            {snippet}
+          </Text>
+        ) : null}
+        {/* Tap hint */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          <Text style={{ fontSize: 12, fontWeight: '500', color: isMe ? 'rgba(255,255,255,0.5)' : colors.textMuted }}>
+            Tap to read more
+          </Text>
+          <Ionicons name="chevron-forward" size={12} color={isMe ? 'rgba(255,255,255,0.4)' : colors.textMuted} style={{ marginLeft: 2 }} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 // ============================================================================
 // TYPES
@@ -307,11 +473,26 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
                 <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
               </View>
             </View>
-          ) : (
-            <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15 }}>
-              {message.content}
-            </Text>
-          )}
+          ) : (() => {
+            const { link, textContent } = detectSharedLink(message.content);
+            if (link) {
+              return (
+                <View>
+                  {textContent ? (
+                    <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15, marginBottom: 10 }}>
+                      {textContent}
+                    </Text>
+                  ) : null}
+                  <SharedLinkPreviewCard link={link} isMe={isMe} colors={colors} />
+                </View>
+              );
+            }
+            return (
+              <Text style={{ color: isMe ? colors.primaryForeground : colors.textPrimary, fontSize: 15 }}>
+                {message.content}
+              </Text>
+            );
+          })()}
           <Text style={[
             styles.messageTime,
             { color: isMe ? colors.textMuted : colors.textMuted }

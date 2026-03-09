@@ -39,7 +39,8 @@ export async function getActiveMonth(): Promise<number> {
 }
 
 export default function BibleChallengeCard() {
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { user } = useAuth();
   const router = useRouter();
   const currentBook = (user as any)?.currentBibleBook || null;
@@ -95,10 +96,12 @@ export default function BibleChallengeCard() {
   const allDone = completedCount === totalCount && totalCount > 0;
 
   // Theme-aware accent colors
-  const cardBg = isDark ? '#1a2235' : '#f8f5f0';
-  const cardBorder = isDark ? '#2a3550' : '#e8e0d4';
-  const accentBg = isDark ? colors.primary + '18' : colors.primary + '10';
-  const trackBg = isDark ? '#2a3550' : '#e0d8cc';
+  const cardBg = isDark ? '#1E1D22' : '#f8f5f0';
+  const cardBorder = isDark ? '#2E2D33' : '#e8e0d4';
+  const accentBg = isDark ? '#26252B' : colors.primary + '10';
+  const trackBg = isDark ? '#3D3B44' : '#e0d8cc';
+  const accentFill = isDark ? '#E8C476' : colors.primary;
+  const accentText = isDark ? '#E8C476' : colors.primary;
 
   // ── Currently Reading card ──
   if (currentBook && bookInfo) {
@@ -119,7 +122,7 @@ export default function BibleChallengeCard() {
             <Text style={[styles.planLabel, { color: colors.textSecondary }]}>
               CURRENTLY READING
             </Text>
-            <Text style={[styles.planTitle, { color: colors.text }]}>
+            <Text style={[styles.planTitle, { color: colors.textPrimary }]}>
               {currentBook}
             </Text>
           </View>
@@ -128,9 +131,9 @@ export default function BibleChallengeCard() {
 
         {/* Book info pill */}
         <View style={[styles.readingPill, { backgroundColor: accentBg }]}>
-          <BookOpen size={15} color={colors.primary} style={{ marginTop: 1 }} />
+          <BookOpen size={15} color={accentText} style={{ marginTop: 1 }} />
           <View style={styles.readingContent}>
-            <Text style={[styles.readingMain, { color: colors.text }]}>
+            <Text style={[styles.readingMain, { color: colors.textPrimary }]}>
               {bookInfo.theme}
             </Text>
             <View style={styles.bookMetaRow}>
@@ -156,7 +159,7 @@ export default function BibleChallengeCard() {
               style={[
                 styles.progressFill,
                 {
-                  backgroundColor: colors.primary,
+                  backgroundColor: accentFill,
                   width: `${chapterPct}%`,
                 },
               ]}
@@ -166,7 +169,7 @@ export default function BibleChallengeCard() {
             <Text style={[styles.progressCount, { color: colors.textSecondary }]}>
               Chapter {currentChapter} of {bookInfo.chapters}
             </Text>
-            <Text style={[styles.progressPct, { color: colors.primary }]}>
+            <Text style={[styles.progressPct, { color: accentText }]}>
               {chapterPct}%
             </Text>
           </View>
@@ -188,7 +191,7 @@ export default function BibleChallengeCard() {
           <Text style={[styles.planLabel, { color: colors.textSecondary }]}>
             BIBLE CHALLENGE
           </Text>
-          <Text style={[styles.planTitle, { color: colors.text }]}>
+          <Text style={[styles.planTitle, { color: colors.textPrimary }]}>
             {plan.title}
           </Text>
         </View>
@@ -197,25 +200,25 @@ export default function BibleChallengeCard() {
 
       {/* Today's reading pill */}
       <View style={[styles.readingPill, { backgroundColor: accentBg }]}>
-        <BookOpen size={15} color={colors.primary} style={{ marginTop: 1 }} />
+        <BookOpen size={15} color={accentText} style={{ marginTop: 1 }} />
         <View style={styles.readingContent}>
           {allDone ? (
             <View style={styles.doneRow}>
-              <Check size={14} color={colors.primary} />
-              <Text style={[styles.doneText, { color: colors.primary }]}>
+              <Check size={14} color={accentText} />
+              <Text style={[styles.doneText, { color: accentText }]}>
                 Complete — tap to continue
               </Text>
             </View>
           ) : nextReading ? (
             <>
-              <Text style={[styles.readingMain, { color: colors.text }]}>
+              <Text style={[styles.readingMain, { color: colors.textPrimary }]}>
                 {nextReading.main}
               </Text>
               <Text style={[styles.readingMeta, { color: colors.textSecondary }]}>
                 {nextReading.psalm}  ·  {nextReading.proverb}
               </Text>
               {nextReading.commentary ? (
-                <Text style={[styles.readingCommentary, { color: isDark ? '#8a9ab8' : '#8a8070' }]} numberOfLines={2}>
+                <Text style={[styles.readingCommentary, { color: isDark ? '#B8B4AC' : '#8a8070' }]} numberOfLines={2}>
                   {nextReading.commentary}
                 </Text>
               ) : null}
@@ -231,7 +234,7 @@ export default function BibleChallengeCard() {
             style={[
               styles.progressFill,
               {
-                backgroundColor: colors.primary,
+                backgroundColor: accentFill,
                 width: `${pctRound}%`,
               },
             ]}
@@ -241,7 +244,7 @@ export default function BibleChallengeCard() {
           <Text style={[styles.progressCount, { color: colors.textSecondary }]}>
             Day {completedCount} of {totalCount}
           </Text>
-          <Text style={[styles.progressPct, { color: colors.primary }]}>
+          <Text style={[styles.progressPct, { color: accentText }]}>
             {pctRound}%
           </Text>
         </View>
@@ -252,10 +255,12 @@ export default function BibleChallengeCard() {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 12,
+    marginHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 8,
   },
   topRow: {
     flexDirection: 'row',

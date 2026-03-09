@@ -197,7 +197,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
@@ -213,7 +213,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
 
   if (!profile) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
         <AppHeader
           showCenteredLogo={true}
@@ -230,7 +230,7 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
   const { user, stats, communities, recentPosts, recentMicroblogs, isPrivate: isPrivateProfile } = profile;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <AppHeader
@@ -393,9 +393,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
             {/* Interests as tags */}
             {user.interests && (
               <View style={styles.interestTags}>
-                {user.interests.split(',').slice(0, 5).map((interest: string, index: number) => (
-                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.surfaceMuted }]}>
-                    <Text style={[styles.interestTagText, { color: colors.textSecondary }]}>{interest.trim()}</Text>
+                {(Array.isArray(user.interests)
+                  ? user.interests
+                  : user.interests.replace(/^\{|\}$/g, '').split(',').map((s: string) => s.replace(/^"|"$/g, '').trim()).filter(Boolean)
+                ).slice(0, 5).map((interest: string, index: number) => (
+                  <View key={index} style={[styles.interestTag, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
+                    <Text style={[styles.interestTagText, { color: colors.primary }]}>{interest}</Text>
                   </View>
                 ))}
               </View>
@@ -846,17 +849,18 @@ const styles = StyleSheet.create({
   interestTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 12,
   },
   interestTag: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   interestTagText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionButtons: {
     gap: 8,

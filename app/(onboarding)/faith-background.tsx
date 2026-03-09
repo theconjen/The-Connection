@@ -60,6 +60,25 @@ const INTERESTS = [
   'Spiritual Formation',
 ];
 
+const ACTIVITIES = [
+  'Coffee',
+  'Gym & Fitness',
+  'Sports',
+  'Reading',
+  'Cooking',
+  'Walking',
+  'Hiking',
+  'Music',
+  'Art & Crafts',
+  'Gaming',
+  'Travel',
+  'Photography',
+  'Gardening',
+  'Fishing',
+  'Running',
+  'Biking',
+];
+
 export default function FaithBackgroundScreen() {
   const router = useRouter();
   const { colors, colorScheme } = useTheme();
@@ -68,6 +87,7 @@ export default function FaithBackgroundScreen() {
 
   const [denomination, setDenomination] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [homeChurch, setHomeChurch] = useState('');
   const [favoriteBibleVerse, setFavoriteBibleVerse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +106,18 @@ export default function FaithBackgroundScreen() {
         setSelectedInterests([...selectedInterests, interest]);
       } else {
         Alert.alert('Limit Reached', 'You can select up to 5 interests');
+      }
+    }
+  };
+
+  const toggleActivity = (activity: string) => {
+    if (selectedActivities.includes(activity)) {
+      setSelectedActivities(selectedActivities.filter(a => a !== activity));
+    } else {
+      if (selectedActivities.length < 5) {
+        setSelectedActivities([...selectedActivities, activity]);
+      } else {
+        Alert.alert('Limit Reached', 'You can select up to 5 activities');
       }
     }
   };
@@ -116,6 +148,7 @@ export default function FaithBackgroundScreen() {
       const faithData = {
         denomination,
         interests: selectedInterests,
+        activities: selectedActivities,
         homeChurch: homeChurch.trim(),
         favoriteBibleVerse: favoriteBibleVerse.trim(),
       };
@@ -129,6 +162,7 @@ export default function FaithBackgroundScreen() {
         await apiClient.patch('/api/user/profile', {
           denomination: faithData.denomination || undefined,
           interests: faithData.interests.length > 0 ? faithData.interests : undefined,
+          activities: faithData.activities.length > 0 ? faithData.activities : undefined,
           homeChurch: faithData.homeChurch || undefined,
           favoriteBibleVerse: faithData.favoriteBibleVerse || undefined,
         });
@@ -160,10 +194,10 @@ export default function FaithBackgroundScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '50%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '40%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 2 of 4
+          Step 2 of 5
         </Text>
       </View>
 
@@ -243,6 +277,48 @@ export default function FaithBackgroundScreen() {
           </View>
           <Text style={[styles.selectedCount, { color: colors.textSecondary }]}>
             {selectedInterests.length}/5 selected
+          </Text>
+        </View>
+
+        {/* Activities */}
+        <View style={styles.section}>
+          <Text style={[styles.label, { color: colors.textPrimary }]}>
+            Activities (Optional)
+          </Text>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Select up to 5 hobbies to connect over shared interests
+          </Text>
+          <View style={styles.chipContainer}>
+            {ACTIVITIES.map((activity) => (
+              <Pressable
+                key={activity}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: selectedActivities.includes(activity)
+                      ? colors.primary
+                      : isDark ? '#1a2a4a' : '#f0f4f8',
+                    borderColor: selectedActivities.includes(activity) ? colors.primary : colors.borderSubtle,
+                  }
+                ]}
+                onPress={() => toggleActivity(activity)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: selectedActivities.includes(activity) ? '#fff' : colors.textPrimary }
+                  ]}
+                >
+                  {activity}
+                </Text>
+                {selectedActivities.includes(activity) && (
+                  <Ionicons name="checkmark-circle" size={16} color="#fff" style={{ marginLeft: 4 }} />
+                )}
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.selectedCount, { color: colors.textSecondary }]}>
+            {selectedActivities.length}/5 selected
           </Text>
         </View>
 

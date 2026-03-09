@@ -70,9 +70,15 @@ export default function MessagesScreen({
     return otherUser?.displayName || otherUser?.username || 'Unknown';
   };
 
-  // Get conversation avatar
-  const getConversationAvatar = (conversation: any) => {
+  // Get conversation avatar URL (from otherUser's profile image)
+  const getConversationAvatarUrl = (conversation: any): string | null => {
     if (conversation.avatarUrl) return conversation.avatarUrl;
+    const otherUser = conversation.otherUser || conversation.participants?.[0];
+    return otherUser?.profileImageUrl || otherUser?.avatarUrl || null;
+  };
+
+  // Get conversation avatar initial fallback
+  const getConversationInitial = (conversation: any): string => {
     const name = getConversationName(conversation);
     return name.charAt(0).toUpperCase();
   };
@@ -125,7 +131,8 @@ export default function MessagesScreen({
   const renderConversation = ({ item }: { item: any }) => {
     const hasUnread = item.unreadCount > 0;
     const displayName = getConversationName(item);
-    const avatar = getConversationAvatar(item);
+    const avatarUrl = getConversationAvatarUrl(item);
+    const initial = getConversationInitial(item);
     const timeAgo = item.lastMessage?.createdAt
       ? formatDistanceToNow(new Date(item.lastMessage.createdAt), { addSuffix: true })
       : '';
@@ -145,16 +152,24 @@ export default function MessagesScreen({
         }}
         onPress={() => onConversationPress?.(otherUserId)}
       >
-        <View style={{
-          width: 50,
-          height: 50,
-          borderRadius: 25,
-          backgroundColor: colors.primary,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-          <Text style={{ color: colors.primaryForeground, fontSize: 20, fontWeight: '600' }}>{avatar}</Text>
-        </View>
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={{ width: 50, height: 50, borderRadius: 25 }}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={{
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            backgroundColor: colors.primary,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: colors.primaryForeground, fontSize: 20, fontWeight: '600' }}>{initial}</Text>
+          </View>
+        )}
         <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ fontSize: 16, fontWeight: hasUnread ? '700' : '500', color: colors.textPrimary }}>{displayName}</Text>
@@ -182,7 +197,7 @@ export default function MessagesScreen({
   // Error state
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           {/* Header with Profile + Centered Logo */}
           <View style={{
@@ -191,7 +206,7 @@ export default function MessagesScreen({
             justifyContent: 'space-between',
             height: 56,
             paddingHorizontal: 16,
-            backgroundColor: colors.header,
+            backgroundColor: colors.background,
             borderBottomWidth: 1,
             borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
@@ -269,7 +284,7 @@ export default function MessagesScreen({
   // Empty state
   if (!conversations || conversations.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           {/* Header with Profile + Centered Logo */}
           <View style={{
@@ -278,7 +293,7 @@ export default function MessagesScreen({
             justifyContent: 'space-between',
             height: 56,
             paddingHorizontal: 16,
-            backgroundColor: colors.header,
+            backgroundColor: colors.background,
             borderBottomWidth: 1,
             borderBottomColor: colors.headerBorder || colors.borderSubtle,
           }}>
@@ -363,7 +378,7 @@ export default function MessagesScreen({
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header with Profile + Centered Logo */}
         <View style={{
@@ -372,7 +387,7 @@ export default function MessagesScreen({
           justifyContent: 'space-between',
           height: 56,
           paddingHorizontal: 16,
-          backgroundColor: colors.header,
+          backgroundColor: colors.background,
           borderBottomWidth: 1,
           borderBottomColor: colors.headerBorder || colors.borderSubtle,
         }}>

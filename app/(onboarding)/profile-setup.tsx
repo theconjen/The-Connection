@@ -132,10 +132,10 @@ export default function ProfileSetupScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '33%' }]} />
+          <View style={[styles.progressFill, { backgroundColor: colors.primary, width: '20%' }]} />
         </View>
         <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-          Step 1 of 3
+          Step 1 of 5
         </Text>
       </View>
 

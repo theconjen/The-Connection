@@ -224,7 +224,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <AppHeader
           showCenteredLogo={true}
           showBackInCenteredMode={true}
@@ -240,7 +240,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
 
   if (!event) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
         <AppHeader
           showCenteredLogo={true}
           showBackInCenteredMode={true}
@@ -258,7 +258,7 @@ export function EventDetailScreen({ eventId, onBack, onMessageHost }: EventDetai
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.header }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <AppHeader
         showCenteredLogo={true}
         showBackInCenteredMode={true}

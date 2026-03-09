@@ -23,25 +23,19 @@ interface TopContributor {
   postCount: number;
 }
 
-interface RecentEvent {
-  id: number;
-  title: string;
-  attendeeCount: number;
-}
-
 interface AnalyticsData {
   memberCount: number;
   activeMembersCount: number;
   newMembersThisWeek: number;
   topContributors: TopContributor[];
-  recentEvents: RecentEvent[];
+  recentEvents: number;
 }
 
 export default function CommunityAnalyticsTab({ communityId }: CommunityAnalyticsTabProps) {
   const { colors, colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
 
-  const { data: analytics, isLoading, error } = useQuery<AnalyticsData>({
+  const { data: rawAnalytics, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['community-analytics', communityId],
     queryFn: async () => {
       const response = await apiClient.get(`/api/communities/${communityId}/analytics`);
@@ -50,6 +44,15 @@ export default function CommunityAnalyticsTab({ communityId }: CommunityAnalytic
     enabled: !!communityId,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Safe defaults for missing fields
+  const analytics = rawAnalytics ? {
+    memberCount: rawAnalytics.memberCount ?? 0,
+    activeMembersCount: rawAnalytics.activeMembersCount ?? 0,
+    newMembersThisWeek: rawAnalytics.newMembersThisWeek ?? 0,
+    topContributors: rawAnalytics.topContributors ?? [],
+    recentEvents: rawAnalytics.recentEvents ?? 0,
+  } : null;
 
   if (isLoading) {
     return (
@@ -183,41 +186,16 @@ export default function CommunityAnalyticsTab({ communityId }: CommunityAnalytic
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Events</Text>
         </View>
 
-        {analytics.recentEvents.length === 0 ? (
-          <View style={styles.emptySection}>
-            <Text style={[styles.emptySectionText, { color: colors.mutedForeground }]}>
-              No recent events
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statNumber, { color: colors.foreground }]}>
+              {analytics.recentEvents}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
+              {analytics.recentEvents === 1 ? 'Event' : 'Events'}
             </Text>
           </View>
-        ) : (
-          analytics.recentEvents.map((event, index) => (
-            <View
-              key={event.id}
-              style={[
-                styles.eventRow,
-                index < analytics.recentEvents.length - 1 && {
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.borderSubtle,
-                },
-              ]}
-            >
-              <View style={[styles.eventIconContainer, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.eventInfo}>
-                <Text style={[styles.eventTitle, { color: colors.foreground }]} numberOfLines={1}>
-                  {event.title}
-                </Text>
-                <View style={styles.attendeeInfo}>
-                  <Ionicons name="people-outline" size={14} color={colors.mutedForeground} />
-                  <Text style={[styles.attendeeCount, { color: colors.mutedForeground }]}>
-                    {event.attendeeCount} {event.attendeeCount === 1 ? 'attendee' : 'attendees'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))
-        )}
+        </View>
       </View>
     </View>
   );
@@ -360,34 +338,5 @@ const styles = StyleSheet.create({
   contributorPosts: {
     fontSize: 13,
     marginTop: 1,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: 12,
-  },
-  eventIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eventInfo: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  attendeeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-  },
-  attendeeCount: {
-    fontSize: 13,
   },
 });

@@ -71,6 +71,24 @@ const COLOR_OPTIONS = [
   { value: '#14B8A6', label: 'Teal' },
 ];
 
+// Bible books for the community reading picker
+const BIBLE_BOOKS = [
+  'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
+  'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
+  '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles',
+  'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
+  'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah',
+  'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel',
+  'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+  'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Matthew', 'Mark', 'Luke', 'John', 'Acts',
+  'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+  'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
+  '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews',
+  'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
+  'Jude', 'Revelation',
+];
+
 // Helper to find color label or return "Custom"
 function getColorLabel(hexColor: string): string {
   const normalizedHex = hexColor?.toUpperCase();
@@ -98,6 +116,9 @@ export default function CommunitySettingsScreen() {
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
   const [geocodedCoordinates, setGeocodedCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showBookPicker, setShowBookPicker] = useState(false);
+  const [communityBibleBook, setCommunityBibleBook] = useState<string | null>(null);
+  const [communityBibleChapter, setCommunityBibleChapter] = useState<number | null>(null);
 
   // Fetch community data
   const { data: community, isLoading } = useQuery({
@@ -125,6 +146,8 @@ export default function CommunitySettingsScreen() {
           longitude: parseFloat(community.longitude),
         });
       }
+      setCommunityBibleBook(community.currentBibleBook || null);
+      setCommunityBibleChapter(community.currentBibleChapter || null);
     }
   }, [community]);
 
@@ -223,7 +246,7 @@ export default function CommunitySettingsScreen() {
     const city = locationParts[0] || undefined;
     const state = locationParts[1] || undefined;
 
-    const updateData = {
+    const updateData: any = {
       name: name.trim(),
       description: description.trim(),
       iconName: selectedIcon,
@@ -233,6 +256,8 @@ export default function CommunitySettingsScreen() {
       state,
       latitude: finalCoordinates?.latitude?.toString(),
       longitude: finalCoordinates?.longitude?.toString(),
+      currentBibleBook: communityBibleBook,
+      currentBibleChapter: communityBibleChapter,
     };
 
     updateMutation.mutate(updateData);
@@ -484,6 +509,87 @@ export default function CommunitySettingsScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </View>
+          )}
+        </View>
+
+        {/* Community Bible Reading */}
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, dynamicStyles.label]}>Community Reading</Text>
+          <Text style={[{ fontSize: 13, marginBottom: 10 }, dynamicStyles.helpText]}>
+            Set what your community is currently reading together. Members will see this on their Bible Reading screen.
+          </Text>
+          <TouchableOpacity
+            style={[styles.picker, dynamicStyles.picker]}
+            onPress={() => setShowBookPicker(!showBookPicker)}
+          >
+            <Ionicons name="book" size={20} color={colors.textPrimary} />
+            <Text style={[styles.pickerText, dynamicStyles.pickerText, { marginLeft: 8 }]}>
+              {communityBibleBook
+                ? `${communityBibleBook}${communityBibleChapter ? ` ${communityBibleChapter}` : ''}`
+                : 'Not set'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
+          {showBookPicker && (
+            <View style={[styles.pickerDropdown, dynamicStyles.pickerDropdown, { maxHeight: 300 }]}>
+              <ScrollView nestedScrollEnabled>
+                {/* Clear option */}
+                <TouchableOpacity
+                  style={[styles.pickerOption, !communityBibleBook && { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.05)' }]}
+                  onPress={() => {
+                    setCommunityBibleBook(null);
+                    setCommunityBibleChapter(null);
+                    setShowBookPicker(false);
+                    setHasChanges(true);
+                  }}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color={colors.textSecondary} />
+                  <Text style={[styles.pickerOptionText, { color: colors.textSecondary }]}>Not set</Text>
+                  {!communityBibleBook && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary} style={{ marginLeft: 'auto' }} />
+                  )}
+                </TouchableOpacity>
+                {BIBLE_BOOKS.map((book) => {
+                  const isSelected = communityBibleBook === book;
+                  return (
+                    <TouchableOpacity
+                      key={book}
+                      style={[styles.pickerOption, isSelected && { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.05)' }]}
+                      onPress={() => {
+                        setCommunityBibleBook(book);
+                        setCommunityBibleChapter(null);
+                        setShowBookPicker(false);
+                        setHasChanges(true);
+                      }}
+                    >
+                      <Ionicons name="book-outline" size={20} color={colors.textPrimary} />
+                      <Text style={[styles.pickerOptionText, { color: colors.textPrimary }]}>{book}</Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={20} color={colors.primary} style={{ marginLeft: 'auto' }} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+          {communityBibleBook && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={[{ fontSize: 14, marginBottom: 6 }, dynamicStyles.label]}>Chapter (optional)</Text>
+              <TextInput
+                style={[styles.input, dynamicStyles.input, { width: 120 }]}
+                value={communityBibleChapter?.toString() || ''}
+                onChangeText={(text) => {
+                  const num = parseInt(text);
+                  setCommunityBibleChapter(isNaN(num) ? null : num);
+                  setHasChanges(true);
+                }}
+                placeholder="e.g. 3"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
             </View>
           )}
         </View>

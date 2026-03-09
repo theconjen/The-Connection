@@ -270,6 +270,8 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
               editable={!isLoading}
             />
           </View>
@@ -283,6 +285,8 @@ export default function RegisterScreen() {
               placeholder="Choose a username"
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="username-new"
+              textContentType="username"
               editable={!isLoading}
             />
           </View>
@@ -403,6 +407,8 @@ export default function RegisterScreen() {
                 placeholder="Create a password (min 8 characters)"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                autoComplete="password-new"
+                textContentType="newPassword"
                 editable={!isLoading}
               />
               <TouchableOpacity
@@ -428,6 +434,8 @@ export default function RegisterScreen() {
                 placeholder="Confirm your password"
                 secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
+                autoComplete="password-new"
+                textContentType="newPassword"
                 editable={!isLoading}
               />
               <TouchableOpacity

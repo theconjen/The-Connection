@@ -674,7 +674,7 @@ function getStyles(colors: any) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      backgroundColor: colors.header, // Match header color to extend to top of screen
+      backgroundColor: colors.background, // Match header color to extend to top of screen
     },
     screen: {
       flex: 1,
