@@ -892,88 +892,113 @@ export default function BibleChallengeScreen() {
 
         {/* How to Study the Bible modal */}
         <Modal visible={showStudyGuide} transparent animationType="fade" onRequestClose={() => setShowStudyGuide(false)}>
-          <Pressable style={styles.studyOverlay} onPress={() => setShowStudyGuide(false)}>
-            <Pressable style={[styles.studyModal, { backgroundColor: isDark ? '#1E1D22' : '#fff' }]} onPress={e => e.stopPropagation()}>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: SCREEN_HEIGHT * 0.7 }}>
-                <Text style={[styles.studyTitle, { color: colors.textPrimary }]}>8 Tools for Studying the Bible</Text>
+          <View style={styles.studyOverlay}>
+            <View style={[styles.studyModal, { backgroundColor: isDark ? '#1E1D22' : '#fff' }]}>
+              <Text style={[styles.studyTitle, { color: colors.textPrimary }]}>8 Tools for Studying the Bible</Text>
 
+              <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 8 }}>
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>1. Read Through the Bible</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} Ephesians 3:4 "When you read this"{'\n'}
-                    {'\u2022'} Mark 13:14 "Let the reader understand"{'\n'}
-                    {'\u2022'} Read it systematically — Jude 11, Luke 24:25{'\n'}
-                    {'\u2022'} Read it slowly — 2 Corinthians 3:18 "behold"{'\n'}
-                    {'\u2022'} Read it meditatively — 2 Timothy 2:7 "Think over what I say"
+                    Don't just read random passages — work through entire books from beginning to end. Scripture was written to be read as a whole, and you'll miss the story if you skip around.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Read it systematically — follow the author's flow (Jude 11, Luke 24:25){'\n'}
+                    {'\u2022'} Read it slowly — pause and "behold" what you're reading (2 Cor 3:18){'\n'}
+                    {'\u2022'} Read it meditatively — "Think over what I say" (2 Tim 2:7){'\n'}
+                    {'\u2022'} "When you read this, you can perceive my insight" (Eph 3:4)
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>2. Ask the Text Questions</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} Who wrote it? Who received it? Why was it written?{'\n'}
-                    {'\u2022'} What was said before or after the text I'm interpreting?{'\n'}
-                    {'\u2022'} What does this text reveal about God?{'\n'}
-                    {'\u2022'} What does this text reveal about man?{'\n'}
-                    {'\u2022'} What biblical principles does this text inform or illustrate?{'\n'}
-                    {'\u2022'} How can this be applied in light of the new covenant?{'\n'}
-                    {'\u2022'} Does this text point to Christ in any way? (Matt 11){'\n'}
-                    {'\u2022'} Is there any text that points to this one?
+                    The best Bible students are the ones who ask the most questions. Before you consult any commentary, interrogate the text yourself. Let Scripture speak before you bring in outside voices.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Who wrote it? Who received it? Why?{'\n'}
+                    {'\u2022'} What comes before and after this passage?{'\n'}
+                    {'\u2022'} What does this reveal about God's character?{'\n'}
+                    {'\u2022'} What does this reveal about human nature?{'\n'}
+                    {'\u2022'} What principles does this text teach or illustrate?{'\n'}
+                    {'\u2022'} How does this apply in light of the new covenant?{'\n'}
+                    {'\u2022'} Does this point to Christ? (Matt 11){'\n'}
+                    {'\u2022'} Is there any text that connects to this one?
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>3. Cross Reference</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
+                    Scripture interprets Scripture. When you encounter a difficult or unclear passage, look for clearer passages on the same topic. The Bible doesn't contradict itself — it explains itself.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
                     {'\u2022'} Clear passages must interpret unclear ones{'\n'}
-                    {'\u2022'} Don't ignore parallel passages
+                    {'\u2022'} Don't ignore parallel passages — compare how different authors describe the same events or themes
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>4. Pay Attention to the Details</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} Locations — Cities, regions, physical landmarks{'\n'}
+                    God inspired every word of Scripture, so the details matter. When you notice specific names, places, times, or numbers — slow down. The Holy Spirit included those details for a reason.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Locations — Cities, regions, landmarks (why there?){'\n'}
                     {'\u2022'} Time markers — Year, month, feasts, time of day{'\n'}
-                    {'\u2022'} Objects — Items, clothing, materials{'\n'}
-                    {'\u2022'} Numbers — Amounts, measurements, numerical patterns
+                    {'\u2022'} Objects — Clothing, materials, items mentioned{'\n'}
+                    {'\u2022'} Numbers — Amounts, measurements, patterns (3, 7, 12, 40...)
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>5. Repetition, Repetition, Repetition</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} Rev 22:17 "Come" "Let the one"{'\n'}
-                    {'\u2022'} Genesis 1:3–25 "It was good"
+                    When the Bible repeats something, it's emphasizing it. Repeated words, phrases, or ideas are the author's way of saying "pay attention here — this matters."
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Rev 22:17 — "Come" repeated, "Let the one" repeated{'\n'}
+                    {'\u2022'} Genesis 1:3–25 — "It was good" repeated through creation{'\n'}
+                    {'\u2022'} Look for repeated commands, promises, warnings, and themes
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>6. Types and Shadows</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    Where can I find Christ? Type = Example, Shadow = an announcing.{'\n\n'}
-                    {'\u2022'} Is there any part of a character's story that illustrates a N.T. truth? (Romans){'\n'}
-                    {'\u2022'} Is there any ceremony, ritual, feast, or symbol (5:14) that points to a New Covenant principle?{'\n'}
-                    {'\u2022'} Is there any object or event that foreshadows a gospel truth? Hebrews 13:10, John 3:14
+                    A "type" is an Old Testament example that foreshadows a New Testament truth. A "shadow" is an announcement of something greater to come. The whole Bible points to Christ — learn to spot Him everywhere.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Is there a character whose story illustrates a N.T. truth? (Romans 5:14){'\n'}
+                    {'\u2022'} Is there a ceremony, ritual, feast, or symbol that points to a New Covenant principle?{'\n'}
+                    {'\u2022'} Is there an object or event that foreshadows the gospel? (Heb 13:10, John 3:14)
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>7. Watch for Allusions</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} The NT expects you to know the O.T.
+                    The New Testament is saturated with Old Testament references — sometimes direct quotes, sometimes subtle echoes. The NT authors assumed their readers knew the O.T. The better you know the Old Testament, the deeper you'll understand the New.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} When Jesus says "It is finished," hear the echo of every completed sacrifice{'\n'}
+                    {'\u2022'} When Revelation describes "a new heaven and new earth," hear Genesis 1
                   </Text>
                 </View>
 
                 <View style={styles.studySection}>
                   <Text style={[styles.studyHeading, { color: accentFill }]}>8. Outside Resources</Text>
                   <Text style={[styles.studyBody, { color: colors.textSecondary }]}>
-                    {'\u2022'} Commentaries — Don't let them do the thinking for you
+                    Commentaries, study Bibles, and sermons are helpful — but they should supplement your study, not replace it. Do the work of reading and questioning first. Then let trusted teachers sharpen your understanding.
+                  </Text>
+                  <Text style={[styles.studyVerse, { color: colors.textMuted }]}>
+                    {'\u2022'} Don't let commentaries do the thinking for you{'\n'}
+                    {'\u2022'} Read the text yourself first, form your own observations, then consult resources
                   </Text>
                 </View>
 
                 <Text style={[styles.studyCredit, { color: colors.textMuted }]}>
-                  Pastor Daniel Batarseh{'\n'}Maranatha Bible Church — Rooted Conference
+                  Adapted from Pastor Daniel Batarseh{'\n'}Maranatha Bible Church — Rooted Conference
                 </Text>
               </ScrollView>
 
@@ -983,8 +1008,8 @@ export default function BibleChallengeScreen() {
               >
                 <Text style={[styles.studyCloseBtnText, { color: colors.textPrimary }]}>Close</Text>
               </TouchableOpacity>
-            </Pressable>
-          </Pressable>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     );
@@ -1811,31 +1836,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   studyModal: {
     width: '100%',
     borderRadius: 18,
     padding: 22,
-    maxHeight: '85%',
+    paddingBottom: 14,
+    maxHeight: '88%',
   },
   studyTitle: {
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   studySection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   studyHeading: {
     fontSize: 15,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   studyBody: {
     fontSize: 13.5,
     lineHeight: 21,
+    marginBottom: 6,
+  },
+  studyVerse: {
+    fontSize: 12.5,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   studyCredit: {
     fontSize: 12,
