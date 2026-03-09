@@ -373,7 +373,7 @@ function BookCompletionModal({
 
 // ─── Main Screen ─────────────────────────────────────────────────
 export default function BibleChallengeScreen() {
-  const { colors } = useTheme();
+  const { colors, colorScheme } = useTheme();
   const { user, refresh } = useAuth();
   const router = useRouter();
   const [activeMonth, setActiveMonth] = useState(1);
@@ -511,7 +511,7 @@ export default function BibleChallengeScreen() {
   const nextPlan = BIBLE_READING_PLAN.find(m => m.month === activeMonth + 1);
   const nextMonthTitle = nextPlan ? nextPlan.title : null;
 
-  const isDark = colors.background === '#000' || colors.background === '#111' || colors.background?.startsWith('#1');
+  const isDark = colorScheme === 'dark';
   const trackBg = isDark ? '#2a3550' : '#e0d8cc';
 
   // Month-specific accent colors for visual variety

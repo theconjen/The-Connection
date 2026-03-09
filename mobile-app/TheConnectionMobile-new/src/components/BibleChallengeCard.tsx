@@ -39,7 +39,8 @@ export async function getActiveMonth(): Promise<number> {
 }
 
 export default function BibleChallengeCard() {
-  const { colors, isDark } = useTheme();
+  const { colors, colorScheme } = useTheme();
+  const isDark = colorScheme === 'dark';
   const { user } = useAuth();
   const router = useRouter();
   const currentBook = (user as any)?.currentBibleBook || null;
