@@ -23,11 +23,6 @@
         "applinks:theconnection.app",
         "applinks:www.theconnection.app"
       ],
-      "entitlements": {
-        "com.apple.security.application-groups": [
-          "group.app.theconnection.mobile"
-        ]
-      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
@@ -157,7 +152,6 @@
           "project": "the-connection"
         }
       ],
-      "@bacons/apple-targets",
       [
         "react-native-android-widget",
         {
