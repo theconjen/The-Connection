@@ -669,7 +669,6 @@ export default function ApologistScholarApplicationPage() {
                           <li>Respond to assigned questions within one week</li>
                           <li>Create at least one piece of original apologetics content per month</li>
                           <li>Work collaboratively with other Apologist Scholars</li>
-                          <li>Participate in occasional team meetings and training sessions</li>
                         </ul>
                       </div>
                       
