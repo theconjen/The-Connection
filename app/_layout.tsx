@@ -26,6 +26,12 @@ import { syncAllWidgetData } from '../src/services/widgetDataService';
 // Initialize Sentry as early as possible
 initSentry();
 
+// Module-level flag: set by login, consumed by layout to trigger video splash
+let _pendingLoginSplash = false;
+export function triggerLoginSplash() {
+  _pendingLoginSplash = true;
+}
+
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
@@ -303,10 +309,18 @@ export default function RootLayout() {
     'PlayfairDisplay-Bold': require('../assets/fonts/PlayfairDisplay-Bold.ttf'),
   });
 
-  // Track if video splash has finished
-  const [showVideoSplash, setShowVideoSplash] = useState(true);
+  // Video splash only plays after login, not every app open
+  const [showVideoSplash, setShowVideoSplash] = useState(false);
 
-  // Hide native splash when fonts are loaded (video splash will still show)
+  // Check if login triggered the splash flag
+  useEffect(() => {
+    if (_pendingLoginSplash) {
+      _pendingLoginSplash = false;
+      setShowVideoSplash(true);
+    }
+  });
+
+  // Hide native splash when fonts are loaded
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
@@ -322,15 +336,8 @@ export default function RootLayout() {
     return null;
   }
 
-  // Show video splash after native splash hides
-  if (showVideoSplash) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#EDE8DF' }}>
-        <VideoSplash onFinish={handleVideoSplashFinish} />
-      </View>
-    );
-  }
-
+  // Render providers immediately so auth starts in parallel with video splash.
+  // The video splash overlays on top, hiding the app until it finishes.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
@@ -340,6 +347,11 @@ export default function RootLayout() {
               <CreateMenuProvider>
                 <RootLayoutNav />
                 <BiometricSetupPrompt />
+                {showVideoSplash && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, backgroundColor: '#EDE8DF' }}>
+                    <VideoSplash onFinish={handleVideoSplashFinish} />
+                  </View>
+                )}
               </CreateMenuProvider>
             </SocketProvider>
           </AuthProvider>

@@ -350,6 +350,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await verifyAuth(false);
       logger.info('Login successful', { username });
 
+      // Trigger video splash on login
+      try {
+        const { triggerLoginSplash } = require('../../app/_layout');
+        triggerLoginSplash();
+      } catch {}
+
       // Check if we should prompt for biometric setup
       if (biometricAvailable && !biometricEnabled) {
         setShouldPromptBiometricSetup(true);
