@@ -39,6 +39,9 @@ import { shareAdvice, shareApologetics } from '../lib/shareUrls';
 import { churchesAPI, ChurchBulletinData } from '../queries/churches';
 import { ChurchBulletinSection } from '../components/ChurchBulletinSection';
 import DailyVerseBanner from '../components/DailyVerseBanner';
+import DailyParallel from '../components/DailyParallel';
+import OnThisDayCard from '../components/OnThisDayCard';
+import EncouragementDrop from '../components/EncouragementDrop';
 import BibleChallengeCard from '../components/BibleChallengeCard';
 
 // ============================================================================
@@ -1097,6 +1100,9 @@ export default function HomeScreen({
     return (
       <>
       <DailyVerseBanner />
+      <DailyParallel />
+      <OnThisDayCard />
+      <EncouragementDrop />
       <BibleChallengeCard />
       <View style={styles.horizontalSection}>
         <View style={[styles.sectionHeaderRow, { borderBottomColor: colors.borderSubtle }]}>
