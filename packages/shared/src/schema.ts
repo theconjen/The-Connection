@@ -2095,6 +2095,17 @@ export const notifications = pgTable("notifications", {
 export type PushToken = typeof pushTokens.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 
+// Encouragement drops — anonymous encouragement between users (one per day)
+export const encouragements = pgTable("encouragements", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  recipientId: integer("recipient_id").notNull().references(() => users.id),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any);
+
+export type Encouragement = typeof encouragements.$inferSelect;
+
 export const insertContentReportSchema = createInsertSchema(contentReports).omit({
   id: true,
   createdAt: true,

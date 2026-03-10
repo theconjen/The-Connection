@@ -117,6 +117,7 @@ import publicRoutes from './routes/public';
 import wellKnownRoutes from './routes/well-known';
 import bibleRoutes from './routes/bible';
 import clergyVerificationRoutes from './routes/clergy-verification';
+import encouragementRoutes from './routes/encouragement';
 import { ogMetaMiddleware } from './middleware/og-meta';
 
 // Organization feature routes
@@ -706,6 +707,9 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   // Notifications (hardened service pattern)
   app.use('/api/notifications', notificationsRoutes);
+
+  // Encouragement drops (anonymous encouragement between users)
+  app.use('/api/encouragement', encouragementRoutes);
   
   // CRITICAL: This MUST execute for mobile app to get permissions
   // DO NOT add any routes before this that could shadow it
