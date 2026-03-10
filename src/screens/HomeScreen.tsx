@@ -364,6 +364,9 @@ function useHomeFeed() {
         id: 'header-apologetics',
       });
 
+      // Daily Parallel and On This Day mixed into Grow Your Faith
+      items.push({ type: 'daily_parallel' as any, data: {}, id: 'daily-parallel' });
+
       articles.slice(0, 3).forEach((article: ApologeticsArticle) => {
         items.push({
           type: 'apologetics_article',
@@ -371,6 +374,8 @@ function useHomeFeed() {
           id: `article-${article.id}`,
         });
       });
+
+      items.push({ type: 'on_this_day' as any, data: {}, id: 'on-this-day' });
     }
 
     return items;
@@ -1100,9 +1105,6 @@ export default function HomeScreen({
     return (
       <>
       <DailyVerseBanner />
-      <DailyParallel />
-      <OnThisDayCard />
-      <EncouragementDrop />
       <BibleChallengeCard />
       <View style={styles.horizontalSection}>
         <View style={[styles.sectionHeaderRow, { borderBottomColor: colors.borderSubtle }]}>
@@ -1138,6 +1140,7 @@ export default function HomeScreen({
           }
         />
       </View>
+      <EncouragementDrop />
       </>
     );
   }, [advicePosts, colors, renderAdviceCard, handleAdviceEndReached, isFetchingNextAdvicePage]);
@@ -1170,6 +1173,12 @@ export default function HomeScreen({
             onUndoReport={() => handleUndoReportArticle(article.id)}
           />
         );
+
+      case 'daily_parallel':
+        return <DailyParallel />;
+
+      case 'on_this_day':
+        return <OnThisDayCard />;
 
       case 'church_bulletin':
         const bulletin = item.data as ChurchBulletinData;
