@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../lib/apiClient';
 import { logger } from '../lib/logger';
@@ -60,7 +60,7 @@ interface AuthContextType {
   biometricAvailable: boolean;
   biometricType: string;
   biometricEnabled: boolean;
-  loginWithBiometric: () => Promise<boolean>;
+  loginWithBiometric: () => Promise<'success' | 'cancelled' | 'failed'>;
   enableBiometric: () => Promise<boolean>;
   disableBiometric: () => Promise<void>;
   shouldPromptBiometricSetup: boolean;
@@ -202,6 +202,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkBiometric();
   }, []);
 
+  // Track whether user was previously logged in (for session expiry detection)
+  const wasLoggedIn = useRef(false);
+
+  // Update tracking ref whenever user changes
+  useEffect(() => {
+    if (user) wasLoggedIn.current = true;
+  }, [user]);
+
   // Verify auth with server and update user data
   const verifyAuth = useCallback(async (silent: boolean = false) => {
     if (!silent) {
@@ -231,11 +239,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const status = (error as any)?.response?.status;
       if (status === 401) {
         // Token is invalid - clear everything
-        logger.info('Auth token invalid, logging out');
+        const hadUser = wasLoggedIn.current;
+        logger.info('Auth token invalid, logging out', { hadUser });
         setUser(null);
+        wasLoggedIn.current = false;
         await cacheUserData(null);
         clearSentryUser();
         await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
+
+        // Show session expiry notice if user was previously logged in
+        if (hadUser && silent) {
+          Alert.alert(
+            'Session Expired',
+            'Your session has expired. Please sign in again.',
+            [{ text: 'OK' }]
+          );
+        }
       } else {
         // Network error or other issue - keep cached user if we have one
         // Don't clear user on network errors to allow offline usage
@@ -404,30 +423,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Biometric login - authenticate with Face ID/Touch ID
-  const loginWithBiometric = async (): Promise<boolean> => {
+  const loginWithBiometric = async (): Promise<'success' | 'cancelled' | 'failed'> => {
     try {
       if (!biometricEnabled) {
-        return false;
+        return 'failed';
       }
 
       // Get stored user ID for biometric
       const storedUserId = await getBiometricUserId();
       if (!storedUserId) {
-        return false;
+        return 'failed';
       }
 
       // Authenticate with biometrics
-      const authenticated = await authenticateWithBiometric();
-      if (!authenticated) {
-        return false;
+      const result = await authenticateWithBiometric();
+      if (!result.success) {
+        if (result.cancelled) {
+          logger.info('Biometric auth cancelled by user');
+          return 'cancelled';
+        }
+        return 'failed';
       }
 
       // Check if we have an auth token
       const hasToken = await hasAuthToken();
       if (!hasToken) {
-        // No token - biometric auth alone isn't enough, need to re-login
         logger.warn('Biometric auth succeeded but no token found');
-        return false;
+        return 'failed';
       }
 
       // If token is expired or near-expiry, try refreshing before verifying
@@ -436,7 +458,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const refreshed = await refreshAuthToken();
         if (!refreshed) {
           logger.warn('Biometric auth succeeded but token refresh failed');
-          return false;
+          return 'failed';
         }
       }
 
@@ -445,13 +467,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (user) {
         logger.info('Biometric login successful', { userId: user.id });
-        return true;
+        return 'success';
       }
 
-      return false;
+      return 'failed';
     } catch (error) {
       logger.error('Biometric login failed', error);
-      return false;
+      return 'failed';
     }
   };
 

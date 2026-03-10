@@ -102,6 +102,26 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!/[A-Z]/.test(formData.password)) {
+      Alert.alert('Error', 'Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/[a-z]/.test(formData.password)) {
+      Alert.alert('Error', 'Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/[0-9]/.test(formData.password)) {
+      Alert.alert('Error', 'Password must contain at least one number');
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
+      Alert.alert('Error', 'Password must contain at least one special character');
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Format DOB as ISO date string (YYYY-MM-DD) - required for age verification
@@ -404,7 +424,7 @@ export default function RegisterScreen() {
                 style={styles.passwordInput}
                 value={formData.password}
                 onChangeText={(password) => setFormData({ ...formData, password })}
-                placeholder="Create a password (min 8 characters)"
+                placeholder="Create a password"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoComplete="password-new"
@@ -422,6 +442,15 @@ export default function RegisterScreen() {
                 />
               </TouchableOpacity>
             </View>
+            {formData.password.length > 0 && (
+              <View style={styles.requirementsContainer}>
+                <PasswordReq met={formData.password.length >= 8} label="8+ characters" colors={colors} />
+                <PasswordReq met={/[A-Z]/.test(formData.password)} label="Uppercase letter" colors={colors} />
+                <PasswordReq met={/[a-z]/.test(formData.password)} label="Lowercase letter" colors={colors} />
+                <PasswordReq met={/[0-9]/.test(formData.password)} label="Number" colors={colors} />
+                <PasswordReq met={/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)} label="Special character" colors={colors} />
+              </View>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -492,6 +521,21 @@ export default function RegisterScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+function PasswordReq({ met, label, colors }: { met: boolean; label: string; colors: any }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+      <Ionicons
+        name={met ? 'checkmark-circle' : 'ellipse-outline'}
+        size={14}
+        color={met ? colors.success || '#4CAF50' : colors.textSecondary}
+      />
+      <Text style={{ fontSize: 12, color: met ? colors.success || '#4CAF50' : colors.textSecondary }}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -568,6 +612,10 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   eyeIcon: {
     padding: 16,
+  },
+  requirementsContainer: {
+    marginTop: 8,
+    paddingLeft: 4,
   },
   checkboxRow: {
     flexDirection: 'row',

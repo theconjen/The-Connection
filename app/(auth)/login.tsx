@@ -77,14 +77,23 @@ export default function LoginScreen() {
   const handleBiometricLogin = async () => {
     setIsBiometricLoading(true);
     try {
-      const success = await loginWithBiometric();
-      if (!success) {
-        // Don't show error - user may have cancelled or biometric failed
-        // They can still use password login
+      const result = await loginWithBiometric();
+      if (result === 'failed') {
+        // Actual failure (not user cancellation) — show hint
+        Alert.alert(
+          `${biometricType} Failed`,
+          'Please sign in with your password instead.',
+          [{ text: 'OK' }]
+        );
       }
-      // Navigation is handled by useEffect based on isAuthenticated
+      // 'cancelled' = user dismissed the prompt, no alert needed
+      // 'success' = navigation handled by useEffect
     } catch (error) {
-      // Silent fail - user can use password
+      Alert.alert(
+        `${biometricType} Unavailable`,
+        'Please sign in with your password.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsBiometricLoading(false);
     }

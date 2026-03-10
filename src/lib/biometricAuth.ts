@@ -115,9 +115,9 @@ export async function disableBiometricLogin(): Promise<void> {
 
 /**
  * Authenticate with biometrics
- * Returns true if authentication succeeded
+ * Returns { success, cancelled } so callers can distinguish user cancellation from failure
  */
-export async function authenticateWithBiometric(): Promise<boolean> {
+export async function authenticateWithBiometric(): Promise<{ success: boolean; cancelled: boolean }> {
   try {
     const biometricType = await getBiometricType();
 
@@ -128,10 +128,16 @@ export async function authenticateWithBiometric(): Promise<boolean> {
       cancelLabel: 'Cancel',
     });
 
-    return result.success;
+    if (result.success) {
+      return { success: true, cancelled: false };
+    }
+
+    // Check if user cancelled vs actual biometric failure
+    const cancelled = result.error === 'user_cancel' || result.error === 'system_cancel' || result.error === 'app_cancel';
+    return { success: false, cancelled };
   } catch (error) {
     console.warn('Biometric authentication error:', error);
-    return false;
+    return { success: false, cancelled: false };
   }
 }
 
@@ -154,8 +160,8 @@ export async function biometricLogin(): Promise<number | null> {
     }
 
     // Authenticate with biometrics
-    const authenticated = await authenticateWithBiometric();
-    if (!authenticated) {
+    const result = await authenticateWithBiometric();
+    if (!result.success) {
       return null;
     }
 
