@@ -12,8 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getTodaysParallel } from '../lib/dailyParallels';
 
 export default function DailyParallel() {
-  const { colors, colorScheme } = useTheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useTheme();
 
   const parallel = getTodaysParallel();
   if (!parallel) return null;
@@ -23,23 +22,24 @@ export default function DailyParallel() {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? '#1E1D22' : '#f8f5f0',
-          borderColor: isDark ? '#2E2D33' : '#e8e0d4',
+          backgroundColor: colors.surface,
+          borderColor: colors.borderSubtle,
         },
       ]}
     >
-      <View style={styles.header}>
-        <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2E2D33' : '#e8e0d420' }]}>
-          <Ionicons name="time-outline" size={13} color={isDark ? '#C4A96A' : '#8a7a5e'} />
+      <View style={styles.row}>
+        <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>
+          <Ionicons name="hourglass-outline" size={15} color={colors.primary} />
         </View>
-        <Text style={[styles.label, { color: isDark ? '#C4A96A' : '#8a7a5e' }]}>
-          Today in Biblical History
-        </Text>
+        <View style={styles.content}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            Today in History
+          </Text>
+          <Text style={[styles.text, { color: colors.textSecondary }]}>
+            {parallel.text}
+          </Text>
+        </View>
       </View>
-
-      <Text style={[styles.text, { color: colors.textPrimary }]}>
-        {parallel.text}
-      </Text>
     </View>
   );
 }
@@ -53,28 +53,28 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
   },
-  header: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
   },
   iconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 7,
+    marginRight: 10,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  content: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   text: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontStyle: 'italic',
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

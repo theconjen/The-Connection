@@ -4,9 +4,10 @@
  * to a random fellow believer. Users can send ONE encouragement per day.
  * If the user has received encouragement, a received card is shown instead.
  *
- * API calls go through apiClient (endpoints to be implemented on the server):
- *   POST /api/encouragement/send   - send anonymous encouragement to a random user
+ * API endpoints:
+ *   POST /api/encouragement/send    - send anonymous encouragement to a random user
  *   GET  /api/encouragement/received - check if user has received encouragement today
+ *   GET  /api/encouragement/status   - check if user already sent today
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -22,12 +23,11 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient from '../lib/apiClient';
+import { encouragementAPI } from '../lib/apiClient';
 
-// ─── Storage ─────────────────────────────────────────────────────────────────
+// ─── Local Storage (offline-first) ──────────────────────────────────────────
 
 const SENT_KEY = 'encouragement_last_sent';
-const RECEIVED_KEY = 'encouragement_last_received';
 
 function todayKey(): string {
   const d = new Date();
@@ -54,8 +54,7 @@ async function markSentToday(): Promise<void> {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EncouragementDrop() {
-  const { colors, colorScheme } = useTheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useTheme();
   const { user } = useAuth();
 
   const [alreadySent, setAlreadySent] = useState(false);
@@ -78,17 +77,29 @@ export default function EncouragementDrop() {
       return;
     }
 
-    const sent = await hasSentToday();
-    setAlreadySent(sent);
+    // Check local storage first (instant UI)
+    const sentLocally = await hasSentToday();
+    setAlreadySent(sentLocally);
 
-    // Check for received encouragement
+    // Then sync with server
     try {
-      const res = await apiClient.get('/api/encouragement/received');
-      if (res.data?.message) {
-        setReceivedMessage(res.data.message);
+      const [statusRes, receivedRes] = await Promise.allSettled([
+        encouragementAPI.getStatus(),
+        encouragementAPI.getReceived(),
+      ]);
+
+      // Sync sent status from server (overrides local if server says sent)
+      if (statusRes.status === 'fulfilled' && statusRes.value?.alreadySent) {
+        setAlreadySent(true);
+        await markSentToday();
+      }
+
+      // Check for received encouragement
+      if (receivedRes.status === 'fulfilled' && receivedRes.value?.received) {
+        setReceivedMessage(receivedRes.value.message);
       }
     } catch {
-      // Endpoint may not exist yet — silent fail
+      // Server unreachable — local state is fine
     }
 
     setLoading(false);
@@ -99,71 +110,71 @@ export default function EncouragementDrop() {
 
     setSending(true);
     try {
-      await apiClient.post('/api/encouragement/send');
+      await encouragementAPI.send();
       await markSentToday();
       setAlreadySent(true);
       setJustSent(true);
-
-      // Animate confirmation
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.delay(2000),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-      ]).start(() => setJustSent(false));
-    } catch {
-      // Endpoint may not exist yet — mark as sent locally anyway for UX
-      await markSentToday();
-      setAlreadySent(true);
-      setJustSent(true);
-      Animated.sequence([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.delay(2000),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-      ]).start(() => setJustSent(false));
+      playConfirmation();
+    } catch (err: any) {
+      // 429 = already sent today (race condition or multi-device)
+      if (err?.response?.status === 429) {
+        await markSentToday();
+        setAlreadySent(true);
+        setJustSent(true);
+        playConfirmation();
+      }
+      // Other errors: don't mark as sent, let user retry
     } finally {
       setSending(false);
     }
   }, [alreadySent, sending, user, fadeAnim]);
 
+  function playConfirmation() {
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2000),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start(() => setJustSent(false));
+  }
+
   if (loading || !user) return null;
 
-  // Accent colors
-  const accentBg = isDark ? '#1E1D22' : '#f0f4ff';
-  const accentBorder = isDark ? '#2E2D33' : '#d4dff7';
-  const accentColor = isDark ? '#7EB5E8' : colors.primary;
+  const accentColor = colors.primary;
 
   // ─── Received encouragement card ──────────────────────────────────────────
   if (receivedMessage) {
     return (
-      <View style={[styles.container, { backgroundColor: accentBg, borderColor: accentBorder }]}>
-        <View style={styles.header}>
-          <View style={[styles.iconCircle, { backgroundColor: accentColor + '20' }]}>
-            <Ionicons name="heart" size={13} color={accentColor} />
+      <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+        <View style={styles.row}>
+          <View style={[styles.iconCircle, { backgroundColor: accentColor + '15' }]}>
+            <Ionicons name="heart" size={15} color={accentColor} />
           </View>
-          <Text style={[styles.label, { color: accentColor }]}>Encouragement Received</Text>
+          <View style={styles.leftContent}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Encouragement Received</Text>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
+              Someone is thinking of you and praying for you today
+            </Text>
+          </View>
         </View>
-        <Text style={[styles.receivedText, { color: colors.textPrimary }]}>
-          A fellow believer is thinking of you today
-        </Text>
       </View>
     );
   }
 
   // ─── Send encouragement card ──────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: accentBg, borderColor: accentBorder }]}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
       <View style={styles.row}>
+        <View style={[styles.iconCircle, { backgroundColor: accentColor + '15' }]}>
+          <Ionicons name={alreadySent ? 'heart' : 'heart-outline'} size={15} color={accentColor} />
+        </View>
         <View style={styles.leftContent}>
-          <View style={styles.header}>
-            <View style={[styles.iconCircle, { backgroundColor: accentColor + '20' }]}>
-              <Ionicons name="paper-plane-outline" size={12} color={accentColor} />
-            </View>
-            <Text style={[styles.label, { color: accentColor }]}>Encouragement</Text>
-          </View>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            {alreadySent ? 'Encouragement Sent' : 'Send Encouragement'}
+          </Text>
           <Text style={[styles.description, { color: colors.textSecondary }]}>
             {alreadySent
-              ? 'You sent encouragement today'
-              : 'Brighten someone\u2019s day anonymously'}
+              ? 'You brightened someone\u2019s day today'
+              : 'Anonymously encourage a fellow believer'}
           </Text>
         </View>
 
@@ -174,22 +185,21 @@ export default function EncouragementDrop() {
             style={({ pressed }) => [
               styles.sendButton,
               {
-                backgroundColor: pressed ? accentColor + '30' : accentColor + '18',
-                borderColor: accentColor + '40',
+                backgroundColor: pressed ? accentColor : accentColor + 'E6',
               },
             ]}
           >
             {sending ? (
-              <ActivityIndicator size="small" color={accentColor} />
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={[styles.sendText, { color: accentColor }]}>Send</Text>
+              <Ionicons name="paper-plane" size={14} color="#fff" />
             )}
           </Pressable>
         )}
 
         {alreadySent && !justSent && (
           <View style={[styles.sentBadge, { backgroundColor: accentColor + '15' }]}>
-            <Ionicons name="checkmark-circle" size={16} color={accentColor} />
+            <Ionicons name="checkmark" size={15} color={accentColor} />
           </View>
         )}
       </View>
@@ -197,7 +207,7 @@ export default function EncouragementDrop() {
       {/* Animated confirmation overlay */}
       {justSent && (
         <Animated.View style={[styles.confirmation, { opacity: fadeAnim }]}>
-          <Ionicons name="checkmark-circle" size={16} color={accentColor} />
+          <Ionicons name="heart" size={14} color={accentColor} />
           <Text style={[styles.confirmText, { color: accentColor }]}>Sent with love</Text>
         </Animated.View>
       )}
@@ -220,54 +230,38 @@ const styles = StyleSheet.create({
   },
   leftContent: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
+    marginRight: 12,
   },
   iconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 7,
+    marginRight: 10,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   description: {
     fontSize: 12,
     lineHeight: 17,
-    marginLeft: 31, // align with text after icon circle
   },
   sendButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    minWidth: 64,
-    alignItems: 'center',
-  },
-  sendText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sentBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  receivedText: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontStyle: 'italic',
+  sentBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmation: {
     flexDirection: 'row',

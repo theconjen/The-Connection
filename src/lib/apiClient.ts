@@ -151,6 +151,8 @@ apiClient.interceptors.response.use(
           { status: 404, url: '/my-rsvp' }, // my-rsvp endpoint not deployed yet
           { status: 404, url: '/api/library/posts/trending' }, // Trending endpoint being deployed
           { status: 404, url: '/nearby-users-count' }, // Nearby users count - server restart needed
+          { status: 404, url: '/api/encouragement' }, // Encouragement endpoints being deployed
+          { status: 429, url: '/api/encouragement/send' }, // One-per-day limit (expected)
           { status: 500, url: '/api/user/suggestions/friends' }, // Friend suggestions being deployed
           { status: 429 }, // Rate limiting - handled by retry logic
         ];
@@ -547,6 +549,16 @@ export const sermonsAPI = {
   // Get playback data for a sermon (includes HLS URL and ads config)
   getPlayback: (sermonId: number) =>
     apiClient.get(`/api/sermons/${sermonId}/playback`).then(res => res.data),
+};
+
+// Encouragement Drop API (anonymous encouragement between users)
+export const encouragementAPI = {
+  send: () =>
+    apiClient.post('/api/encouragement/send').then(res => res.data),
+  getStatus: () =>
+    apiClient.get('/api/encouragement/status').then(res => res.data),
+  getReceived: () =>
+    apiClient.get('/api/encouragement/received').then(res => res.data),
 };
 
 // Upload API for profile pictures, event images, etc.
