@@ -23,6 +23,11 @@
         "applinks:theconnection.app",
         "applinks:www.theconnection.app"
       ],
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.app.theconnection.mobile"
+        ]
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "The Connection needs your location to show nearby events and communities.",
@@ -97,7 +102,10 @@
               "pathPrefix": "/invite"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -147,6 +155,34 @@
         {
           "organization": "the-connection",
           "project": "the-connection"
+        }
+      ],
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "DailyVerseWidget",
+              "label": "Daily Verse",
+              "description": "Today's Bible verse from The Connection",
+              "minWidth": "320dp",
+              "minHeight": "120dp",
+              "updatePeriodMillis": 3600000,
+              "targetCellWidth": 4,
+              "targetCellHeight": 2
+            },
+            {
+              "name": "BibleProgressWidget",
+              "label": "Bible Challenge",
+              "description": "Your Bible reading progress from The Connection",
+              "minWidth": "320dp",
+              "minHeight": "120dp",
+              "updatePeriodMillis": 3600000,
+              "targetCellWidth": 4,
+              "targetCellHeight": 2
+            }
+          ]
         }
       ]
     ],

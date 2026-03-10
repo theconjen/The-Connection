@@ -16,6 +16,7 @@
     "update": "eas update --branch production"
   },
   "dependencies": {
+    "@bacons/apple-targets": "^4.0.6",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/merriweather": "^0.4.2",
     "@expo-google-fonts/playfair-display": "^0.4.2",
@@ -67,6 +68,7 @@
     "react-dom": "19.1.0",
     "react-is": "^19.2.4",
     "react-native": "0.81.5",
+    "react-native-android-widget": "^0.20.1",
     "react-native-calendars": "^1.1313.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-get-random-values": "~1.11.0",
@@ -75,6 +77,7 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "5.6.2",
     "react-native-screens": "^4.16.0",
+    "react-native-shared-group-preferences": "^1.1.24",
     "react-native-svg": "15.12.1",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",

@@ -20,6 +20,8 @@ import { VideoSplash } from '../src/components/VideoSplash';
 import { BirthdayCelebration } from '../src/components/BirthdayCelebration';
 import { BiometricSetupPrompt } from '../src/components/BiometricSetupPrompt';
 import { initSentry, setSentryUser, clearSentryUser } from '../src/lib/sentry';
+import { AppState } from 'react-native';
+import { syncAllWidgetData } from '../src/services/widgetDataService';
 
 // Initialize Sentry as early as possible
 initSentry();
@@ -250,6 +252,20 @@ function RootLayoutNav() {
         );
       }
     };
+  }, [user, isLoading]);
+
+  // Sync widget data on launch and when app comes to foreground
+  useEffect(() => {
+    if (!user || isLoading) return;
+
+    // Sync on mount
+    syncAllWidgetData();
+
+    // Sync when app returns to foreground
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncAllWidgetData();
+    });
+    return () => subscription.remove();
   }, [user, isLoading]);
 
   // Don't render routes until we know the auth state
