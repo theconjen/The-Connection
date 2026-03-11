@@ -108,7 +108,7 @@ router.patch('/profile', async (req, res, next) => {
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests, activities,
       birthday, age, gender, culturalBackground, lifeStage, bibleChallengeMonth,
-      currentBibleBook, currentBibleChapter
+      bibleChallengeProgress, currentBibleBook, currentBibleChapter
     } = req.body;
 
     // Only allow updating specific fields
@@ -131,6 +131,11 @@ router.patch('/profile', async (req, res, next) => {
       const m = bibleChallengeMonth === null ? null : Number(bibleChallengeMonth);
       if (m === null || (Number.isInteger(m) && m >= 1 && m <= 12)) {
         updateData.bibleChallengeMonth = m;
+      }
+    }
+    if (bibleChallengeProgress !== undefined) {
+      if (bibleChallengeProgress === null || (typeof bibleChallengeProgress === 'object' && !Array.isArray(bibleChallengeProgress))) {
+        updateData.bibleChallengeProgress = bibleChallengeProgress || {};
       }
     }
     if (currentBibleBook !== undefined) {
@@ -234,7 +239,7 @@ router.patch('/:id', async (req, res, next) => {
       profileVisibility, showLocation, showInterests,
       location, denomination, homeChurch, favoriteBibleVerse, testimony, interests, activities,
       birthday, age, gender, culturalBackground, lifeStage, bibleChallengeMonth,
-      currentBibleBook, currentBibleChapter
+      bibleChallengeProgress, currentBibleBook, currentBibleChapter
     } = req.body;
 
     // Only allow updating specific fields
@@ -257,6 +262,11 @@ router.patch('/:id', async (req, res, next) => {
       const m = bibleChallengeMonth === null ? null : Number(bibleChallengeMonth);
       if (m === null || (Number.isInteger(m) && m >= 1 && m <= 12)) {
         updateData.bibleChallengeMonth = m;
+      }
+    }
+    if (bibleChallengeProgress !== undefined) {
+      if (bibleChallengeProgress === null || (typeof bibleChallengeProgress === 'object' && !Array.isArray(bibleChallengeProgress))) {
+        updateData.bibleChallengeProgress = bibleChallengeProgress || {};
       }
     }
     if (currentBibleBook !== undefined) {

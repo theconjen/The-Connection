@@ -85,6 +85,7 @@ export const users = pgTable("users", {
   notifyForums: boolean("notify_forums").default(true),
   notifyFeed: boolean("notify_feed").default(true),
   bibleChallengeMonth: integer("bible_challenge_month"), // null = not enrolled, 1-12 = active month
+  bibleChallengeProgress: jsonb("bible_challenge_progress").default(sql`'{}'::jsonb`), // { "1": [1,2,3], "2": [1] } — completed days per month
   currentBibleBook: text("current_bible_book"),       // e.g. "Romans"
   currentBibleChapter: integer("current_bible_chapter"), // e.g. 5 (user's current chapter)
   bibleBookStartedAt: timestamp("bible_book_started_at"), // when they started this book

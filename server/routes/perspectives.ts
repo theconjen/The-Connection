@@ -33,7 +33,7 @@ import { z } from 'zod';
 
 const router = Router();
 
-const VALID_TRADITIONS = ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant', 'Pentecostal'];
+const VALID_TRADITIONS = ['Catholic', 'Orthodox', 'Protestant'];
 const RESEARCH_TEAM_USER_ID = 19;
 
 // Helper: check if user is research team or admin
