@@ -60,8 +60,9 @@ export default function SettingsScreen() {
       });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      await refresh();
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Failed to update privacy setting';
@@ -141,8 +142,9 @@ export default function SettingsScreen() {
       });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      await refresh();
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Failed to update activity setting';

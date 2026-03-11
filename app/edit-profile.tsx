@@ -31,7 +31,7 @@ import { churchesAPI, ChurchListItem } from '../src/queries/churches';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
 
@@ -129,9 +129,10 @@ export default function EditProfileScreen() {
       const response = await apiClient.patch('/api/user/profile', data);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      await refresh();
       Alert.alert('Success', 'Profile updated successfully!');
       router.back();
     },

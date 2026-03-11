@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/contexts/ThemeContext';
+import { useAuth } from '../src/contexts/AuthContext';
 import apiClient, { communitiesAPI } from '../src/lib/apiClient';
 import {
   AVAILABLE_CATEGORIES,
@@ -158,6 +159,7 @@ interface Community {
 export default function StartHereScreen() {
   const router = useRouter();
   const { colors, colorScheme } = useTheme();
+  const { refresh } = useAuth();
   const isDark = colorScheme === 'dark';
 
   // Location state
@@ -539,6 +541,9 @@ export default function StartHereScreen() {
           interests: selectedCategories.filter(c => c !== 'Men' && c !== 'Women'),
         });
       } catch {}
+
+      // Refresh AuthContext so user object reflects updated profile
+      await refresh();
 
       // Also save locally for instant UI state
       await setStartHereCompleted(true);
