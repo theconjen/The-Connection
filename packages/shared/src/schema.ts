@@ -2441,6 +2441,7 @@ export const apologistProfiles = pgTable("apologist_profiles", {
   title: text("title"), // Dr., Rev., etc.
   credentialsShort: text("credentials_short"), // PhD Theology
   bioLong: text("bio_long"),
+  primaryTradition: text("primary_tradition"), // Catholic, Orthodox, Evangelical, Reformed, Protestant, Pentecostal
   verificationStatus: text("verification_status").notNull().default("none"), // none, internal, pending (NOT 'verified' - use users.isVerifiedApologeticsAnswerer)
   inboxEnabled: boolean("inbox_enabled").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -2452,6 +2453,7 @@ export const insertApologistProfileSchema = createInsertSchema(apologistProfiles
   title: true,
   credentialsShort: true,
   bioLong: true,
+  primaryTradition: true,
   verificationStatus: true,
   inboxEnabled: true,
 } as any);
@@ -2474,6 +2476,53 @@ export const insertApologistExpertiseSchema = createInsertSchema(apologistExpert
   tagId: true,
   level: true,
 } as any);
+
+// Perspective Articles - shorter focused pieces linked to a parent library post
+// Written by verified apologists from a specific tradition (Catholic, Orthodox, etc.)
+export const perspectiveArticles = pgTable("perspective_articles", {
+  id: serial("id").primaryKey(),
+  parentPostId: integer("parent_post_id").notNull().references(() => qaLibraryPosts.id, { onDelete: 'cascade' }),
+  tradition: text("tradition").notNull(), // Catholic, Orthodox, Evangelical, Reformed, Protestant, Pentecostal
+  authorUserId: integer("author_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  authorDisplayName: text("author_display_name").notNull(),
+  bodyMarkdown: text("body_markdown").notNull(),
+  scriptureRefs: jsonb("scripture_refs").default(sql`'[]'::jsonb`),
+  sources: jsonb("sources").default(sql`'[]'::jsonb`),
+  status: text("status").notNull().default("draft"), // draft, pending_review, revision_requested, published, archived
+  reviewNotes: text("review_notes"), // Notes from research team when requesting revisions
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  publishedAt: timestamp("published_at"),
+  // Rubric evaluation
+  rubricVersion: text("rubric_version"),
+  rubricScore: integer("rubric_score"),
+  rubricReport: jsonb("rubric_report"),
+  rubricPassedAt: timestamp("rubric_passed_at"),
+  rubricReviewedBy: integer("rubric_reviewed_by").references(() => users.id, { onDelete: 'set null' }),
+} as any, (table) => ({
+  parentPostIdx: index("perspective_articles_parent_post_idx").on(table.parentPostId),
+  traditionIdx: index("perspective_articles_tradition_idx").on(table.tradition),
+  authorIdx: index("perspective_articles_author_idx").on(table.authorUserId),
+  statusIdx: index("perspective_articles_status_idx").on(table.status),
+}));
+
+export type PerspectiveArticle = typeof perspectiveArticles.$inferSelect;
+export type InsertPerspectiveArticle = typeof perspectiveArticles.$inferInsert;
+
+// Perspective Requests - users can request a missing tradition's perspective on an article
+export const perspectiveRequests = pgTable("perspective_requests", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => qaLibraryPosts.id, { onDelete: 'cascade' }),
+  tradition: text("tradition").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+} as any, (table) => ({
+  uniqueRequest: uniqueIndex("perspective_requests_unique_idx").on(table.postId, table.tradition, table.userId),
+  postTraditionIdx: index("perspective_requests_post_tradition_idx").on(table.postId, table.tradition),
+}));
+
+export type PerspectiveRequest = typeof perspectiveRequests.$inferSelect;
 
 // User Questions - private questions submitted by users
 export const userQuestions = pgTable("user_questions", {

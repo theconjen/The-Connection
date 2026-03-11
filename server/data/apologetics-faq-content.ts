@@ -230,7 +230,7 @@ This is crucial: the practical implications of both views are remarkably similar
 If you struggle with assurance of salvation, consider this: the very fact that you care about your relationship with God is itself evidence of the Spirit's work in you. Those who have truly abandoned God don't worry about whether they've abandoned God. Your concern is a sign of spiritual life, not spiritual death.
 
 The proper response to either view is the same: trust Christ, walk in repentance, grow in holiness, and rest in God's promise that he is faithful.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan', 'Pentecostal'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant', 'Pentecostal'],
     sources: [
       { author: 'Thomas R. Schreiner & Ardel B. Caneday', title: 'The Race Set Before Us', publisher: 'IVP Academic', year: 2001 },
       { author: 'Robert Shank', title: 'Life in the Son', publisher: 'Bethany House', year: 1960 },
@@ -325,7 +325,7 @@ The church should be the safest place for someone to say "I'm struggling." If it
 ## For Those Grieving a Suicide Loss
 
 If you have lost someone to suicide, please hear this: it was not your fault. You could not have known, and you could not have prevented it. Your loved one's eternal destiny is in God's hands—the same God who is "close to the brokenhearted" (Psalm 34:18). Grief after suicide is uniquely painful because it mixes sorrow with guilt, anger, and unanswered questions. Seek support from a counselor or a grief support group. You do not have to carry this alone.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'Albert Y. Hsu', title: 'Grieving a Suicide', publisher: 'IVP', year: 2002 },
       { author: 'Catechism of the Catholic Church', title: 'Paragraphs 2280-2283', publisher: 'Libreria Editrice Vaticana', year: 1992 },
@@ -399,7 +399,7 @@ The Bible does not say "your dog will be in heaven" or "your cat won't be in hea
 5. Heaven will be better than we can imagine, not worse
 
 If the God who numbers the hairs on your head and watches over sparrows has the power to include your beloved companion in the world to come, we have every reason to hope. And if heaven is truly the place of perfect joy, nothing you need for that joy will be missing.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'C.S. Lewis', title: 'The Problem of Pain (Chapter 9: Animal Pain)', publisher: 'HarperOne', year: 1940 },
       { author: 'Peter Kreeft', title: 'Everything You Ever Wanted to Know About Heaven', publisher: 'Ignatius Press', year: 1990 },
@@ -841,7 +841,7 @@ The Catholic Church teaches purgatory—a state of purification after death for 
 ## The Christian Hope
 
 The Christian view of the afterlife is not escapism. It is the promise that everything wrong will be made right, that death does not have the final word, and that the God who created this beautiful world will not abandon it but will renew it. As Paul wrote: "Where, O death, is your victory? Where, O death, is your sting?" (1 Corinthians 15:55).`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'N.T. Wright', title: 'Surprised by Hope', publisher: 'HarperOne', year: 2008 },
       { author: 'Randy Alcorn', title: 'Heaven', publisher: 'Tyndale House', year: 2004 },
@@ -1350,7 +1350,7 @@ Many pastors suggest a practical middle ground: use 10% as a guideline and start
 4. **Give beyond your church**: Support missions, the poor, disaster relief, and other causes
 5. **Give cheerfully**: If you give begrudgingly, work on your heart before your wallet
 6. **Don't give to get**: Tithing is not a slot machine. God promises to provide, but "prosperity gospel" formulas distort the biblical message`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Pentecostal', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Pentecostal', 'Protestant'],
     sources: [
       { author: 'Randy Alcorn', title: 'The Treasure Principle', publisher: 'Multnomah', year: 2001 },
       { author: 'David A. Croteau', title: 'Perspectives on Tithing: Four Views', publisher: 'B&H Academic', year: 2011 },
@@ -1443,7 +1443,7 @@ The biblical view avoids two extremes:
 **License** (drinking without limits): This ignores the Bible's clear warnings about drunkenness and the real dangers of alcohol abuse, addiction, and destruction.
 
 The biblical position: **Freedom with responsibility, governed by love.** You may drink moderately with gratitude. You must never get drunk. You should always consider how your choices affect others.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Baptist', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Baptist', 'Protestant'],
     sources: [
       { author: 'Kenneth L. Gentry Jr.', title: 'God Gave Wine', publisher: 'Oakdown Books', year: 2001 },
       { author: 'Norman L. Geisler', title: 'A Christian Perspective on Wine Drinking', publisher: 'Dallas Theological Seminary', year: 1982 },
@@ -1545,7 +1545,7 @@ Ask yourself these questions:
 4. **Am I being a good steward?** Would I be comfortable telling God how I spent this money?
 5. **Is this hurting anyone?** Including your family's financial security
 6. **Am I modeling wisdom?** What does this teach my children?`,
-    perspectives: ['Catholic', 'Evangelical', 'Reformed', 'Wesleyan', 'Baptist'],
+    perspectives: ['Catholic', 'Evangelical', 'Reformed', 'Protestant', 'Baptist'],
     sources: [
       { author: 'John Piper', title: 'Desiring God: Thoughts on Gambling', publisher: 'Desiring God Ministries', year: 2016 },
       { author: 'Rex M. Rogers', title: 'Gambling: Don\'t Bet on It', publisher: 'Kregel', year: 2005 },
@@ -1637,7 +1637,7 @@ If you've already had sex outside marriage, hear this clearly:
 3. **Find accountability**: A trusted friend or mentor who can ask honest questions
 4. **Remember the why**: You're not avoiding sex because it's dirty—you're saving it because it's sacred
 5. **Trust God's timing**: Singleness is not a waiting room for marriage. It's a season with its own calling and gifts (1 Corinthians 7:7-8)`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan', 'Pentecostal'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant', 'Pentecostal'],
     sources: [
       { author: 'Timothy Keller', title: 'The Meaning of Marriage', publisher: 'Dutton', year: 2011 },
       { author: 'Denny Burk', title: 'What Is the Meaning of Sex?', publisher: 'Crossway', year: 2013 },
@@ -1734,7 +1734,7 @@ The Orthodox Church acknowledges that marriages can "die" and permits divorce an
 The church must hold two things simultaneously:
 - **The high standard**: Marriage is sacred, permanent, and worth fighting for. We should never treat divorce casually
 - **Radical grace**: Divorced people are among the most hurting people in our congregations. They need compassion, not condemnation. Jesus reserved his harshest words for the self-righteous, not for the broken`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'David Instone-Brewer', title: 'Divorce and Remarriage in the Bible', publisher: 'Eerdmans', year: 2002 },
       { author: 'Craig S. Keener', title: 'And Marries Another: Divorce and Remarriage in the Teaching of the New Testament', publisher: 'Baker Academic', year: 1991 },
@@ -1852,7 +1852,7 @@ If you had a broken leg, you wouldn't "just pray about it"—you'd go to a docto
 - It is okay to get help. It is wise to get help.
 - You are not alone—many of the greatest saints struggled with what we now call mental illness
 - **Crisis resources**: 988 Suicide and Crisis Lifeline (call or text 988), Crisis Text Line (text HOME to 741741)`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan', 'Pentecostal'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant', 'Pentecostal'],
     sources: [
       { author: 'Matthew Stanford', title: 'Grace for the Afflicted: A Clinical and Biblical Perspective on Mental Illness', publisher: 'IVP', year: 2008 },
       { author: 'Edward T. Welch', title: 'Running Scared: Fear, Worry, and the God of Rest', publisher: 'New Growth Press', year: 2007 },
@@ -1950,7 +1950,7 @@ Even here, note that the passage describes those who have "fallen away" past the
 **1 John 1:9**: "If we confess our sins, he is faithful and just and will forgive us our sins and purify us from all unrighteousness."
 
 If you can confess, you can be forgiven. If you want to return to God, the door is open. The unforgivable sin is not something you accidentally stumble into—it is a settled, deliberate, permanent rejection of God's grace by someone who has fully hardened their heart. That is not you.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'Wayne Grudem', title: 'Systematic Theology (Chapter 24)', publisher: 'Zondervan', year: 1994 },
       { author: 'D.A. Carson', title: 'Matthew (Expositor\'s Bible Commentary)', publisher: 'Zondervan', year: 2010 },
@@ -2060,7 +2060,7 @@ Despite disagreement on the details, Christians broadly agree:
 ## A Final Word
 
 The doctrine of hell should produce three responses: (1) **gratitude** for God's grace that rescues us, (2) **urgency** to share the gospel with others, and (3) **humility** before a God whose justice and mercy are both beyond our full comprehension. It should never produce smugness, cruelty, or delight in the suffering of others.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'Edward William Fudge', title: 'The Fire That Consumes', publisher: 'Cascade Books', year: 2011 },
       { author: 'Robert A. Peterson', title: 'Hell on Trial', publisher: 'P&R Publishing', year: 1995 },
@@ -2177,7 +2177,7 @@ If your spouse uses pornography:
 ## The Hope
 
 Freedom is real. Thousands of people have broken free from pornography through a combination of grace, accountability, professional help, and the power of the Holy Spirit. The journey is rarely quick or easy, but it is worth it. "It is for freedom that Christ has set us free" (Galatians 5:1).`,
-    perspectives: ['Catholic', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'William M. Struthers', title: 'Wired for Intimacy: How Pornography Hijacks the Male Brain', publisher: 'IVP', year: 2009 },
       { author: 'Jay Stringer', title: 'Unwanted: How Sexual Brokenness Reveals Our Way to Healing', publisher: 'NavPress', year: 2018 },
@@ -2281,7 +2281,7 @@ Lewis, who went from atheism to Christianity and back through periods of doubt (
 > "Now that I am a Christian I do have moods in which the whole thing looks very improbable: but when I was an atheist I had moods in which Christianity looked terribly probable."
 
 Moods are not arguments. Feelings are not facts. Faith is the decision to trust what the evidence supports, even when emotions waver.`,
-    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Wesleyan'],
+    perspectives: ['Catholic', 'Orthodox', 'Evangelical', 'Reformed', 'Protestant'],
     sources: [
       { author: 'Os Guinness', title: 'God in the Dark: The Assurance of Faith Beyond a Shadow of Doubt', publisher: 'Crossway', year: 1996 },
       { author: 'Gary R. Habermas', title: 'Dealing with Doubt', publisher: 'Moody Press', year: 1990 },

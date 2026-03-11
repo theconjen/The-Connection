@@ -118,6 +118,7 @@ import wellKnownRoutes from './routes/well-known';
 import bibleRoutes from './routes/bible';
 import clergyVerificationRoutes from './routes/clergy-verification';
 import encouragementRoutes from './routes/encouragement';
+import perspectiveRoutes from './routes/perspectives';
 import { ogMetaMiddleware } from './middleware/og-meta';
 
 // Organization feature routes
@@ -710,7 +711,10 @@ export async function registerRoutes(app: Express, httpServer: HTTPServer) {
 
   // Encouragement drops (anonymous encouragement between users)
   app.use('/api/encouragement', encouragementRoutes);
-  
+
+  // Perspective articles (tradition-specific articles by verified apologists)
+  app.use('/api', perspectiveRoutes);
+
   // CRITICAL: This MUST execute for mobile app to get permissions
   // DO NOT add any routes before this that could shadow it
   app.get('/api/user', async (req, res) => {
