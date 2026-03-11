@@ -1435,6 +1435,20 @@ How should the church respond to the charge of hypocrisy?
 ];
 
 // ============================================================================
+// FAQ IMPORTS — Top 20 GotQuestions + Additional Pressing Questions
+// ============================================================================
+
+import {
+  faqTheology,
+  faqModernQuestions,
+  faqHistorical,
+  faqTheology2,
+  faqScience,
+  faqModernQuestions2,
+  faqAdditional,
+} from './apologetics-faq-content';
+
+// ============================================================================
 // COMBINED EXPORT
 // ============================================================================
 
@@ -1448,6 +1462,14 @@ export const ALL_LIBRARY_POSTS: LibraryPostSeed[] = [
   ...historicalChallenges,
   ...worldviewComparisons,
   ...contemporaryChallenges,
+  // FAQ — GotQuestions Top 20 + Additional Pressing Questions
+  ...faqTheology,
+  ...faqModernQuestions,
+  ...faqHistorical,
+  ...faqTheology2,
+  ...faqScience,
+  ...faqModernQuestions2,
+  ...faqAdditional,
 ];
 
 // Area definitions for seeding
