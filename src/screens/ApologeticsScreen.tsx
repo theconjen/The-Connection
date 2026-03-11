@@ -126,6 +126,7 @@ export default function ApologeticsScreen({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
 
   const styles = useMemo(() => getStyles(colors), [colors]);
   const queryClient = useQueryClient();
@@ -324,13 +325,28 @@ export default function ApologeticsScreen({
           />
         </View>
 
-        {/* Doctrinal disclaimer */}
-        <View style={styles.disclaimerWrap}>
+        {/* Doctrinal disclaimer — collapsible */}
+        <Pressable
+          style={styles.disclaimerWrap}
+          onPress={() => setDisclaimerExpanded((prev) => !prev)}
+        >
           <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} style={{ marginTop: 1 }} />
-          <Text style={styles.disclaimerText}>
-            The Connection holds to the essentials of the Christian faith: one God in three persons; the full divinity and humanity of Jesus Christ; his virgin birth, sinless life, substitutionary atonement, bodily resurrection, and future return; that all humanity needs salvation through faith in Jesus alone; and that the Bible is inspired by the Holy Spirit and given to mankind for salvation. This library serves as an encyclopedia, not a teaching tool — we present multiple perspectives so that Christians can be familiar with different viewpoints and then search the Scriptures for themselves.
-          </Text>
-        </View>
+          {disclaimerExpanded ? (
+            <Text style={styles.disclaimerText}>
+              The Connection holds to the essentials of the Christian faith: one God in three persons; the full divinity and humanity of Jesus Christ; his virgin birth, sinless life, substitutionary atonement, bodily resurrection, and future return; that all humanity needs salvation through faith in Jesus alone; and that the Bible is inspired by the Holy Spirit and given to mankind for salvation. This library serves as an encyclopedia, not a teaching tool — we present multiple perspectives so that Christians can be familiar with different viewpoints and then search the Scriptures for themselves.
+            </Text>
+          ) : (
+            <Text style={styles.disclaimerText} numberOfLines={1}>
+              Statement of Faith & Disclaimer
+            </Text>
+          )}
+          <Ionicons
+            name={disclaimerExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={colors.textMuted}
+            style={{ marginTop: 1 }}
+          />
+        </Pressable>
 
         {/* Area chips */}
         {areas.length > 0 && (
