@@ -543,7 +543,7 @@ function Chip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        height: 28,
+        height: 30,
         paddingHorizontal: 12,
         borderRadius: 999,
         backgroundColor: active ? colors.primary : colors.surface,
@@ -756,17 +756,19 @@ function getStyles(colors: any) {
     },
 
     chipsScrollView: {
-      marginTop: 8,
+      marginTop: 6,
       marginHorizontal: -16, // Extend to screen edges
+      overflow: 'visible',
     },
     chipsScrollViewTags: {
-      marginTop: 2,
+      marginTop: 0,
       marginHorizontal: -16, // Extend to screen edges
+      overflow: 'visible',
     },
 
     chipsRow: {
-      paddingTop: 2,
-      paddingBottom: 4,
+      paddingTop: 4,
+      paddingBottom: 6,
       paddingLeft: 16,
       paddingRight: 24,
     },
