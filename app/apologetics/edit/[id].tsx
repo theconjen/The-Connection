@@ -338,7 +338,7 @@ export default function EditApologeticsPostScreen() {
             style={styles.input}
             value={perspectivesText}
             onChangeText={setPerspectivesText}
-            placeholder="Catholic, Orthodox, Evangelical, Reformed"
+            placeholder="Catholic, Orthodox, Protestant"
             placeholderTextColor={colors.textMuted}
           />
         </ScrollView>

@@ -429,14 +429,18 @@ export default function BibleChallengeScreen() {
     setBookSearch('');
     setSavingBook(true);
     try {
-      await apiClient.patch('/api/user/profile', { currentBibleBook: newSelection });
+      await apiClient.patch('/api/user/profile', {
+        currentBibleBook: newSelection,
+        currentBibleChapter: newSelection ? 1 : null, // Bug fix: start at chapter 1, not 0
+      });
+      refresh(); // Re-fetch user so serverBook/serverChapter stay current
     } catch {
       setLocalBook(undefined); // revert to server state
       Alert.alert('Error', 'Could not save your reading selection.');
     } finally {
       setSavingBook(false);
     }
-  }, [localBook, serverBook]);
+  }, [localBook, serverBook, refresh]);
 
   useEffect(() => {
     loadState();
@@ -444,12 +448,23 @@ export default function BibleChallengeScreen() {
 
   async function loadState() {
     let month = await getActiveMonth();
-    const p = await getProgress();
+    const localProgress = await getProgress();
+
+    // Merge with server progress — take whichever has more completed days per month
+    const serverProgress = (user as any)?.bibleChallengeProgress || {};
+    const merged: ChallengeProgress = {};
+    const allKeys = new Set([...Object.keys(localProgress), ...Object.keys(serverProgress)]);
+    for (const key of allKeys) {
+      const localDays: number[] = localProgress[key] || [];
+      const serverDays: number[] = Array.isArray(serverProgress[key]) ? serverProgress[key] : [];
+      // Union of both sets — never lose progress from either source
+      merged[key] = [...new Set([...localDays, ...serverDays])];
+    }
 
     // Auto-advance past any fully completed months
     while (month <= 12) {
       const monthPlan = BIBLE_READING_PLAN.find(m => m.month === month);
-      const completed = p[String(month)] || [];
+      const completed = merged[String(month)] || [];
       if (monthPlan && completed.length >= monthPlan.readings.length && month < 12) {
         month++;
       } else {
@@ -458,15 +473,24 @@ export default function BibleChallengeScreen() {
     }
 
     await AsyncStorage.setItem(ACTIVE_MONTH_KEY, String(month));
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     setActiveMonth(month);
     setViewingMonth(month);
-    setProgress(p);
+    setProgress(merged);
     syncEnrollment(month);
+
+    // Sync merged progress back to server if it differs
+    if (JSON.stringify(merged) !== JSON.stringify(serverProgress)) {
+      apiClient.patch('/api/user/profile', { bibleChallengeProgress: merged }).catch(() => {});
+    }
   }
 
-  // Sync enrollment to server for push notifications (fire-and-forget)
+  // Sync enrollment + progress to server for push notifications (fire-and-forget)
   function syncEnrollment(month: number) {
-    apiClient.patch('/api/user/profile', { bibleChallengeMonth: month }).catch(() => {});
+    apiClient.patch('/api/user/profile', {
+      bibleChallengeMonth: month,
+      bibleChallengeProgress: progress,
+    }).catch(() => {});
   }
 
   const plan = BIBLE_READING_PLAN.find(m => m.month === viewingMonth);
@@ -490,6 +514,9 @@ export default function BibleChallengeScreen() {
     const newProgress = { ...progress, [key]: updated };
     setProgress(newProgress);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
+
+    // Sync progress to server (fire-and-forget)
+    apiClient.patch('/api/user/profile', { bibleChallengeProgress: newProgress }).catch(() => {});
 
     // Trigger celebration when month complete
     if (plan && updated.length === plan.readings.length && isCurrentMonth) {
@@ -699,10 +726,12 @@ export default function BibleChallengeScreen() {
     setLocalChapter(null);
   }, [serverChapter]);
 
-  // Reset chapter to 0 when switching books locally
+  // Reset chapter to 1 when switching books locally
   useEffect(() => {
-    if (localBook !== undefined) {
-      setLocalChapter(0);
+    if (localBook !== undefined && localBook !== null) {
+      setLocalChapter(1);
+    } else if (localBook === null) {
+      setLocalChapter(null);
     }
   }, [localBook]);
 
@@ -721,10 +750,11 @@ export default function BibleChallengeScreen() {
     }
     try {
       await apiClient.patch('/api/user/profile', { currentBibleChapter: chapter });
+      refresh(); // Re-fetch user so serverChapter stays current
     } catch {
       setLocalChapter(null); // revert on error
     }
-  }, [bookInfo, currentBook, completedBooks]);
+  }, [bookInfo, currentBook, completedBooks, refresh]);
 
   if (currentBook && !showChallenge) {
     const remainingMin = bookInfo ? Math.round(bookInfo.readingTimeMinutes * ((bookInfo.chapters - currentChapter) / bookInfo.chapters)) : 0;

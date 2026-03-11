@@ -26,13 +26,14 @@ import {
   Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../src/theme";
 import { AppHeader } from "../../src/screens/AppHeader";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { MenuDrawer } from "../../src/components/MenuDrawer";
 import apiClient from "../../src/lib/apiClient";
+import { perspectivesAPI } from "../../src/lib/apiClient";
 import Markdown from "react-native-markdown-display";
 import { fetchBiblePassage, looksLikeBibleReference } from "../../src/lib/bibleApi";
 import { shareApologetics, buildApologeticsShareUrl } from "../../src/lib/shareUrls";
@@ -65,6 +66,22 @@ type LibraryPost = {
   area?: { id: number; name: string };
   tag?: { id: number; name: string };
 };
+
+type PerspectiveArticle = {
+  id: number;
+  tradition: string;
+  authorDisplayName: string;
+  status: string;
+  bodyMarkdown: string;
+  publishedAt: string | null;
+};
+
+type PerspectiveData = {
+  perspectives: PerspectiveArticle[];
+  requestCounts: Record<string, number>;
+};
+
+const ALL_TRADITIONS = ['Catholic', 'Orthodox', 'Protestant'] as const;
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await apiClient.get(path);
@@ -151,11 +168,35 @@ export default function ApologeticsDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
 
+  const queryClient = useQueryClient();
+
   // Fetch data first so handlers can use it
   const { data, isLoading, error } = useQuery({
     queryKey: ["library-post", id],
     queryFn: () => apiGet<LibraryPost>(`/api/library/posts/${id}`),
     staleTime: 60_000,
+  });
+
+  // Fetch perspective articles for this post
+  const { data: perspectiveData } = useQuery<PerspectiveData>({
+    queryKey: ["perspectives", id],
+    queryFn: () => perspectivesAPI.getForPost(Number(id)),
+    staleTime: 60_000,
+    enabled: !!id,
+  });
+
+  // Request a perspective mutation
+  const requestPerspectiveMutation = useMutation({
+    mutationFn: ({ tradition }: { tradition: string }) =>
+      perspectivesAPI.request(Number(id), tradition),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["perspectives", id] });
+      Alert.alert("Request Sent", "We'll notify apologists from this tradition that a perspective is needed.");
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error || "Could not send request.";
+      Alert.alert("Error", msg);
+    },
   });
 
   // Handle share
@@ -421,35 +462,113 @@ export default function ApologeticsDetailScreen() {
           </Markdown>
         </View>
 
-        {/* 5. Perspectives (Collapsible) */}
-        {data.perspectives && data.perspectives.length > 0 && (
-          <View style={styles.collapsibleCard}>
-            <Pressable
-              style={styles.collapsibleHeader}
-              onPress={() => setPerspectivesExpanded(!perspectivesExpanded)}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="people" size={18} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Perspectives ({data.perspectives.length})</Text>
-              </View>
-              <Ionicons
-                name={perspectivesExpanded ? "chevron-up" : "chevron-down"}
-                size={20}
-                color={colors.textMuted}
-              />
-            </Pressable>
-            {perspectivesExpanded && (
-              <View style={styles.collapsibleContent}>
-                {data.perspectives.map((perspective, idx) => (
-                  <View key={idx} style={styles.perspectiveItem}>
-                    <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-                    <Text style={styles.perspectiveText} selectable>{perspective}</Text>
+        {/* 5. Perspectives — Interactive tradition-based articles */}
+        <View style={styles.collapsibleCard}>
+          <Pressable
+            style={styles.collapsibleHeader}
+            onPress={() => setPerspectivesExpanded(!perspectivesExpanded)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="people" size={18} color={colors.primary} />
+              <Text style={styles.sectionTitle}>
+                Perspectives{perspectiveData?.perspectives?.length ? ` (${perspectiveData.perspectives.length})` : ''}
+              </Text>
+            </View>
+            <Ionicons
+              name={perspectivesExpanded ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.textMuted}
+            />
+          </Pressable>
+          {perspectivesExpanded && (
+            <View style={styles.collapsibleContent}>
+              {/* Show seed perspectives (from original article data) as summary labels */}
+              {data.perspectives && data.perspectives.length > 0 && !perspectiveData?.perspectives?.length && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={[styles.perspectiveSubhead, { color: colors.textSecondary }]}>
+                    Overview of positions discussed in this article:
+                  </Text>
+                  {data.perspectives.map((p, idx) => (
+                    <View key={idx} style={styles.perspectiveItem}>
+                      <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                      <Text style={styles.perspectiveText} selectable>{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Published perspective articles grouped by tradition */}
+              {ALL_TRADITIONS.map((tradition) => {
+                const article = perspectiveData?.perspectives?.find(
+                  (p) => p.tradition === tradition && p.status === 'published'
+                );
+                const requestCount = perspectiveData?.requestCounts?.[tradition] || 0;
+
+                return (
+                  <View key={tradition} style={styles.traditionRow}>
+                    <View style={styles.traditionInfo}>
+                      <Ionicons
+                        name={article ? "document-text" : "ellipse-outline"}
+                        size={16}
+                        color={article ? colors.primary : colors.textMuted}
+                      />
+                      <Text style={[styles.traditionName, { color: article ? colors.textPrimary : colors.textMuted }]}>
+                        {tradition}
+                      </Text>
+                    </View>
+                    {article ? (
+                      <Pressable
+                        style={({ pressed }) => [styles.viewPerspectiveBtn, pressed && { opacity: 0.7 }]}
+                        onPress={() => router.push(`/apologetics/perspective/${article.id}` as any)}
+                      >
+                        <Text style={[styles.viewPerspectiveBtnText, { color: colors.primary }]}>View</Text>
+                        <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={({ pressed }) => [styles.requestPerspectiveBtn, { borderColor: colors.borderSubtle }, pressed && { opacity: 0.7 }]}
+                        onPress={() => requestPerspectiveMutation.mutate({ tradition })}
+                        disabled={requestPerspectiveMutation.isPending}
+                      >
+                        <Ionicons name="hand-right-outline" size={12} color={colors.textSecondary} />
+                        <Text style={[styles.requestBtnText, { color: colors.textSecondary }]}>
+                          Request{requestCount > 0 ? ` (${requestCount})` : ''}
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
-                ))}
+                );
+              })}
+
+              {/* CTAs */}
+              <View style={styles.perspectiveCTAs}>
+                {user?.isVerifiedApologeticsAnswerer && (
+                  <Pressable
+                    style={[styles.perspectiveCTAButton, { backgroundColor: colors.primary }]}
+                    onPress={() => Alert.alert(
+                      "Contribute",
+                      "Perspective submission is available on the web. We'll bring it to mobile soon!"
+                    )}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.primaryForeground || '#fff'} />
+                    <Text style={[styles.perspectiveCTAText, { color: colors.primaryForeground || '#fff' }]}>
+                      Contribute Your Perspective
+                    </Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  style={[styles.perspectiveCTAButton, { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderSubtle }]}
+                  onPress={() => router.push("/apologist/apply" as any)}
+                >
+                  <Ionicons name="school-outline" size={16} color={colors.textPrimary} />
+                  <Text style={[styles.perspectiveCTAText, { color: colors.textPrimary }]}>
+                    Apply to Be an Apologist
+                  </Text>
+                </Pressable>
               </View>
-            )}
-          </View>
-        )}
+            </View>
+          )}
+        </View>
 
         {/* 6. Sources (Collapsible) */}
         {data.sources && data.sources.length > 0 && (
@@ -895,6 +1014,70 @@ function getStyles(colors: any) {
       fontSize: 14,
       color: colors.textPrimary,
       lineHeight: 20,
+    },
+    perspectiveSubhead: {
+      fontSize: 13,
+      marginBottom: 10,
+      lineHeight: 18,
+    },
+    traditionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    traditionInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      flex: 1,
+    },
+    traditionName: {
+      fontSize: 15,
+      fontWeight: "500",
+    },
+    viewPerspectiveBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+    },
+    viewPerspectiveBtnText: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    requestPerspectiveBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    requestBtnText: {
+      fontSize: 12,
+      fontWeight: "500",
+    },
+    perspectiveCTAs: {
+      marginTop: 16,
+      gap: 10,
+    },
+    perspectiveCTAButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+    },
+    perspectiveCTAText: {
+      fontSize: 14,
+      fontWeight: "600",
     },
     sourceItem: {
       flexDirection: "row",

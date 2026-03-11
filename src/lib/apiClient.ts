@@ -561,6 +561,33 @@ export const encouragementAPI = {
     apiClient.get('/api/encouragement/received').then(res => res.data),
 };
 
+// Perspectives API (Apologetics tradition-specific articles)
+export const perspectivesAPI = {
+  // Get all published perspectives for a library post
+  getForPost: (postId: number) =>
+    apiClient.get(`/api/library/posts/${postId}/perspectives`).then(res => res.data),
+
+  // Get a single perspective article by ID
+  getById: (id: number) =>
+    apiClient.get(`/api/perspectives/${id}`).then(res => res.data),
+
+  // Submit a perspective article (verified apologists only)
+  submit: (postId: number, data: { bodyMarkdown: string; scriptureRefs?: string[]; sources?: any[] }) =>
+    apiClient.post(`/api/library/posts/${postId}/perspectives`, data).then(res => res.data),
+
+  // Update a draft/revision perspective
+  update: (id: number, data: { bodyMarkdown: string; scriptureRefs?: string[]; sources?: any[] }) =>
+    apiClient.patch(`/api/perspectives/${id}`, data).then(res => res.data),
+
+  // Request a missing perspective tradition for a post
+  request: (postId: number, tradition: string) =>
+    apiClient.post(`/api/library/posts/${postId}/request-perspective`, { tradition }).then(res => res.data),
+
+  // Apply to become an apologist
+  apply: (data: { tradition: string; credentials: string; bio: string }) =>
+    apiClient.post('/api/apologist/apply', data).then(res => res.data),
+};
+
 // Upload API for profile pictures, event images, etc.
 export const uploadAPI = {
   // Upload profile picture - returns the URL of the uploaded image
