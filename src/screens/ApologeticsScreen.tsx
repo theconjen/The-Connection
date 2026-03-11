@@ -328,7 +328,7 @@ export default function ApologeticsScreen({
         <View style={styles.disclaimerWrap}>
           <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} style={{ marginTop: 1 }} />
           <Text style={styles.disclaimerText}>
-            The Connection holds to the essentials of the Christian faith: one God in three persons; the full divinity and humanity of Jesus Christ; his virgin birth, sinless life, substitutionary atonement, bodily resurrection, and future return; that all humanity needs salvation through faith in Jesus alone; and that the Bible is inspired by the Holy Spirit and given to mankind for salvation. Beyond these core truths, articles present multiple perspectives for study and reflection.
+            The Connection holds to the essentials of the Christian faith: one God in three persons; the full divinity and humanity of Jesus Christ; his virgin birth, sinless life, substitutionary atonement, bodily resurrection, and future return; that all humanity needs salvation through faith in Jesus alone; and that the Bible is inspired by the Holy Spirit and given to mankind for salvation. This library serves as an encyclopedia, not a teaching tool — we present multiple perspectives so that Christians can be familiar with different viewpoints and then search the Scriptures for themselves.
           </Text>
         </View>
 
