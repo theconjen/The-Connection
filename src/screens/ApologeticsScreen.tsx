@@ -804,8 +804,8 @@ function getStyles(colors: any) {
     },
 
     listContent: {
-      paddingTop: 10,
-      paddingBottom: 100,
+      paddingTop: 8,
+      paddingBottom: 140,
     },
 
     empty: {
