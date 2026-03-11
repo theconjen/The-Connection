@@ -680,7 +680,7 @@ function getStyles(colors: any) {
       flex: 1,
       backgroundColor: colors.background,
       paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingTop: 12,
     },
 
     searchWrap: {
@@ -709,28 +709,28 @@ function getStyles(colors: any) {
       flexDirection: "row",
       gap: 8,
       marginTop: 10,
-      marginBottom: 6,
+      marginBottom: 2,
     },
 
     chipsScrollView: {
-      marginTop: 10,
+      marginTop: 8,
       marginHorizontal: -16, // Extend to screen edges
     },
     chipsScrollViewTags: {
-      marginTop: 6,
+      marginTop: 2,
       marginHorizontal: -16, // Extend to screen edges
     },
 
     chipsRow: {
-      paddingTop: 4,
-      paddingBottom: 8, // Increased to show full chip border
+      paddingTop: 2,
+      paddingBottom: 4,
       paddingLeft: 16,
       paddingRight: 24,
     },
 
     suggestedWrap: {
-      marginTop: 14,
-      marginBottom: 8,
+      marginTop: 10,
+      marginBottom: 4,
     },
     suggestedTitle: {
       color: colors.textSecondary,
