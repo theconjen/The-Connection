@@ -134,7 +134,10 @@ export default function MessagesScreen({
     const avatarUrl = getConversationAvatarUrl(item);
     const initial = getConversationInitial(item);
     const timeAgo = item.lastMessage?.createdAt
-      ? formatDistanceToNow(new Date(item.lastMessage.createdAt), { addSuffix: true })
+      ? formatDistanceToNow(
+          new Date(String(item.lastMessage.createdAt).endsWith('Z') ? item.lastMessage.createdAt : item.lastMessage.createdAt + 'Z'),
+          { addSuffix: true }
+        )
       : '';
 
     // Get the other user's ID for navigation

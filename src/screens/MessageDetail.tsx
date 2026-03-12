@@ -336,7 +336,7 @@ function MessageBubble({ message, isMe, otherUserAvatar, otherUserName, colors, 
   };
 
   const formatMessageTime = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = new Date(dateString.endsWith('Z') ? dateString : dateString + 'Z');
     if (isToday(date)) {
       return format(date, 'h:mm a');
     } else if (isYesterday(date)) {
