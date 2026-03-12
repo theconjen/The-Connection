@@ -68,7 +68,12 @@ export async function getUserConversations(
   getUsersByIds: (ids: number[]) => Promise<Map<number, User>>
 ): Promise<any[]> {
   const lastMessages = await db.execute(sql`
-    WITH ranked AS (
+    WITH blocked AS (
+      SELECT blocked_id AS user_id FROM user_blocks WHERE blocker_id = ${userId}
+      UNION
+      SELECT blocker_id AS user_id FROM user_blocks WHERE blocked_id = ${userId}
+    ),
+    ranked AS (
       SELECT
         m.*,
         CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
@@ -77,12 +82,15 @@ export async function getUserConversations(
           ORDER BY m.created_at DESC
         ) AS rn
       FROM messages m
-      WHERE m.sender_id = ${userId} OR m.receiver_id = ${userId}
+      WHERE (m.sender_id = ${userId} OR m.receiver_id = ${userId})
+        AND CASE WHEN m.sender_id = ${userId} THEN m.receiver_id ELSE m.sender_id END
+            NOT IN (SELECT user_id FROM blocked)
     ),
     unread_counts AS (
       SELECT sender_id AS other_user_id, COUNT(*)::int AS unread_count
       FROM messages
       WHERE receiver_id = ${userId} AND is_read = false
+        AND sender_id NOT IN (SELECT user_id FROM blocked)
       GROUP BY sender_id
     )
     SELECT

@@ -555,7 +555,7 @@ export interface IStorage {
   muteConversation(userId: number, mutedUserId: number): Promise<boolean>;
   unmuteConversation(userId: number, mutedUserId: number): Promise<boolean>;
   getMutedConversations(userId: number): Promise<number[]>;
-  deleteDirectMessage(messageId: number, userId: number): Promise<boolean>;
+  deleteDirectMessage(messageId: string | number, userId: number): Promise<boolean>;
   // Community wall post methods
   toggleCommunityWallPostLike(postId: number, userId: number): Promise<{ liked: boolean; likeCount: number }>;
   getCommunityWallPostComments(postId: number): Promise<any[]>;
@@ -6055,10 +6055,10 @@ export class DbStorage implements IStorage {
     return result.map(r => r.mutedUserId);
   }
 
-  async deleteDirectMessage(messageId: number, userId: number): Promise<boolean> {
+  async deleteDirectMessage(messageId: string | number, userId: number): Promise<boolean> {
     const result = await db.delete(messages)
       .where(and(
-        eq(messages.id, messageId.toString()),
+        eq(messages.id, String(messageId)),
         eq(messages.senderId, userId),
       ))
       .returning();

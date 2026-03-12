@@ -65,8 +65,8 @@ async function checkDmPrivacy(senderId: number, receiverId: number): Promise<
     return { allowed: true };
   } catch (error) {
     console.error('Error checking DM privacy:', error);
-    // On error, allow (fail open)
-    return { allowed: true };
+    // On error, deny (fail closed) to protect user privacy
+    return { allowed: false, reason: 'Unable to verify messaging permissions. Please try again.' };
   }
 }
 
@@ -424,21 +424,26 @@ router.delete("/messages/:messageId", async (req, res) => {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  const messageId = parseInt(req.params.messageId);
-  if (!Number.isFinite(messageId)) {
+  const messageId = req.params.messageId; // UUID string, not a number
+  if (!messageId || messageId.length < 1) {
     return res.status(400).json({ message: 'Invalid message id' });
   }
 
   try {
-    const deleted = await storage.deleteDirectMessage(messageId, currentUserId);
+    // Fetch the message BEFORE deleting so we can emit socket events afterward
+    const message = await storage.getMessageById?.(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+    if (message.senderId !== currentUserId) {
+      return res.status(403).json({ message: 'Not authorized to delete this message' });
+    }
+
+    const deleted = await storage.deleteDirectMessage(messageId as any, currentUserId);
     if (deleted) {
-      // Emit socket event to notify other user
-      const message = await storage.getMessageById?.(messageId.toString());
-      if (message) {
-        const otherUserId = message.senderId === currentUserId ? message.receiverId : message.senderId;
-        emitToUser(otherUserId, 'dm:deleted', { messageId });
-        emitToUser(currentUserId, 'dm:deleted', { messageId });
-      }
+      const otherUserId = message.senderId === currentUserId ? message.receiverId : message.senderId;
+      emitToUser(otherUserId, 'dm:deleted', { messageId });
+      emitToUser(currentUserId, 'dm:deleted', { messageId });
       res.json({ success: true, message: 'Message deleted' });
     } else {
       res.status(404).json({ message: 'Message not found or not authorized to delete' });
