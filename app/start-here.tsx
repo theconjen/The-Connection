@@ -184,6 +184,7 @@ export default function StartHereScreen() {
     'Orthodox', 'Calvary Chapel', 'Other',
   ];
   const LIFE_STAGES = [
+    { id: 'high_school', label: 'High School' },
     { id: 'college', label: 'College Student' },
     { id: 'young_professional', label: 'Young Professional' },
     { id: 'single', label: 'Single' },
