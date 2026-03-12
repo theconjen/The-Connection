@@ -35,7 +35,6 @@ export default function SettingsScreen() {
   } = useAuth();
   const queryClient = useQueryClient();
   const { theme, setTheme, colorScheme, colors } = useTheme();
-  const [emailNotifications, setEmailNotifications] = React.useState(true);
   const [isPrivateAccount, setIsPrivateAccount] = React.useState(
     user?.profileVisibility === 'private'
   );
@@ -409,18 +408,6 @@ export default function SettingsScreen() {
             icon="notifications-outline"
             label="Notification Preferences"
             onPress={() => router.push('/notification-settings')}
-          />
-          <SettingsItem
-            icon="mail-outline"
-            label="Email Notifications"
-            showArrow={false}
-            rightElement={
-              <Switch
-                value={emailNotifications}
-                onValueChange={setEmailNotifications}
-                trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
-              />
-            }
           />
         </View>
 
