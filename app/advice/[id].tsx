@@ -323,7 +323,7 @@ export default function AdviceDetailScreen() {
               await apiClient.post('/api/reports', {
                 subjectType: 'microblog',
                 subjectId: adviceId,
-                reason: 'inappropriate_content',
+                reason: 'inappropriate',
               });
             } catch (error) {
             }
@@ -354,7 +354,7 @@ export default function AdviceDetailScreen() {
               await apiClient.post('/api/reports', {
                 subjectType: 'microblog',
                 subjectId: response.id,
-                reason: 'inappropriate_content',
+                reason: 'inappropriate',
                 description: 'Comment/response on advice post',
               });
             } catch (error) {

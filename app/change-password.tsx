@@ -195,9 +195,9 @@ export default function ChangePasswordScreen() {
           <Text style={styles.requirementsTitle}>Password Requirements:</Text>
           <View style={styles.requirement}>
             <Ionicons
-              name={formData.newPassword.length >= 12 ? 'checkmark-circle' : 'ellipse-outline'}
+              name={formData.newPassword.length >= 8 ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={formData.newPassword.length >= 12 ? '#10B981' : colors.mutedForeground}
+              color={formData.newPassword.length >= 8 ? '#10B981' : colors.mutedForeground}
             />
             <Text style={styles.requirementText}>At least 8 characters</Text>
           </View>
@@ -320,17 +320,17 @@ const getStyles = (colors: any) =>
       flexDirection: 'row',
       gap: 12,
       alignItems: 'center',
-      backgroundColor: '#EFF6FF',
+      backgroundColor: colors.surfaceMuted,
       padding: 16,
       borderRadius: 12,
       marginBottom: 24,
       borderWidth: 1,
-      borderColor: '#BFDBFE',
+      borderColor: colors.borderSubtle,
     },
     infoText: {
       flex: 1,
       fontSize: 14,
-      color: '#1E40AF',
+      color: colors.primary,
       lineHeight: 20,
     },
     field: {
@@ -366,7 +366,7 @@ const getStyles = (colors: any) =>
     },
     forgotPasswordText: {
       fontSize: 14,
-      color: '#2563EB',
+      color: colors.primary,
       fontWeight: '500',
     },
     requirementsBox: {
@@ -395,11 +395,11 @@ const getStyles = (colors: any) =>
     },
     errorText: {
       fontSize: 13,
-      color: '#DC2626',
+      color: '#E63946',
       marginTop: 4,
     },
     saveButton: {
-      backgroundColor: '#222D99',
+      backgroundColor: colors.primary,
       paddingVertical: 16,
       borderRadius: 12,
       alignItems: 'center',

@@ -20,7 +20,6 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { Text } from '../theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -36,7 +35,7 @@ import {
 } from '../queries/follow';
 // Colors now come from useTheme() - see colors.primary usage below
 import { fetchBiblePassage, looksLikeBibleReference } from '../lib/bibleApi';
-import apiClient from '../lib/apiClient';
+import apiClient, { uploadAPI } from '../lib/apiClient';
 import { formatDistanceToNow } from 'date-fns';
 
 // Helper to format activity dates
@@ -164,23 +163,12 @@ export function ProfileScreenRedesigned({ onBackPress, userId }: ProfileScreenPr
       try {
         const asset = result.assets[0];
 
-        // Convert to base64
-        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-          encoding: 'base64',
-        });
+        // Upload via FormData (same method as edit-profile)
+        const uploadResult = await uploadAPI.uploadProfilePicture(asset.uri);
 
-        // Get the file extension to determine mime type
-        const extension = asset.uri.split('.').pop()?.toLowerCase();
-        const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-        const base64data = `data:${mimeType};base64,${base64}`;
-
-        // Show loading indicator
-        Alert.alert('Uploading', 'Updating profile picture...');
-
-        // Upload to server using apiClient
-        const apiClient = (await import('../lib/apiClient')).default;
-        const response = await apiClient.patch('/api/user/profile', {
-          avatarUrl: base64data,
+        // Save the uploaded URL to user profile
+        await apiClient.patch('/api/user/profile', {
+          profileImageUrl: uploadResult.url,
         });
 
         // Refresh both local profile data AND global auth context

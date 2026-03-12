@@ -13,7 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 
 interface Microblog {
@@ -58,21 +58,10 @@ interface ApologeticsQA {
 export default function BookmarksScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const { colors, colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'advice' | 'apologetics'>('advice');
-
-  const colors = {
-    background: isDark ? '#000000' : '#FFFFFF',
-    text: isDark ? '#FFFFFF' : '#0F1419',
-    textSecondary: isDark ? '#8B98A5' : '#536471',
-    border: isDark ? '#2F3336' : '#EFF3F4',
-    primary: '#1D9BF0',
-    tabActive: isDark ? '#FFFFFF' : '#0F1419',
-    tabInactive: isDark ? '#71767B' : '#536471',
-    cardBackground: isDark ? '#16181C' : '#FFFFFF',
-  };
 
   const styles = getStyles(colors, isDark);
 
@@ -302,7 +291,7 @@ export default function BookmarksScreen() {
           <Ionicons
             name="help-circle"
             size={20}
-            color={activeTab === 'advice' ? colors.tabActive : colors.tabInactive}
+            color={activeTab === 'advice' ? colors.textPrimary : colors.textSecondary}
           />
           <Text
             style={[
@@ -321,7 +310,7 @@ export default function BookmarksScreen() {
           <Ionicons
             name="book"
             size={20}
-            color={activeTab === 'apologetics' ? colors.tabActive : colors.tabInactive}
+            color={activeTab === 'apologetics' ? colors.textPrimary : colors.textSecondary}
           />
           <Text
             style={[
@@ -355,7 +344,17 @@ export default function BookmarksScreen() {
   );
 }
 
-function getStyles(colors: any, isDark: boolean) {
+function getStyles(themeColors: any, isDark: boolean) {
+  const colors = {
+    background: themeColors.background,
+    textPrimary: themeColors.textPrimary,
+    textSecondary: themeColors.textSecondary,
+    borderSubtle: themeColors.borderSubtle,
+    primary: themeColors.primary,
+    surface: themeColors.surface,
+    tabActive: themeColors.textPrimary,
+    tabInactive: themeColors.textSecondary,
+  };
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -412,10 +411,10 @@ function getStyles(colors: any, isDark: boolean) {
       fontWeight: '600',
     },
     tabTextActive: {
-      color: colors.tabActive,
+      color: colors.textPrimary,
     },
     tabTextInactive: {
-      color: colors.tabInactive,
+      color: colors.textSecondary,
     },
     content: {
       flex: 1,
@@ -424,7 +423,7 @@ function getStyles(colors: any, isDark: boolean) {
       padding: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.borderSubtle,
-      backgroundColor: colors.surfaceBackground,
+      backgroundColor: colors.surface,
     },
     postHeader: {
       flexDirection: 'row',

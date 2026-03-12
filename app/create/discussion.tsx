@@ -235,7 +235,7 @@ export default function CreateForumPostScreen() {
         text: content.trim(),
         communityId: selectedCommunityId,
         isAnonymous,
-        imageUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+        imageUrl: mediaUrls.length > 0 ? mediaUrls[0] : undefined,
         videoUrl: videoUrl || undefined,
       });
     } catch (error) {

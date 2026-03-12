@@ -270,7 +270,7 @@ export default function AdviceListScreen() {
             await apiClient.post('/api/reports', {
               subjectType: 'microblog',
               subjectId: postId,
-              reason: 'inappropriate_content',
+              reason: 'inappropriate',
             });
           } catch (error) {
           }

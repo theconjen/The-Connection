@@ -203,7 +203,7 @@ export default function AdviceListScreen() {
           onPress: async () => {
             try {
               await apiClient.post(`/api/microblogs/${post.id}/report`, {
-                reason: 'inappropriate_content',
+                reason: 'inappropriate',
               });
               Alert.alert('Reported', 'Thank you for your report. Our team will review it.');
             } catch {

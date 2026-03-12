@@ -899,7 +899,7 @@ export default function HomeScreen({
             await apiClient.post('/api/reports', {
               subjectType: 'microblog',
               subjectId: postId,
-              reason: 'inappropriate_content',
+              reason: 'inappropriate',
             });
           } catch (error) {
           }
@@ -945,7 +945,7 @@ export default function HomeScreen({
             await apiClient.post('/api/reports', {
               subjectType: 'post',
               subjectId: articleId,
-              reason: 'inappropriate_content',
+              reason: 'inappropriate',
             });
           } catch (error) {
           }

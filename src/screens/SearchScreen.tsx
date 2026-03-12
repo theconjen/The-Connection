@@ -258,16 +258,16 @@ export default function SearchScreen({ onClose, defaultFilter = 'all' }: SearchS
         router.push(`/communities/${result.id}`);
         break;
       case 'post':
-        router.push(`/posts/${result.id}`);
+        router.push(`/advice/${result.id}`);
         break;
       case 'event':
         router.push(`/events/${result.id}`);
         break;
       case 'question':
-        router.push(`/apologetics/${result.id}`);
+        router.push(`/apologetics/${result.id}` as any);
         break;
       case 'advice':
-        router.push(`/posts/${result.id}`);
+        router.push(`/advice/${result.id}`);
         break;
     }
   };

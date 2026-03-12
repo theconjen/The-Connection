@@ -20,11 +20,14 @@ import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import * as SecureStore from 'expo-secure-store';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { colors, colorScheme } = useTheme();
+  const styles = getThemedStyles(colors, colorScheme);
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
   const [agreedToConsequences, setAgreedToConsequences] = useState(false);
@@ -101,7 +104,7 @@ export default function DeleteAccountScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#0D1829" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Delete Account</Text>
         <View style={{ width: 40 }} />
@@ -171,15 +174,15 @@ export default function DeleteAccountScreen() {
               ]
             );
           }}>
-            <Ionicons name="time-outline" size={20} color="#5C6B5E" />
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
             <Text style={styles.alternativeText}>Take a break instead</Text>
-            <Ionicons name="chevron-forward" size={20} color="#637083" />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </Pressable>
 
           <Pressable style={styles.alternativeButton} onPress={() => router.push('/settings')}>
-            <Ionicons name="notifications-off-outline" size={20} color="#5C6B5E" />
+            <Ionicons name="notifications-off-outline" size={20} color={colors.primary} />
             <Text style={styles.alternativeText}>Adjust notification settings</Text>
-            <Ionicons name="chevron-forward" size={20} color="#637083" />
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -212,7 +215,7 @@ export default function DeleteAccountScreen() {
               value={confirmText}
               onChangeText={setConfirmText}
               placeholder="DELETE"
-              placeholderTextColor="#637083"
+              placeholderTextColor={colors.textTertiary}
               autoCapitalize="characters"
             />
           </View>
@@ -225,7 +228,7 @@ export default function DeleteAccountScreen() {
               value={password}
               onChangeText={setPassword}
               placeholder="Password"
-              placeholderTextColor="#637083"
+              placeholderTextColor={colors.textTertiary}
               secureTextEntry
             />
           </View>
@@ -268,10 +271,10 @@ export default function DeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getThemedStyles = (colors: any, colorScheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -279,9 +282,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D8DE',
+    borderBottomColor: colors.borderSubtle,
   },
   backButton: {
     padding: 8,
@@ -289,14 +292,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0D1829',
+    color: colors.textPrimary,
   },
   content: {
     flex: 1,
     padding: 16,
   },
   warningCard: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colorScheme === 'dark' ? '#3D1518' : '#FFF5F5',
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E63946',
@@ -313,7 +316,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 14,
-    color: '#0D1829',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   section: {
@@ -322,13 +325,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0D1829',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   consequenceItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
@@ -336,23 +339,23 @@ const styles = StyleSheet.create({
   consequenceText: {
     flex: 1,
     fontSize: 14,
-    color: '#0D1829',
+    color: colors.textPrimary,
     marginLeft: 12,
   },
   alternativeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#D1D8DE',
+    borderColor: colors.borderSubtle,
   },
   alternativeText: {
     flex: 1,
     fontSize: 15,
-    color: '#0D1829',
+    color: colors.textPrimary,
     marginLeft: 12,
     fontWeight: '500',
   },
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#D1D8DE',
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -378,7 +381,7 @@ const styles = StyleSheet.create({
   checkboxText: {
     flex: 1,
     fontSize: 14,
-    color: '#0D1829',
+    color: colors.textPrimary,
     marginLeft: 12,
   },
   inputContainer: {
@@ -387,7 +390,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0D1829',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   deleteText: {
@@ -395,14 +398,14 @@ const styles = StyleSheet.create({
     color: '#E63946',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D1D8DE',
+    borderColor: colors.borderSubtle,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#0D1829',
+    color: colors.textPrimary,
   },
   deleteButton: {
     flexDirection: 'row',
@@ -415,7 +418,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteButtonDisabled: {
-    backgroundColor: '#D1D8DE',
+    backgroundColor: colors.borderSubtle,
   },
   deleteButtonText: {
     fontSize: 16,
@@ -428,11 +431,11 @@ const styles = StyleSheet.create({
   },
   supportText: {
     fontSize: 13,
-    color: '#637083',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   supportLink: {
-    color: '#5C6B5E',
+    color: colors.primary,
     fontWeight: '600',
   },
 });

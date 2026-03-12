@@ -90,10 +90,6 @@ export default function CommunityDetailScreen() {
 
   const communityId = parseInt(id || '0');
 
-  // Use community's brand color for accents, fallback to app primary
-  const communityColor = community?.iconColor || colors.primary;
-  const styles = getStyles(colors, colorScheme, communityColor);
-
   // Fetch community details
   const { data: community, isLoading: communityLoading, refetch: refetchCommunity } = useQuery<Community>({
     queryKey: ['community', communityId],
@@ -104,6 +100,10 @@ export default function CommunityDetailScreen() {
     enabled: !!communityId,
     staleTime: 2 * 60 * 1000, // 2 minutes — membership status updates on join/leave actions
   });
+
+  // Use community's brand color for accents, fallback to app primary
+  const communityColor = community?.iconColor || colors.primary;
+  const styles = getStyles(colors, colorScheme, communityColor);
 
   // Fetch wall posts
   const { data: wallPosts = [], isLoading: postsLoading, refetch: refetchPosts } = useQuery<WallPost[]>({
