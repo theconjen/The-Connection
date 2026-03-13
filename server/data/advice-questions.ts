@@ -1354,17 +1354,216 @@ const cultureQuestions: AdviceQuestion[] = [
 ];
 
 // ============================================================================
+// ADDITIONAL FAITH QUESTIONS
+// ============================================================================
+
+const faithQuestionsExtra: AdviceQuestion[] = [
+  { content: "What's a book of the Bible you avoided for years but ended up loving?", category: "faith", tags: ["bible", "reading", "growth"] },
+  { content: "How do you explain your faith to someone who thinks religion is just a crutch?", category: "faith", tags: ["evangelism", "conversations", "apologetics"] },
+  { content: "Do you ever feel like God is silent? How do you keep going in those seasons?", category: "faith", tags: ["silence", "waiting", "trust"] },
+  { content: "What's the hardest commandment for you to follow and why?", category: "faith", tags: ["obedience", "struggle", "honesty"] },
+  { content: "How do you worship when you're not feeling it?", category: "faith", tags: ["worship", "discipline", "honesty"] },
+  { content: "Has anyone else gone through a season where church felt more like obligation than joy?", category: "faith", tags: ["church", "burnout", "honesty"] },
+  { content: "What's a prayer God answered in a way you didn't expect?", category: "faith", tags: ["prayer", "testimony", "trust"] },
+  { content: "How do you handle it when Christians you respect disagree on doctrine?", category: "faith", tags: ["doctrine", "unity", "disagreement"] },
+  { content: "What does surrender actually look like in everyday life?", category: "faith", tags: ["surrender", "daily-life", "trust"] },
+  { content: "How do you talk to God about the things you're ashamed of?", category: "faith", tags: ["shame", "prayer", "vulnerability"] },
+  { content: "What's a worship song that's gotten you through a hard season?", category: "faith", tags: ["worship", "music", "encouragement"] },
+  { content: "How do you deal with feeling spiritually dry? Nothing seems to help right now.", category: "faith", tags: ["dry-season", "struggle", "growth"] },
+  { content: "What's the difference between faith and toxic positivity? Sometimes I can't tell.", category: "faith", tags: ["faith", "honesty", "mental-health"] },
+  { content: "How do you find a church that actually feels like home?", category: "faith", tags: ["church", "community", "belonging"] },
+  { content: "What's a Bible verse that hit completely different when you reread it years later?", category: "faith", tags: ["bible", "growth", "wisdom"] },
+  { content: "How do you practice Sabbath rest when you have a million things to do?", category: "faith", tags: ["sabbath", "rest", "discipline"] },
+  { content: "Anyone else struggle with comparing your spiritual journey to others?", category: "faith", tags: ["comparison", "growth", "identity"] },
+  { content: "What's the best piece of spiritual advice you've ever received?", category: "faith", tags: ["advice", "wisdom", "mentorship"] },
+  { content: "How do you handle seasons where your faith feels more intellectual than heartfelt?", category: "faith", tags: ["head-vs-heart", "growth", "struggle"] },
+  { content: "What does it mean to 'be still and know' when your mind won't stop racing?", category: "faith", tags: ["anxiety", "stillness", "trust"] },
+];
+
+// ============================================================================
+// ADDITIONAL RELATIONSHIP QUESTIONS
+// ============================================================================
+
+const relationshipQuestionsExtra: AdviceQuestion[] = [
+  { content: "How do you set boundaries with family members who don't respect them?",  category: "relationships", tags: ["boundaries", "family", "conflict"] },
+  { content: "What's your advice for maintaining friendships as an adult? It's so hard.", category: "relationships", tags: ["friendship", "adult-life", "loneliness"] },
+  { content: "How did you know your spouse was 'the one'? Was there a moment or was it gradual?", category: "relationships", tags: ["marriage", "dating", "discernment"] },
+  { content: "How do you deal with a friend who only reaches out when they need something?", category: "relationships", tags: ["friendship", "boundaries", "honesty"] },
+  { content: "What's the most important thing you've learned about conflict resolution in relationships?", category: "relationships", tags: ["conflict", "communication", "growth"] },
+  { content: "How do you rebuild trust after it's been broken?", category: "relationships", tags: ["trust", "healing", "forgiveness"] },
+  { content: "Is it okay to distance yourself from toxic family members? I feel guilty about it.", category: "relationships", tags: ["family", "toxic", "boundaries"] },
+  { content: "How do you handle being the only Christian in your friend group?", category: "relationships", tags: ["faith", "friendship", "isolation"] },
+  { content: "What's the hardest conversation you've had to have with someone you love?", category: "relationships", tags: ["hard-conversations", "love", "courage"] },
+  { content: "How do you navigate different political views within your family without it turning ugly?", category: "relationships", tags: ["politics", "family", "grace"] },
+  { content: "Any tips for long-distance friendships? My best friend moved away and it's been rough.", category: "relationships", tags: ["friendship", "distance", "loneliness"] },
+  { content: "How do you support a friend going through something you've never experienced?", category: "relationships", tags: ["friendship", "empathy", "support"] },
+  { content: "What's a green flag in a relationship that people don't talk about enough?", category: "relationships", tags: ["dating", "wisdom", "discernment"] },
+  { content: "How do you forgive someone who isn't sorry?", category: "relationships", tags: ["forgiveness", "healing", "struggle"] },
+  { content: "What's your advice for couples who feel more like roommates than partners?", category: "relationships", tags: ["marriage", "intimacy", "growth"] },
+];
+
+// ============================================================================
+// ADDITIONAL WORK & CAREER QUESTIONS
+// ============================================================================
+
+const workQuestionsExtra: AdviceQuestion[] = [
+  { content: "How do you handle a toxic work environment without becoming bitter?", category: "work", tags: ["work", "toxic", "attitude"] },
+  { content: "Is it wrong to want to make good money? Sometimes I feel guilty for wanting financial success.", category: "work", tags: ["money", "ambition", "calling"] },
+  { content: "How do you know when it's time to leave a job vs. sticking it out?", category: "work", tags: ["career", "discernment", "change"] },
+  { content: "What do you do when your job doesn't align with your calling but you need the paycheck?", category: "work", tags: ["calling", "provision", "tension"] },
+  { content: "How do you deal with imposter syndrome at work?", category: "work", tags: ["imposter-syndrome", "confidence", "identity"] },
+  { content: "Any advice for someone starting their own business as a Christian? It's terrifying.", category: "work", tags: ["entrepreneurship", "faith", "risk"] },
+  { content: "How do you handle working for someone whose values don't align with yours?", category: "work", tags: ["values", "workplace", "integrity"] },
+  { content: "What's the best career advice you've received from a mentor?", category: "work", tags: ["mentorship", "career", "wisdom"] },
+  { content: "How do you avoid making your career your identity?", category: "work", tags: ["identity", "balance", "worth"] },
+  { content: "Anyone else feel called to ministry but scared of the financial reality?", category: "work", tags: ["ministry", "calling", "finances"] },
+];
+
+// ============================================================================
+// ADDITIONAL MENTAL HEALTH QUESTIONS
+// ============================================================================
+
+const mentalHealthQuestionsExtra: AdviceQuestion[] = [
+  { content: "How do you explain depression to someone who says 'just pray about it'?", category: "mental-health", tags: ["depression", "stigma", "understanding"] },
+  { content: "What does self-care look like for you that isn't just bubble baths and face masks?", category: "mental-health", tags: ["self-care", "practical", "health"] },
+  { content: "How do you stop negative self-talk? It's exhausting being your own worst critic.", category: "mental-health", tags: ["self-talk", "identity", "healing"] },
+  { content: "Anyone else feel like they're always performing a version of themselves for others?", category: "mental-health", tags: ["authenticity", "masks", "vulnerability"] },
+  { content: "How do you deal with grief that comes in waves? Some days I'm fine, others I can't function.", category: "mental-health", tags: ["grief", "loss", "healing"] },
+  { content: "What helped you actually start therapy? I know I need it but keep putting it off.", category: "mental-health", tags: ["therapy", "courage", "healing"] },
+  { content: "How do you set boundaries around your mental health without feeling selfish?", category: "mental-health", tags: ["boundaries", "self-care", "guilt"] },
+  { content: "Does anyone else struggle with Sunday scaries? The anxiety before Monday hits different.", category: "mental-health", tags: ["anxiety", "work", "stress"] },
+  { content: "How do you break the cycle of people-pleasing? I'm so tired of saying yes to everything.", category: "mental-health", tags: ["people-pleasing", "boundaries", "freedom"] },
+  { content: "What do you do when you feel like you're failing at everything — faith, work, relationships, all of it?", category: "mental-health", tags: ["overwhelm", "failure", "grace"] },
+  { content: "How do you handle comparison on social media without deleting all your apps?", category: "mental-health", tags: ["comparison", "social-media", "identity"] },
+  { content: "What's something you stopped doing that dramatically improved your mental health?", category: "mental-health", tags: ["mental-health", "habits", "growth"] },
+];
+
+// ============================================================================
+// ADDITIONAL PARENTING QUESTIONS
+// ============================================================================
+
+const parentingQuestionsExtra: AdviceQuestion[] = [
+  { content: "How do you teach your kids about God without making it feel forced?", category: "parenting", tags: ["kids", "faith", "parenting"] },
+  { content: "What's the best way to handle screen time with your kids? I feel like I'm always the bad guy.", category: "parenting", tags: ["screen-time", "boundaries", "modern-parenting"] },
+  { content: "How do you parent differently than your parents did while still honoring them?", category: "parenting", tags: ["generational", "healing", "respect"] },
+  { content: "Any advice for parenting a strong-willed child? I'm running out of patience and ideas.", category: "parenting", tags: ["strong-willed", "patience", "wisdom"] },
+  { content: "How do you keep your marriage strong when you're in the trenches of young kids?", category: "parenting", tags: ["marriage", "young-kids", "balance"] },
+  { content: "What age did you start having hard conversations with your kids about faith and doubt?", category: "parenting", tags: ["faith", "conversations", "age-appropriate"] },
+  { content: "How do you deal with mom guilt or dad guilt? It never seems to go away.", category: "parenting", tags: ["guilt", "parenting", "grace"] },
+  { content: "What's the best family devotional or Bible resource you've found for kids?", category: "parenting", tags: ["devotional", "kids", "resources"] },
+  { content: "How do you raise grateful kids in a world that teaches them to always want more?", category: "parenting", tags: ["gratitude", "culture", "values"] },
+  { content: "Single parents — how do you do it all? I need your secrets.", category: "parenting", tags: ["single-parent", "support", "strength"] },
+];
+
+// ============================================================================
+// SINGLENESS & DATING QUESTIONS (NEW CATEGORY)
+// ============================================================================
+
+const singlenessQuestions: AdviceQuestion[] = [
+  { content: "How do you handle being single in a church that seems to revolve around married couples?", category: "singleness", tags: ["singleness", "church", "belonging"] },
+  { content: "What's your take on Christian dating apps? Worth it or waste of time?", category: "singleness", tags: ["dating", "apps", "modern"] },
+  { content: "How do you deal with the 'God has someone for you' comments when you've been waiting years?", category: "singleness", tags: ["waiting", "patience", "singleness"] },
+  { content: "How do you fight loneliness as a single Christian without rushing into a relationship?", category: "singleness", tags: ["loneliness", "singleness", "patience"] },
+  { content: "What are your non-negotiables when it comes to dating as a believer?", category: "singleness", tags: ["dating", "standards", "values"] },
+  { content: "How do you respond when family keeps asking why you're still single?", category: "singleness", tags: ["family", "pressure", "singleness"] },
+  { content: "Is it okay to date someone who isn't a Christian if they're open to faith?", category: "singleness", tags: ["dating", "faith", "discernment"] },
+  { content: "How do you build a full, meaningful life as a single person? Not just 'waiting' for marriage.", category: "singleness", tags: ["purpose", "singleness", "identity"] },
+  { content: "What's the hardest part about dating in your 30s as a Christian?", category: "singleness", tags: ["dating", "age", "struggle"] },
+  { content: "How do you handle physical boundaries in dating when culture says anything goes?", category: "singleness", tags: ["boundaries", "purity", "dating"] },
+  { content: "Anyone else tired of being told 'it'll happen when you stop looking'?", category: "singleness", tags: ["singleness", "clichés", "honesty"] },
+  { content: "What's something you've learned to appreciate about being single?", category: "singleness", tags: ["gratitude", "singleness", "perspective"] },
+];
+
+// ============================================================================
+// FINANCES & STEWARDSHIP QUESTIONS (NEW CATEGORY)
+// ============================================================================
+
+const financeQuestions: AdviceQuestion[] = [
+  { content: "How do you tithe when you're barely making ends meet? Genuine question, not trying to start a debate.", category: "finances", tags: ["tithing", "money", "faith"] },
+  { content: "What's the best budgeting method you've found? I need to get my finances together.", category: "finances", tags: ["budget", "practical", "stewardship"] },
+  { content: "How do you talk about money in marriage without it turning into a fight?", category: "finances", tags: ["marriage", "money", "communication"] },
+  { content: "Is debt always bad? Trying to figure out if student loans were a mistake.", category: "finances", tags: ["debt", "education", "wisdom"] },
+  { content: "How do you teach your kids about money and generosity?", category: "finances", tags: ["kids", "money", "generosity"] },
+  { content: "How do you balance saving for the future and being generous now?", category: "finances", tags: ["saving", "generosity", "balance"] },
+  { content: "What does biblical stewardship actually look like in 2026?", category: "finances", tags: ["stewardship", "modern", "faith"] },
+  { content: "How do you handle financial stress without it consuming your thoughts?", category: "finances", tags: ["stress", "money", "peace"] },
+  { content: "Anyone gone through Financial Peace University? Was it worth it?", category: "finances", tags: ["resources", "money", "courses"] },
+  { content: "How do you give generously when you grew up in scarcity?", category: "finances", tags: ["generosity", "scarcity", "healing"] },
+];
+
+// ============================================================================
+// SERVICE & COMMUNITY QUESTIONS (NEW CATEGORY)
+// ============================================================================
+
+const serviceQuestions: AdviceQuestion[] = [
+  { content: "How do you find your place to serve at church when nothing seems to fit?", category: "service", tags: ["serving", "church", "gifts"] },
+  { content: "How do you serve without burning out? I said yes to everything and now I'm fried.", category: "service", tags: ["burnout", "serving", "boundaries"] },
+  { content: "What's a simple way to serve your community that doesn't require a big time commitment?", category: "service", tags: ["community", "practical", "small-steps"] },
+  { content: "How do you serve someone who doesn't want help? A friend is struggling but keeps pushing people away.", category: "service", tags: ["helping", "friendship", "patience"] },
+  { content: "What's the most meaningful act of service someone has done for you?", category: "service", tags: ["testimony", "kindness", "gratitude"] },
+  { content: "How do you get plugged into a new church community when you're naturally introverted?", category: "service", tags: ["introvert", "community", "belonging"] },
+  { content: "How do you serve the homeless in a way that's actually dignifying?", category: "service", tags: ["homeless", "dignity", "practical"] },
+  { content: "What does it look like to be a good neighbor? Like practically, not just the Sunday school answer.", category: "service", tags: ["neighbors", "practical", "love"] },
+  { content: "How do you involve your whole family in serving? Want to make it a family value.", category: "service", tags: ["family", "serving", "values"] },
+  { content: "Anyone else feel like they have no spiritual gifts? How do you figure out what yours are?", category: "service", tags: ["spiritual-gifts", "identity", "serving"] },
+];
+
+// ============================================================================
+// ADDITIONAL LIFE TRANSITIONS QUESTIONS
+// ============================================================================
+
+const transitionQuestionsExtra: AdviceQuestion[] = [
+  { content: "How did you handle moving to a new city where you knew nobody?", category: "transitions", tags: ["moving", "loneliness", "new-start"] },
+  { content: "What helped you through a career change in your 30s or 40s? I'm terrified but feel stuck.", category: "transitions", tags: ["career-change", "fear", "calling"] },
+  { content: "How do you navigate faith after leaving a toxic church?", category: "transitions", tags: ["church-hurt", "healing", "faith"] },
+  { content: "What's your advice for someone going through a divorce they didn't want?", category: "transitions", tags: ["divorce", "grief", "healing"] },
+  { content: "How do you start over after a major life failure? Asking for myself.", category: "transitions", tags: ["failure", "grace", "new-start"] },
+  { content: "How do you deal with empty nest syndrome? The house is so quiet now.", category: "transitions", tags: ["empty-nest", "identity", "change"] },
+  { content: "What advice would you give someone in their first year after college? I feel so lost.", category: "transitions", tags: ["post-college", "direction", "identity"] },
+  { content: "How do you cope with aging parents? Watching them slow down is harder than I expected.", category: "transitions", tags: ["aging-parents", "grief", "caregiving"] },
+  { content: "How do you find purpose after retirement? I thought I'd love it but I feel aimless.", category: "transitions", tags: ["retirement", "purpose", "identity"] },
+  { content: "Anyone else feel like they're in a waiting season that won't end? How do you stay faithful?", category: "transitions", tags: ["waiting", "patience", "faith"] },
+];
+
+// ============================================================================
+// ADDITIONAL CULTURE QUESTIONS
+// ============================================================================
+
+const cultureQuestionsExtra: AdviceQuestion[] = [
+  { content: "How do you have political conversations with other Christians without it ruining the relationship?", category: "culture", tags: ["politics", "unity", "grace"] },
+  { content: "What's your approach to engaging with culture — do you consume everything critically or filter heavily?", category: "culture", tags: ["culture", "media", "discernment"] },
+  { content: "How do you raise kids with strong values in a culture that's constantly shifting?", category: "culture", tags: ["parenting", "culture", "values"] },
+  { content: "What does being 'in the world but not of it' actually look like for you day to day?", category: "culture", tags: ["culture", "faith", "practical"] },
+  { content: "How do you share your faith online without coming across as preachy?", category: "culture", tags: ["social-media", "evangelism", "authenticity"] },
+  { content: "What Christian podcast or creator has genuinely shaped your thinking?", category: "culture", tags: ["podcasts", "resources", "growth"] },
+  { content: "How do you respond when someone says all religions are the same?", category: "culture", tags: ["apologetics", "conversations", "truth"] },
+  { content: "What's a secular book or show that unexpectedly deepened your faith?", category: "culture", tags: ["culture", "unexpected", "growth"] },
+  { content: "How do you balance being informed about world events without drowning in doom scrolling?", category: "culture", tags: ["news", "mental-health", "balance"] },
+  { content: "What does racial reconciliation look like in your local church? Is it actually happening?", category: "culture", tags: ["race", "church", "justice"] },
+];
+
+// ============================================================================
 // COMBINED EXPORT
 // ============================================================================
 
 export const ALL_ADVICE_QUESTIONS: AdviceQuestion[] = [
   ...faithQuestions,
+  ...faithQuestionsExtra,
   ...relationshipQuestions,
+  ...relationshipQuestionsExtra,
   ...workQuestions,
+  ...workQuestionsExtra,
   ...mentalHealthQuestions,
+  ...mentalHealthQuestionsExtra,
   ...parentingQuestions,
+  ...parentingQuestionsExtra,
   ...transitionQuestions,
+  ...transitionQuestionsExtra,
   ...cultureQuestions,
+  ...cultureQuestionsExtra,
+  ...singlenessQuestions,
+  ...financeQuestions,
+  ...serviceQuestions,
 ];
 
 // Helper to get random questions
