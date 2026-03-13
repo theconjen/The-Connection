@@ -34,6 +34,7 @@ import {
 import {
   getProgress,
   getActiveMonth,
+  recordReading,
   type ChallengeProgress,
 } from '../src/components/BibleChallengeCard';
 import { getBookInfo, formatReadingTime } from '../src/lib/bibleBookInfo';
@@ -509,6 +510,8 @@ export default function BibleChallengeScreen() {
       updated = current.filter(d => d !== day);
     } else {
       updated = [...current, day];
+      // Record reading for streak tracking
+      recordReading().catch(() => {});
     }
 
     const newProgress = { ...progress, [key]: updated };
@@ -740,6 +743,10 @@ export default function BibleChallengeScreen() {
 
   const handleChapterChange = useCallback(async (chapter: number) => {
     setLocalChapter(chapter);
+    // Record reading for streak tracking (only when progressing forward)
+    if (chapter > currentChapter) {
+      recordReading().catch(() => {});
+    }
     // Trigger celebration + mark complete when all chapters are done
     if (bookInfo && currentBook && chapter >= bookInfo.chapters) {
       setTimeout(() => setShowBookComplete(true), 400);
@@ -754,7 +761,7 @@ export default function BibleChallengeScreen() {
     } catch {
       setLocalChapter(null); // revert on error
     }
-  }, [bookInfo, currentBook, completedBooks, refresh]);
+  }, [bookInfo, currentBook, completedBooks, currentChapter, refresh]);
 
   if (currentBook && !showChallenge) {
     const remainingMin = bookInfo ? Math.round(bookInfo.readingTimeMinutes * ((bookInfo.chapters - currentChapter) / bookInfo.chapters)) : 0;

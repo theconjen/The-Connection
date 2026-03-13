@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, ChevronRight, Check, Clock, Hash } from 'lucide-react-native';
+import { BookOpen, ChevronRight, Check, Clock, Hash, Flame, Hourglass } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BIBLE_READING_PLAN } from '../lib/bibleReadingPlan';
@@ -15,6 +15,73 @@ import { getBookInfo, formatReadingTime } from '../lib/bibleBookInfo';
 
 const STORAGE_KEY = 'bible_challenge_progress';
 const ACTIVE_MONTH_KEY = 'bible_challenge_active_month';
+const STREAK_KEY = 'bible_reading_streak';
+const LAST_READ_KEY = 'bible_last_read_at';
+const STREAK_WINDOW_MS = 25 * 60 * 60 * 1000; // 25 hours
+
+export async function getStreakData(): Promise<{ streak: number; lastReadAt: number | null; hoursLeft: number | null }> {
+  try {
+    const [streakRaw, lastReadRaw] = await Promise.all([
+      AsyncStorage.getItem(STREAK_KEY),
+      AsyncStorage.getItem(LAST_READ_KEY),
+    ]);
+    const streak = streakRaw ? parseInt(streakRaw, 10) : 0;
+    const lastReadAt = lastReadRaw ? parseInt(lastReadRaw, 10) : null;
+
+    if (!lastReadAt || streak === 0) {
+      return { streak: 0, lastReadAt: null, hoursLeft: null };
+    }
+
+    const elapsed = Date.now() - lastReadAt;
+    if (elapsed > STREAK_WINDOW_MS) {
+      // Streak broken — reset
+      await AsyncStorage.setItem(STREAK_KEY, '0');
+      return { streak: 0, lastReadAt, hoursLeft: null };
+    }
+
+    const hoursLeft = Math.max(0, Math.round((STREAK_WINDOW_MS - elapsed) / (60 * 60 * 1000)));
+    return { streak, lastReadAt, hoursLeft };
+  } catch {
+    return { streak: 0, lastReadAt: null, hoursLeft: null };
+  }
+}
+
+export async function recordReading(): Promise<number> {
+  const now = Date.now();
+  const [streakRaw, lastReadRaw] = await Promise.all([
+    AsyncStorage.getItem(STREAK_KEY),
+    AsyncStorage.getItem(LAST_READ_KEY),
+  ]);
+
+  let streak = streakRaw ? parseInt(streakRaw, 10) : 0;
+  const lastReadAt = lastReadRaw ? parseInt(lastReadRaw, 10) : null;
+
+  if (!lastReadAt) {
+    // First ever reading
+    streak = 1;
+  } else {
+    const elapsed = now - lastReadAt;
+    if (elapsed > STREAK_WINDOW_MS) {
+      // Streak broken
+      streak = 1;
+    } else {
+      // Check if this is a new calendar day (avoid incrementing multiple times same day)
+      const lastDate = new Date(lastReadAt).toDateString();
+      const todayDate = new Date(now).toDateString();
+      if (lastDate !== todayDate) {
+        streak += 1;
+      }
+      // Same day = keep streak, just update timestamp
+    }
+  }
+
+  await Promise.all([
+    AsyncStorage.setItem(STREAK_KEY, String(streak)),
+    AsyncStorage.setItem(LAST_READ_KEY, String(now)),
+  ]);
+
+  return streak;
+}
 
 export interface ChallengeProgress {
   [monthKey: string]: number[]; // month "1" -> array of completed day numbers
@@ -50,9 +117,15 @@ export default function BibleChallengeCard() {
   const [completedCount, setCompletedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [nextReading, setNextReading] = useState<{ psalm: string; proverb: string; main: string; commentary: string } | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [hoursLeft, setHoursLeft] = useState<number | null>(null);
 
   useEffect(() => {
     loadProgress();
+    getStreakData().then(data => {
+      setStreak(data.streak);
+      setHoursLeft(data.hoursLeft);
+    });
   }, []);
 
   async function loadProgress() {
@@ -110,12 +183,28 @@ export default function BibleChallengeCard() {
       : 0;
     const remainingMin = Math.round(bookInfo.readingTimeMinutes * ((bookInfo.chapters - currentChapter) / bookInfo.chapters));
 
+    const streakUrgent = hoursLeft !== null && hoursLeft <= 6 && streak > 0;
+
     return (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}
         onPress={() => router.push('/bible-challenge')}
         activeOpacity={0.7}
       >
+        {/* Streak badge */}
+        {streak > 0 && (
+          <View style={[styles.streakBadge, { backgroundColor: streakUrgent ? (isDark ? '#7C2D12' : '#FFF7ED') : (isDark ? '#1C2A1C' : '#F0FDF4') }]}>
+            {streakUrgent ? (
+              <Hourglass size={12} color={isDark ? '#FB923C' : '#EA580C'} />
+            ) : (
+              <Flame size={12} color={isDark ? '#86EFAC' : '#16A34A'} />
+            )}
+            <Text style={[styles.streakText, { color: streakUrgent ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#86EFAC' : '#16A34A') }]}>
+              {streak} day{streak !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        )}
+
         {/* Top row */}
         <View style={styles.topRow}>
           <View style={styles.titleRow}>
@@ -179,12 +268,28 @@ export default function BibleChallengeCard() {
   }
 
   // ── Bible Challenge card (no book set) ──
+  const streakUrgent = hoursLeft !== null && hoursLeft <= 6 && streak > 0;
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}
       onPress={() => router.push('/bible-challenge')}
       activeOpacity={0.7}
     >
+      {/* Streak badge */}
+      {streak > 0 && (
+        <View style={[styles.streakBadge, { backgroundColor: streakUrgent ? (isDark ? '#7C2D12' : '#FFF7ED') : (isDark ? '#1C2A1C' : '#F0FDF4') }]}>
+          {streakUrgent ? (
+            <Hourglass size={12} color={isDark ? '#FB923C' : '#EA580C'} />
+          ) : (
+            <Flame size={12} color={isDark ? '#86EFAC' : '#16A34A'} />
+          )}
+          <Text style={[styles.streakText, { color: streakUrgent ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#86EFAC' : '#16A34A') }]}>
+            {streak} day{streak !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
+
       {/* Top row: title + chevron */}
       <View style={styles.topRow}>
         <View style={styles.titleRow}>
@@ -261,6 +366,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginTop: 4,
     marginBottom: 8,
+  },
+  streakBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  streakText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   topRow: {
     flexDirection: 'row',

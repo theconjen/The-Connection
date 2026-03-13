@@ -517,7 +517,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
-        refresh: () => verifyAuth(false),
+        refresh: () => verifyAuth(true),
         // Biometric
         biometricAvailable,
         biometricType,
